@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 220 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
+
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 16% 93%;
+    --secondary-foreground: 220 25% 10%;
+
+    --muted: 220 16% 93%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 220 16% 93%;
+    --accent-foreground: 220 25% 10%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 160 84% 39%;
+
+    --radius: 0.75rem;
+
+    /* Fleet-specific tokens */
+    --status-active: 160 84% 39%;
+    --status-idle: 38 92% 50%;
+    --status-offline: 0 72% 51%;
+    --status-active-bg: 160 84% 39% / 0.12;
+    --status-idle-bg: 38 92% 50% / 0.12;
+    --status-offline-bg: 0 72% 51% / 0.12;
+
+    --visit-pending: 220 10% 46%;
+    --visit-arrived: 217 91% 60%;
+    --visit-completed: 160 84% 39%;
+    --visit-skipped: 25 95% 53%;
+
+    --bento-gap: 1rem;
+    --header-height: 4rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 25% 10%;
+    --sidebar-primary: 160 84% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 16% 93%;
+    --sidebar-accent-foreground: 220 25% 10%;
+    --sidebar-border: 220 13% 90%;
+    --sidebar-ring: 160 84% 39%;
+  }
+
+  .dark {
+    --background: 222 28% 7%;
+    --foreground: 210 20% 95%;
+
+    --card: 222 25% 11%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 222 25% 11%;
+    --popover-foreground: 210 20% 95%;
+
+    --primary: 160 84% 44%;
+    --primary-foreground: 222 28% 7%;
+
+    --secondary: 222 20% 16%;
+    --secondary-foreground: 210 20% 95%;
+
+    --muted: 222 20% 16%;
+    --muted-foreground: 215 15% 55%;
+
+    --accent: 222 20% 16%;
+    --accent-foreground: 210 20% 95%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 20% 18%;
+    --input: 222 20% 18%;
+    --ring: 160 84% 44%;
+
+    --status-active: 160 84% 44%;
+    --status-idle: 38 92% 55%;
+    --status-offline: 0 72% 55%;
+    --status-active-bg: 160 84% 44% / 0.15;
+    --status-idle-bg: 38 92% 55% / 0.15;
+    --status-offline-bg: 0 72% 55% / 0.15;
+
+    --visit-pending: 215 15% 55%;
+    --visit-arrived: 217 91% 65%;
+    --visit-completed: 160 84% 44%;
+    --visit-skipped: 25 95% 58%;
+
+    --sidebar-background: 222 25% 9%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 160 84% 44%;
+    --sidebar-primary-foreground: 222 28% 7%;
+    --sidebar-accent: 222 20% 16%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 222 20% 18%;
+    --sidebar-ring: 160 84% 44%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  code, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .bento-card {
+    @apply bg-card text-card-foreground rounded-xl border border-border/50 shadow-sm overflow-hidden transition-all duration-200;
+  }
+
+  .bento-card-interactive {
+    @apply bento-card hover:shadow-md hover:border-border cursor-pointer;
+  }
+
+  .status-dot {
+    @apply w-2.5 h-2.5 rounded-full shrink-0;
+  }
+
+  .status-dot-active {
+    @apply status-dot;
+    background-color: hsl(var(--status-active));
+    box-shadow: 0 0 8px hsl(var(--status-active) / 0.5);
+  }
+
+  .status-dot-idle {
+    @apply status-dot;
+    background-color: hsl(var(--status-idle));
+    box-shadow: 0 0 8px hsl(var(--status-idle) / 0.5);
+  }
+
+  .status-dot-offline {
+    @apply status-dot;
+    background-color: hsl(var(--status-offline));
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); }
+    50% { box-shadow: 0 0 0 8px hsl(var(--primary) / 0); }
+  }
+
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl;
+  }
+}

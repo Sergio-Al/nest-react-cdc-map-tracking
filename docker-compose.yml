@@ -1,0 +1,314 @@
+version: '3.8'
+
+# ──────────────────────────────────────────────────────────────
+# Vehicle Distribution Tracking System – Development Stack
+# ──────────────────────────────────────────────────────────────
+
+services:
+  # ─── Traccar GPS Server ────────────────────────────────────
+  traccar:
+    image: traccar/traccar:6.5
+    container_name: traccar
+    restart: unless-stopped
+    ports:
+      - "${TRACCAR_PORT_API:-8082}:8082"       # Web / API
+      - "${TRACCAR_PORT_TCP:-5001}:5001/tcp"   # GPS device TCP
+      - "${TRACCAR_PORT_UDP:-5001}:5001/udp"   # GPS device UDP
+    volumes:
+      - ./infrastructure/traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+    depends_on:
+      traccar-db:
+        condition: service_healthy
+    networks:
+      - tracking-net
+
+  # ─── Traccar PostgreSQL ────────────────────────────────────
+  traccar-db:
+    image: postgres:16-alpine
+    container_name: traccar-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${TRACCAR_DB_NAME:-traccar}
+      POSTGRES_USER: ${TRACCAR_DB_USER:-traccar}
+      POSTGRES_PASSWORD: ${TRACCAR_DB_PASSWORD:-traccar_secret}
+    volumes:
+      - traccar-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TRACCAR_DB_USER:-traccar}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - tracking-net
+
+  # ─── Apache Kafka (KRaft – no Zookeeper) ───────────────────
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: kafka
+    restart: unless-stopped
+    environment:
+      # KRaft settings
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Listeners
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Topic defaults
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Cluster – must be a valid 22-char base64 string
+      CLUSTER_ID: "c3RyZWFtLXRyYWNraW5nLQ"
+    ports:
+      - "${KAFKA_EXTERNAL_PORT:-9094}:9094"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - tracking-net
+
+  # ─── Kafka Init (create topics) ───────────────────────────
+  kafka-init:
+    image: apache/kafka:3.9.0
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Creating Kafka topics..."
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic gps.positions          --partitions 6 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic gps.positions.enriched --partitions 6 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic gps.events             --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic visits.events          --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.customers          --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.accounts           --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.products           --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.orders             --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.users              --partitions 3 --replication-factor 1
+        echo "All topics created ✔"
+    networks:
+      - tracking-net
+
+  # ─── Kafka Connect + Debezium (MySQL CDC) ─────────────────
+  kafka-connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: kafka-connect
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: debezium-connect
+      CONFIG_STORAGE_TOPIC: _connect-configs
+      OFFSET_STORAGE_TOPIC: _connect-offsets
+      STATUS_STORAGE_TOPIC: _connect-status
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/connectors || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - tracking-net
+
+  # ─── Kafka UI ──────────────────────────────────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-connect:
+        condition: service_healthy
+    networks:
+      - tracking-net
+
+  # ─── MySQL (replaces SQL Server as core business DB) ───────
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secret}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-core_business}
+      MYSQL_USER: ${MYSQL_USER:-app_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secret}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infrastructure/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/mysql/conf/my.cnf:/etc/mysql/conf.d/binlog.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tracking-net
+
+  # ─── Cache PostgreSQL (local tracking data) ───────────────
+  cache-db:
+    image: postgres:16-alpine
+    container_name: cache-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CACHE_DB_NAME:-tracking_cache}
+      POSTGRES_USER: ${CACHE_DB_USER:-tracking}
+      POSTGRES_PASSWORD: ${CACHE_DB_PASSWORD:-tracking_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - cache-db-data:/var/lib/postgresql/data
+      - ./infrastructure/cache-db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CACHE_DB_USER:-tracking}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - tracking-net
+
+  # ─── TimescaleDB (historical positions) ───────────────────
+  timescale:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescale
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${TIMESCALE_DB:-tracking_history}
+      POSTGRES_USER: ${TIMESCALE_USER:-timescale}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_secret}
+    ports:
+      - "${TIMESCALE_PORT:-5433}:5432"
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+      - ./infrastructure/timescale/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TIMESCALE_USER:-timescale}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - tracking-net
+
+  # ─── Redis ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secret} --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - tracking-net
+
+  # ─── NestJS Tracking Service ──────────────────────────────
+  tracking-service:
+    build:
+      context: ./tracking-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: tracking-service
+    restart: unless-stopped
+    ports:
+      - "${TRACKING_SERVICE_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      # Kafka
+      KAFKA_BROKER: kafka:9092
+      KAFKA_CLIENT_ID: tracking-service
+      KAFKA_GROUP_ID: tracking-service-group
+      # Cache DB (Local PostgreSQL)
+      CACHE_DB_HOST: cache-db
+      CACHE_DB_PORT: 5432
+      CACHE_DB_NAME: ${CACHE_DB_NAME:-tracking_cache}
+      CACHE_DB_USER: ${CACHE_DB_USER:-tracking}
+      CACHE_DB_PASSWORD: ${CACHE_DB_PASSWORD:-tracking_secret}
+      # TimescaleDB
+      TIMESCALE_HOST: timescale
+      TIMESCALE_PORT: 5432
+      TIMESCALE_DB: ${TIMESCALE_DB:-tracking_history}
+      TIMESCALE_USER: ${TIMESCALE_USER:-timescale}
+      TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_secret}
+      # MySQL (source of truth – replaces SQL Server)
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-core_business}
+      MYSQL_USER: ${MYSQL_USER:-app_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secret}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      # Authentication
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-7d}
+      TRACCAR_API_KEY: ${TRACCAR_API_KEY:-traccar-shared-key}
+    volumes:
+      - ./tracking-service:/app
+      - /app/node_modules
+    depends_on:
+      kafka:
+        condition: service_healthy
+      cache-db:
+        condition: service_healthy
+      timescale:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - tracking-net
+
+# ─── Volumes ───────────────────────────────────────────────
+volumes:
+  traccar-db-data:
+  kafka-data:
+  mysql-data:
+  cache-db-data:
+  timescale-data:
+  redis-data:
+
+# ─── Networks ──────────────────────────────────────────────
+networks:
+  tracking-net:
+    driver: bridge
