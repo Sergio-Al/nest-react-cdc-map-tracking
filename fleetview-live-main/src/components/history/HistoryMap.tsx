@@ -66,11 +66,28 @@ export function HistoryMap() {
 
   const defaultCenter: LatLngExpression = [-16.5, -68.1];
 
-  // Traversed vs remaining path split at cursor
-  const traversedPath = useMemo(() => {
-    return positions
-      .slice(0, currentIndex + 1)
-      .map((p): LatLngExpression => [p.latitude, p.longitude]);
+  // Traversed path segments colored by speed
+  const traversedSegments = useMemo(() => {
+    const slice = positions.slice(0, currentIndex + 1);
+    if (slice.length < 2) return [];
+
+    const segments: { positions: LatLngExpression[]; color: string }[] = [];
+
+    for (let i = 0; i < slice.length - 1; i++) {
+      const p1 = slice[i];
+      const p2 = slice[i + 1];
+      const color = getSpeedColor(p1.speed);
+      const from: LatLngExpression = [p1.latitude, p1.longitude];
+      const to: LatLngExpression = [p2.latitude, p2.longitude];
+
+      if (segments.length > 0 && segments[segments.length - 1].color === color) {
+        segments[segments.length - 1].positions.push(to);
+      } else {
+        segments.push({ positions: [from, to], color });
+      }
+    }
+
+    return segments;
   }, [positions, currentIndex]);
 
   const remainingPath = useMemo(() => {
@@ -152,16 +169,17 @@ export function HistoryMap() {
         )}
 
         {/* Traversed path (colored by speed) */}
-        {traversedPath.length > 1 && (
+        {traversedSegments.map((segment, i) => (
           <Polyline
-            positions={traversedPath}
+            key={`seg-${i}`}
+            positions={segment.positions}
             pathOptions={{
-              color: '#3b82f6',
+              color: segment.color,
               weight: 4,
               opacity: 0.85,
             }}
           />
-        )}
+        ))}
 
         {/* Visit stop markers */}
         {visitStops.map((stop) => (
