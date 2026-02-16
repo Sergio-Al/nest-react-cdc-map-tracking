@@ -4,7 +4,7 @@ import { TrackingMap } from "@/components/dashboard/TrackingMap";
 import { StatsGrid } from "@/components/dashboard/StatsGrid";
 import { useSocket } from "@/hooks/useSocket";
 import { useDriverPositions } from "@/hooks/useDriverPositions";
-import { useDrivers } from "@/hooks/api/useDrivers";
+import { useDrivers, useInitialPositions } from "@/hooks/api/useDrivers";
 import { useMapStore } from "@/stores/map.store";
 
 const Index = () => {
@@ -14,11 +14,14 @@ const Index = () => {
   // Initialize WebSocket connection
   const { isConnected } = useSocket();
 
-  // Subscribe to real-time position updates
-  useDriverPositions();
+  // Subscribe to real-time position updates (re-registers on reconnect)
+  useDriverPositions(isConnected);
 
   // Fetch driver metadata
   const { data: drivers = [], isLoading: isLoadingDrivers } = useDrivers();
+
+  // Seed map store with latest known positions from REST API
+  useInitialPositions(drivers);
 
   // Get live positions from map store
   const positions = useMapStore((state) => state.positions);

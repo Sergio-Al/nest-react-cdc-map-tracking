@@ -7,13 +7,14 @@ version: '3.8'
 services:
   # ─── Traccar GPS Server ────────────────────────────────────
   traccar:
-    image: traccar/traccar:6.5
+    image: traccar/traccar:6.11
     container_name: traccar
     restart: unless-stopped
     ports:
       - "${TRACCAR_PORT_API:-8082}:8082"       # Web / API
       - "${TRACCAR_PORT_TCP:-5001}:5001/tcp"   # GPS device TCP
       - "${TRACCAR_PORT_UDP:-5001}:5001/udp"   # GPS device UDP
+      - "5055:5055/tcp"                         # OsmAnd protocol (Traccar Client iOS/Android)
     volumes:
       - ./infrastructure/traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
     depends_on:

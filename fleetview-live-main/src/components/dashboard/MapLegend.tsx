@@ -6,7 +6,7 @@ export function MapLegend() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="absolute bottom-4 left-4 z-10 bento-card glass">
+    <div className="absolute bottom-4 left-4 z-[999] bento-card glass">
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold"

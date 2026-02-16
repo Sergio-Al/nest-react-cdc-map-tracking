@@ -66,30 +66,6 @@ export function HistoryMap() {
 
   const defaultCenter: LatLngExpression = [-16.5, -68.1];
 
-  // Build path segments colored by speed
-  const pathSegments = useMemo(() => {
-    if (positions.length < 2) return [];
-
-    const segments: { positions: LatLngExpression[]; color: string }[] = [];
-
-    for (let i = 0; i < positions.length - 1; i++) {
-      const p1 = positions[i];
-      const p2 = positions[i + 1];
-      const color = getSpeedColor(p1.speed);
-      const from: LatLngExpression = [p1.latitude, p1.longitude];
-      const to: LatLngExpression = [p2.latitude, p2.longitude];
-
-      // Merge with previous segment if same color
-      if (segments.length > 0 && segments[segments.length - 1].color === color) {
-        segments[segments.length - 1].positions.push(to);
-      } else {
-        segments.push({ positions: [from, to], color });
-      }
-    }
-
-    return segments;
-  }, [positions]);
-
   // Traversed vs remaining path split at cursor
   const traversedPath = useMemo(() => {
     return positions

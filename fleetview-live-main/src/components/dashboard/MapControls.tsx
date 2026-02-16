@@ -34,7 +34,7 @@ export function MapControls({
   const [showLayers, setShowLayers] = useState(false);
 
   return (
-    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+    <div className="absolute top-4 right-4 z-[999] flex flex-col gap-2">
       {/* Zoom */}
       <div className="bento-card p-1 flex flex-col">
         <button className="p-2 hover:bg-secondary rounded-md transition-colors">

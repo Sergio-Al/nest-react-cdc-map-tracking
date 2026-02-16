@@ -896,8 +896,10 @@ docker exec redis redis-cli -a redis_secret \
 - [x] Gateway WebSocket Socket.io con adaptador Redis
 - [x] Broadcasting basado en rooms (por tenant y por conductor)
 - [x] Frontend React con mapa (Mapbox/Leaflet)
-- [x] Reproducción de historial de rutas con slider temporal
+- [x] Reproducción de historial de rutas con slider temporal y controles de velocidad
 - [x] Panel de lista de conductores con estado en tiempo real
+- [x] Leyenda y controles del mapa (z-index corregido sobre tiles de Leaflet)
+- [x] Corrección de layout del mapa de historial (cadena flex para altura correcta del contenedor Leaflet)
 
 ### ⬜ Fase 5 — Monitoreo y Robustez (Pendiente)
 - [x] Autenticación JWT con control de acceso basado en roles

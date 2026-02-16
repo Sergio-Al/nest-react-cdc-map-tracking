@@ -49,12 +49,12 @@ export class KafkaConsumerService implements OnApplicationBootstrap, OnModuleDes
 
     try {
       await this.consumer.connect();
-      this.logger.log('Kafka consumer connected');
+      // this.logger.log('Kafka consumer connected');
 
       // Subscribe to all registered topics
       for (const { topic, fromBeginning } of this.handlers) {
         await this.consumer.subscribe({ topic, fromBeginning: fromBeginning ?? false });
-        this.logger.log(`Subscribed to topic: ${topic} (fromBeginning=${fromBeginning ?? false})`);
+        // this.logger.log(`Subscribed to topic: ${topic} (fromBeginning=${fromBeginning ?? false})`);
       }
 
       await this.consumer.run({

@@ -15,6 +15,7 @@
     <!-- ─── Logging ───────────────────────────────────────── -->
     <entry key='logger.enable'>true</entry>
     <entry key='logger.level'>info</entry>
+    <entry key='logger.console'>true</entry>
 
     <!-- ─── GPS Protocol Ports ────────────────────────────── -->
     <!-- Default Traccar protocol (osmand) on TCP/UDP 5055 -->
@@ -23,21 +24,17 @@
     <entry key='gps103.port'>5001</entry>
 
     <!-- ─── Webhook: Forward positions to NestJS ─────────── -->
-    <entry key='forward.enable'>true</entry>
-    <entry key='forward.url'>http://tracking-service:3000/api/traccar/positions</entry>
-    <entry key='forward.json'>true</entry>
+    <entry key='forward.url'>http://host.docker.internal:3000/api/traccar/positions</entry>
+    <entry key='forward.type'>json</entry>
 
     <!-- ─── Event forwarding ─────────────────────────────── -->
-    <entry key='event.forward.enable'>true</entry>
-    <entry key='event.forward.url'>http://tracking-service:3000/api/traccar/events</entry>
+    <entry key='event.forward.url'>http://host.docker.internal:3000/api/traccar/events</entry>
+    <entry key='event.forward.type'>json</entry>
 
     <!-- ─── Geocoder (optional – Nominatim / OSM) ─────────  -->
     <entry key='geocoder.enable'>false</entry>
 
-    <!-- ─── Filtering ─────────────────────────────────────── -->
-    <entry key='filter.enable'>true</entry>
-    <entry key='filter.duplicate'>true</entry>
-    <entry key='filter.zero'>true</entry>
-    <entry key='filter.distance'>10</entry>
+    <!-- ─── Filtering (disabled for dev/testing) ────────── -->
+    <entry key='filter.enable'>false</entry>
 
 </properties>

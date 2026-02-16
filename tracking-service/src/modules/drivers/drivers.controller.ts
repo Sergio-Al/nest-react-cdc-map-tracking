@@ -17,6 +17,11 @@ export class DriversController {
     return this.driversService.findAll(user.tenantId);
   }
 
+  @Get('positions/all')
+  getLatestPositions(@CurrentUser() user: any) {
+    return this.driversService.getLatestPositions(user.tenantId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.driversService.findOne(id);
@@ -26,11 +31,6 @@ export class DriversController {
   async getPosition(@Param('id') id: string, @CurrentUser() user: any) {
     const positions = await this.driversService.getLatestPositions(user.tenantId);
     return positions.find((p) => p.driverId === id) ?? null;
-  }
-
-  @Get('positions/all')
-  getLatestPositions(@CurrentUser() user: any) {
-    return this.driversService.getLatestPositions(user.tenantId);
   }
 
   @Get(':id/history')

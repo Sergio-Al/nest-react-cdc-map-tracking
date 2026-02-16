@@ -138,7 +138,6 @@ class SocketService {
 
   disconnect(): void {
     if (this.socket) {
-      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
       console.log('🔌 WebSocket disconnected');
