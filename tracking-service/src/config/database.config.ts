@@ -16,7 +16,7 @@ export const cacheDbConfig: TypeOrmModuleAsyncOptions = {
     password: config.get<string>('cacheDb.password'),
     autoLoadEntities: true,
     synchronize: false, // We manage schema via SQL init scripts
-    // logging: config.get<string>('nodeEnv') === 'development',
+    logging: config.get<string>('nodeEnv') === 'development',
   }),
 };
 

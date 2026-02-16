@@ -224,7 +224,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
       this.server.to(room).emit(WS_EVENTS.POSITION_UPDATE, position);
     });
 
-    console.log(`Broadcasting position for driver ${position.driverId} to rooms: ${rooms.join(', ')}`);
     this.logger.debug(
       `Broadcast position for driver ${position.driverId} to ${rooms.length} rooms`,
     );

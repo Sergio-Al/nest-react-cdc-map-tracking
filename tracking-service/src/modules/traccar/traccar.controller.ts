@@ -28,7 +28,6 @@ export class TraccarController {
   @Post('positions')
   @HttpCode(HttpStatus.OK)
   async receivePositions(@Body() body: any) {
-    console.log('Received position payload:', body);
     const positions = this.normalizePositions(body);
 
     if (positions.length === 0) {
