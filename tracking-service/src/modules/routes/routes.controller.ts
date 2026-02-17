@@ -12,13 +12,16 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RoutesService } from './routes.service';
+import { RouteOptimizerService } from './route-optimizer.service';
 import { TimescaleService } from '../timescale/timescale.service';
 import { CreateRouteDto, UpdateRouteDto } from './dto/route.dto';
+import { ReorderVisitsDto } from './dto/route-optimizer.dto';
 
 @Controller('routes')
 export class RoutesController {
   constructor(
     private readonly routesService: RoutesService,
+    private readonly routeOptimizer: RouteOptimizerService,
     private readonly timescaleService: TimescaleService,
   ) {}
 
@@ -60,6 +63,27 @@ export class RoutesController {
   @Patch(':id')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRouteDto, @CurrentUser() user: any) {
     return this.routesService.update(id, dto);
+  }
+
+  @Roles('admin', 'dispatcher')
+  @Post(':id/optimize')
+  optimize(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    return this.routeOptimizer.optimizeRoute(id);
+  }
+
+  @Get(':id/geometry')
+  getGeometry(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    return this.routeOptimizer.getRouteGeometry(id);
+  }
+
+  @Roles('admin', 'dispatcher')
+  @Patch(':id/reorder')
+  reorder(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReorderVisitsDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.routeOptimizer.reorderVisits(id, dto);
   }
 
   @Get(':id/history')

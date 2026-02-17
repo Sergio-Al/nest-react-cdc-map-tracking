@@ -35,6 +35,18 @@ export class Route {
   @Column({ name: 'completed_stops', type: 'int', default: 0 })
   completedStops!: number;
 
+  @Column({ name: 'total_distance_meters', type: 'int', nullable: true })
+  totalDistanceMeters!: number | null;
+
+  @Column({ name: 'total_estimated_seconds', type: 'int', nullable: true })
+  totalEstimatedSeconds!: number | null;
+
+  @Column({ name: 'optimized_at', type: 'timestamptz', nullable: true })
+  optimizedAt!: Date | null;
+
+  @Column({ name: 'optimization_method', type: 'varchar', length: 50, nullable: true })
+  optimizationMethod!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

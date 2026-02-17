@@ -74,4 +74,8 @@ export class RoutesService {
   async incrementTotalStops(id: string): Promise<void> {
     await this.routeRepo.increment({ id }, 'totalStops', 1);
   }
+
+  async decrementTotalStops(id: string): Promise<void> {
+    await this.routeRepo.decrement({ id }, 'totalStops', 1);
+  }
 }

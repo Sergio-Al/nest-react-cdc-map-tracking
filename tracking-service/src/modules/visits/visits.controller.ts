@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -62,5 +63,15 @@ export class VisitsController {
       }
     }
     return this.visitsService.updateStatus(id, dto);
+  }
+
+  @Roles('admin', 'dispatcher')
+  @Delete(':id')
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    await this.visitsService.delete(id);
+    return { deleted: true };
   }
 }

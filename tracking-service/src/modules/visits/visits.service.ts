@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlannedVisit } from './entities/planned-visit.entity';
@@ -13,6 +13,7 @@ export class VisitsService {
   constructor(
     @InjectRepository(PlannedVisit, 'cacheDb')
     private readonly visitRepo: Repository<PlannedVisit>,
+    @Inject(forwardRef(() => RoutesService))
     private readonly routesService: RoutesService,
     private readonly kafkaProducer: KafkaProducerService,
   ) {}
@@ -124,6 +125,19 @@ export class VisitsService {
    */
   async markArrived(id: string): Promise<PlannedVisit> {
     return this.updateStatus(id, { status: 'arrived' });
+  }
+
+  /**
+   * Delete a pending visit. Only allowed for visits with status 'pending'.
+   */
+  async delete(id: string): Promise<void> {
+    const visit = await this.findById(id);
+    if (visit.status !== 'pending') {
+      throw new BadRequestException(`Cannot delete visit in '${visit.status}' status`);
+    }
+    await this.visitRepo.remove(visit);
+    await this.routesService.decrementTotalStops(visit.routeId);
+    this.logger.log(`Visit deleted: ${id} (route=${visit.routeId})`);
   }
 
   /**

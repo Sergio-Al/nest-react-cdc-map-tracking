@@ -9,6 +9,9 @@ export interface PlannedVisit {
   scheduledDate: string;
   timeWindowStart: string | null;
   timeWindowEnd: string | null;
+  estimatedArrivalTime: string | null;
+  estimatedTravelSeconds: number | null;
+  estimatedDistanceMeters: number | null;
   status: 'pending' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'skipped' | 'failed';
   arrivedAt: string | null;
   departedAt: string | null;

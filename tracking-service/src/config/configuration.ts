@@ -45,4 +45,9 @@ export default () => ({
     refreshExpiresInMs: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
     traccarApiKey: process.env.TRACCAR_API_KEY || 'traccar-shared-key',
   },
+
+  optimization: {
+    osrmUrl: process.env.OSRM_URL || 'http://localhost:5003',
+    orToolsUrl: process.env.OR_TOOLS_URL || 'http://localhost:5002',
+  },
 });

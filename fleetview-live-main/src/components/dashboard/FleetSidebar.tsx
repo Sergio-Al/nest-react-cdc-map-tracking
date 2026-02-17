@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, ChevronLeft, ChevronRight, Plus, UserPlus, Wifi, WifiOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ export function FleetSidebar({
 }: FleetSidebarProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const navigate = useNavigate();
 
   const counts = useMemo(() => ({
     all: drivers.length,
@@ -153,7 +155,7 @@ export function FleetSidebar({
 
       {/* Quick actions */}
       <div className="px-3 pb-2 flex gap-2">
-        <Button size="sm" className="flex-1 h-7 text-xs gap-1">
+        <Button size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => navigate('/routes')}>
           <Plus className="w-3 h-3" /> Create Route
         </Button>
         <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1">

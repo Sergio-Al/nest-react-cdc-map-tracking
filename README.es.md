@@ -96,6 +96,8 @@ Dispositivos GPS (1000)
 | BD Caché Local | PostgreSQL | 16 | Datos sincronizados de MySQL, visitas, rutas |
 | BD Histórica | TimescaleDB | latest-pg16 | Series de tiempo, historial de posiciones, analíticas |
 | Caché / Pub-Sub | Redis | 7-alpine | Posiciones recientes, caché de 3 niveles |
+| Motor de Ruteo | OSRM | latest | Matriz de distancias/duraciones viales (La Paz, Bolivia) |
+| Optimizador de Rutas | OR-Tools (Python) | 9.x | Solver VRP via sidecar FastAPI |
 | WebSocket | Socket.io | 4+ | Push en tiempo real al dashboard |
 | Lenguaje | TypeScript | 5+ | Backend |
 | Contenedores | Docker + Docker Compose | Latest | Entorno de desarrollo |
@@ -124,7 +126,21 @@ streaming-tracking-logistic/
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Esquema del caché (sync, drivers, routes, visits, positions)
-│   │       └── 02-cached-users.sql   # Tabla cached_users (poblada vía CDC en runtime)
+│   │       ├── 02-cached-users.sql   # Tabla cached_users (poblada vía CDC en runtime)
+│   │       ├── 03-route-optimizer.sql # Columnas de optimización de rutas (routes & planned_visits)
+│   │       └── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
+│   ├── osrm/
+│   │   ├── setup.sh                  # Descarga Bolivia OSM, recorta región La Paz, construye grafo OSRM
+│   │   └── data/                     # Archivos OSRM preprocesados (generados por setup.sh)
+│   ├── or-tools-solver/
+│   │   ├── Dockerfile                # Python 3.11 + FastAPI + OR-Tools
+│   │   ├── requirements.txt
+│   │   ├── app/
+│   │   │   ├── main.py               # Servidor FastAPI (POST /solve)
+│   │   │   ├── models.py             # Modelos Pydantic request/response
+│   │   │   └── solver.py             # Solver OR-Tools VRP/TSP con ventanas de tiempo
+│   │   └── tests/
+│   │       └── test_solver.py        # Tests unitarios del solver
 │   ├── timescale/
 │   │   └── init/01-init.sql          # Hypertables, compresión, retención, agregados continuos
 │   └── traccar/
@@ -170,11 +186,14 @@ streaming-tracking-logistic/
         │   ├── dashboard/            # Mapa, sidebar, tarjetas de conductores
         │   ├── history/              # Reproducción de rutas
         │   ├── monitoring/           # Monitoreo de lag CDC (admin)
+        │   ├── routes/               # Constructor de rutas (sidebar, mapa, drag-and-drop, diálogos)
         │   ├── layout/               # AppLayout, ProtectedRoute
         │   └── ui/                   # Componentes shadcn/ui
         ├── hooks/                    # Hooks React Query, useSocket
-        ├── pages/                    # Index, Login, History, Monitoring, NotFound
-        ├── stores/                   # Stores Zustand (auth, map, playback)
+        │   └── api/
+        │       └── useRouteBuilder.ts # Hooks API del constructor de rutas (7 hooks)
+        ├── pages/                    # Index, Login, History, Monitoring, Routes, NotFound
+        ├── stores/                   # Stores Zustand (auth, map, playback, routeBuilder)
         └── types/                    # Interfaces TypeScript
 ```
 
@@ -185,7 +204,7 @@ streaming-tracking-logistic/
 - **Docker** y **Docker Compose** (v2+)
 - **Node.js** v18+ y **npm** v9+
 - ~6 GB de RAM disponible para los contenedores Docker
-- Puertos disponibles: `3000`, `3306`, `5432`, `5433`, `6379`, `8082`, `8083`, `8084`, `9094`
+- Puertos disponibles: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8082`, `8083`, `8084`, `9094`
 
 ---
 
@@ -257,8 +276,32 @@ Los servicios que se levantan:
 | `cache-db` | 5432 | PostgreSQL caché local |
 | `timescale` | 5433 | TimescaleDB para historial |
 | `redis` | 6379 | Caché y pub/sub |
+| `osrm` | 5003 | Motor de ruteo OSRM (red vial de La Paz) |
+| `or-tools-solver` | 5002 | Solver VRP OR-Tools (Python FastAPI) |
 
-### 4. Registrar el conector CDC de Debezium
+### 4. Configurar OSRM (Optimización de Rutas)
+
+```bash
+# Descargar datos OSM de Bolivia, recortar región La Paz y construir grafo OSRM
+chmod +x infrastructure/osrm/setup.sh
+./infrastructure/osrm/setup.sh
+```
+
+Esto descarga el extracto OSM de Bolivia desde Geofabrik, lo recorta al bounding box de La Paz (`-69.65,-17.05,-67.0,-13.5`), y ejecuta OSRM extract/partition/customize. Los archivos del grafo resultante se guardan en `infrastructure/osrm/data/`.
+
+### 5. Aplicar migración de optimización de rutas y datos semilla
+
+```bash
+# Agregar columnas de optimización a tablas routes y planned_visits
+docker exec -i cache-db psql -U tracking -d tracking_cache \
+  < infrastructure/cache-db/init/03-route-optimizer.sql
+
+# Semillar 23 clientes de La Paz con coordenadas reales
+docker exec -i cache-db psql -U tracking -d tracking_cache \
+  < infrastructure/cache-db/init/04-seed-customers-lapaz.sql
+```
+
+### 6. Registrar el conector CDC de Debezium
 
 ```bash
 # Esperar a que Kafka Connect esté listo, luego registrar el conector
@@ -267,14 +310,14 @@ bash scripts/register-cdc-connector.sh
 
 Esto configura Debezium para capturar cambios de las tablas `accounts`, `customers`, `products` y `orders` de MySQL y publicarlos en los tópicos `cdc.*` de Kafka.
 
-### 5. Instalar dependencias del servicio NestJS
+### 7. Instalar dependencias del servicio NestJS
 
 ```bash
 cd tracking-service
 npm install
 ```
 
-### 6. Instalar y ejecutar el frontend
+### 8. Instalar y ejecutar el frontend
 
 ```bash
 cd fleetview-live-main
@@ -429,9 +472,10 @@ Fallback: MySQL directo
 
 ### `routes/` — Rutas de Entrega
 - **RoutesService/Controller**: Crear, listar, actualizar rutas. Buscar rutas activas y del día por conductor. Contador de paradas completadas.
+- **RouteOptimizerService**: Orquesta la optimización de rutas — obtiene matriz de distancias/duraciones de OSRM, envía al solver VRP de OR-Tools, actualiza secuencia de visitas, ETAs y distancias.
 
 ### `visits/` — Visitas Planificadas
-- **VisitsService/Controller**: Crear visitas, gestionar ciclo de vida (`pending` → `arrived` → `in_progress` → `completed` → `departed`), llegada/salida automática, publicación de eventos.
+- **VisitsService/Controller**: Crear visitas, gestionar ciclo de vida (`pending` → `arrived` → `in_progress` → `completed` → `departed`), llegada/salida automática, publicación de eventos, eliminar visitas pendientes.
 
 ### `redis/` — Servicio Redis (Global)
 - **RedisService**: Wrapper sobre ioredis con operaciones: get/set, hashes, geo (GEOADD, GEODIST, GEORADIUS), pub/sub, health check.
@@ -551,6 +595,14 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | GET | `/api/routes/driver/:driverId/active` | Ruta activa del conductor |
 | GET | `/api/routes/driver/:driverId/today` | Rutas del día del conductor |
 | GET | `/api/routes/:id/history?from=&to=` | Historial de posiciones de la ruta (TimescaleDB) |
+| POST | `/api/routes/:id/optimize` | Optimizar orden de visitas usando OSRM + OR-Tools |
+| PATCH | `/api/routes/:id/reorder` | Reordenar visitas manualmente (drag-and-drop) |
+
+### Clientes
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/customers` | Listar todos los clientes (filtrado por tenant) |
 
 ### Visitas
 
@@ -561,6 +613,7 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | GET | `/api/visits/route/:routeId` | Visitas de una ruta |
 | GET | `/api/visits/driver/:driverId` | Visitas de un conductor |
 | PATCH | `/api/visits/:id/status` | Actualizar estado de visita |
+| DELETE | `/api/visits/:id` | Eliminar una visita pendiente |
 
 ### Sincronización CDC
 
@@ -735,8 +788,8 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 
 **Tablas propias del servicio de rastreo:**
 - `drivers` — Conductores (device_id vincula con Traccar)
-- `routes` — Rutas de entrega planificadas
-- `planned_visits` — Paradas dentro de una ruta
+- `routes` — Rutas de entrega planificadas (+ `total_distance_meters`, `total_estimated_seconds`, `optimized_at`, `optimization_method`)
+- `planned_visits` — Paradas dentro de una ruta (+ `estimated_arrival_time`, `estimated_travel_seconds`, `estimated_distance_meters`)
 - `driver_positions` — Snapshot de la última posición por conductor
 - `sync_state` — Estado de sincronización CDC
 
@@ -764,6 +817,8 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 | **Llegada Automática** | Si el conductor entra al geofence de la próxima visita, se marca `arrived` automáticamente |
 | **Upsert con Conflicto** | driver_positions usa `ON CONFLICT DO UPDATE` para snapshot siempre actualizado |
 | **Multi-tenancy** | `tenant_id` presente en todas las entidades, consultas filtradas por tenant |
+| **Optimización de Rutas** | Matriz de distancias OSRM → solver VRP OR-Tools → secuencia óptima de visitas con ETAs |
+| **Patrón Sidecar** | Solver OR-Tools Python ejecuta como microservicio FastAPI separado |
 
 ---
 
@@ -901,7 +956,16 @@ docker exec redis redis-cli -a redis_secret \
 - [x] Leyenda y controles del mapa (z-index corregido sobre tiles de Leaflet)
 - [x] Corrección de layout del mapa de historial (cadena flex para altura correcta del contenedor Leaflet)
 
-### ⬜ Fase 5 — Monitoreo y Robustez (Pendiente)
+### ✅ Fase 5 — Constructor de Rutas (Completada)
+- [x] Motor de ruteo OSRM con red vial de La Paz
+- [x] Solver VRP OR-Tools (sidecar Python FastAPI)
+- [x] Endpoint de optimización de rutas (matriz OSRM → OR-Tools → actualización BD)
+- [x] Reordenamiento manual de visitas con drag-and-drop (@dnd-kit)
+- [x] UI del constructor de rutas (sidebar + mapa con marcadores de clientes y polilíneas de ruta)
+- [x] Agregar/eliminar paradas, crear rutas desde el frontend
+- [x] Datos semilla de clientes La Paz (20 clientes con coordenadas reales)
+
+### ⬜ Fase 6 — Monitoreo y Robustez (Pendiente)
 - [x] Autenticación JWT con control de acceso basado en roles
 - [x] Gestión de usuarios vía sincronización CDC
 - [x] Autenticación WebSocket
@@ -921,15 +985,33 @@ El sistema viene con 3 conductores pre-cargados:
 | Jane Doe | DEV002 | tenant-1 | Truck | DEF-5678 |
 | Bob Wilson | DEV003 | tenant-2 | Van | GHI-9012 |
 
-## 📝 Clientes de Prueba
+## 📝 Clientes de Prueba (La Paz, Bolivia)
 
 | Nombre | Tenant | Ubicación | Geofence | Tipo |
 |---|---|---|---|---|
-| Downtown Warehouse | tenant-1 | 40.7128, -74.006 | 150m | warehouse |
-| Midtown Office | tenant-1 | 40.7549, -73.984 | 100m | office |
-| Brooklyn Store | tenant-1 | 40.686, -73.977 | 100m | retail |
-| Queens Distribution | tenant-2 | 40.7282, -73.7949 | 200m | warehouse |
-| Bronx Retail | tenant-2 | 40.837, -73.8654 | 100m | retail |
+| Farmacia Bolivia Centro | tenant-1 | -16.4955, -68.1336 | 100m | retail |
+| Tienda El Prado | tenant-1 | -16.5025, -68.1310 | 100m | retail |
+| Distribuidora San Francisco | tenant-1 | -16.4980, -68.1380 | 150m | warehouse |
+| Mercado Lanza - Puesto 42 | tenant-1 | -16.4970, -68.1450 | 80m | retail |
+| Supermercado Hipermaxi Calacoto | tenant-1 | -16.5320, -68.0830 | 200m | retail |
+| Restaurante Gustu | tenant-1 | -16.5280, -68.0890 | 100m | restaurant |
+| Oficina Sopocachi Plaza | tenant-1 | -16.5120, -68.1220 | 100m | office |
+| Librería Sopocachi | tenant-1 | -16.5080, -68.1250 | 80m | retail |
+| Clínica Miraflores | tenant-1 | -16.5050, -68.1150 | 120m | clinic |
+| Panadería Miraflores | tenant-1 | -16.5100, -68.1180 | 80m | retail |
+| Ferretería Obrajes | tenant-1 | -16.5250, -68.1020 | 100m | retail |
+| Gimnasio Power Fit | tenant-1 | -16.5200, -68.0950 | 100m | gym |
+| Almacén Villa Fátima | tenant-1 | -16.4900, -68.1200 | 120m | warehouse |
+| Taller Mecánico Achachicala | tenant-1 | -16.4850, -68.1280 | 150m | workshop |
+| Hotel Presidente | tenant-1 | -16.4990, -68.1350 | 100m | hotel |
+| Centro Comercial MegaCenter | tenant-1 | -16.5380, -68.0780 | 250m | mall |
+| Universidad Mayor de San Andrés | tenant-1 | -16.5040, -68.1270 | 200m | university |
+| Mercado Rodríguez | tenant-1 | -16.4960, -68.1410 | 100m | retail |
+| Café del Mundo Sopocachi | tenant-1 | -16.5110, -68.1230 | 60m | restaurant |
+| Terminal de Buses La Paz | tenant-1 | -16.5150, -68.1500 | 200m | terminal |
+| Distribuidora Oruro Central | tenant-2 | -16.5000, -68.1370 | 150m | warehouse |
+| Tienda Express Miraflores | tenant-2 | -16.5060, -68.1160 | 100m | retail |
+| Almacén Sur Calacoto | tenant-2 | -16.5350, -68.0810 | 120m | warehouse |
 
 ---
 

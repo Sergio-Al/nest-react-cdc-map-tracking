@@ -9,6 +9,7 @@ import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import HistoryPage from "./pages/HistoryPage";
 import MonitoringPage from "./pages/MonitoringPage";
+import RoutesPage from "./pages/RoutesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route element={<AppLayout />}>
               <Route path="/" element={<Index />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/routes" element={<RoutesPage />} />
               <Route path="/monitoring" element={<MonitoringPage />} />
             </Route>
           </Route>

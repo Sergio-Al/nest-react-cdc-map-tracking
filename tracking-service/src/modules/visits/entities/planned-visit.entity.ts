@@ -62,6 +62,15 @@ export class PlannedVisit {
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
 
+  @Column({ name: 'estimated_arrival_time', type: 'timestamptz', nullable: true })
+  estimatedArrivalTime!: Date | null;
+
+  @Column({ name: 'estimated_travel_seconds', type: 'int', nullable: true })
+  estimatedTravelSeconds!: number | null;
+
+  @Column({ name: 'estimated_distance_meters', type: 'int', nullable: true })
+  estimatedDistanceMeters!: number | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
