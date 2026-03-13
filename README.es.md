@@ -87,7 +87,7 @@ Dispositivos GPS (1000)
 
 | Componente | Tecnología | Versión | Propósito |
 |---|---|---|---|
-| Servidor GPS | Traccar | 6.5 | Decodificación de protocolos, gestión de dispositivos |
+| Servidor GPS | Traccar | 6.11 | Decodificación de protocolos, gestión de dispositivos |
 | BD Traccar | PostgreSQL | 16 | Almacenamiento interno de Traccar |
 | Broker de Mensajes | Apache Kafka | 3.9.0 (modo KRaft) | Streaming de eventos, desacoplamiento |
 | CDC | Debezium | 2.7.3.Final | Captura de cambios MySQL → Kafka |
@@ -204,7 +204,7 @@ streaming-tracking-logistic/
 - **Docker** y **Docker Compose** (v2+)
 - **Node.js** v18+ y **npm** v9+
 - ~6 GB de RAM disponible para los contenedores Docker
-- Puertos disponibles: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8082`, `8083`, `8084`, `9094`
+- Puertos disponibles: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8080`, `8082`, `8083`, `9094`
 
 ---
 
@@ -271,7 +271,7 @@ Los servicios que se levantan:
 | `kafka` | 9094 (host) | Broker Apache Kafka (KRaft) |
 | `kafka-init` | — | Crea los 8 tópicos de Kafka (se ejecuta y termina) |
 | `kafka-connect` | 8083 | Debezium Connect para CDC |
-| `kafka-ui` | 8084 | UI de monitoreo de Kafka |
+| `kafka-ui` | 8080 | UI de monitoreo de Kafka |
 | `mysql` | 3306 | Base de datos fuente de verdad |
 | `cache-db` | 5432 | PostgreSQL caché local |
 | `timescale` | 5433 | TimescaleDB para historial |
@@ -380,7 +380,7 @@ Respuesta esperada:
 | Herramienta | URL | Descripción |
 |---|---|---|
 | Frontend | http://localhost:5173 | Dashboard React (login: admin@tenant1.com / admin123) |
-| Kafka UI | http://localhost:8084 | Monitoreo de tópicos, consumidores y conectores |
+| Kafka UI | http://localhost:8080 | Monitoreo de tópicos, consumidores y conectores |
 | Traccar | http://localhost:8082 | Interfaz de administración de Traccar |
 
 ---

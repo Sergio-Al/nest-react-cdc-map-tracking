@@ -18,37 +18,25 @@ export class WsBroadcastService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Register handler for enriched GPS positions
+    // Register handler for enriched GPS positions (with retry + DLQ)
     this.kafkaConsumer.registerHandler({
       topic: 'gps.positions.enriched',
       fromBeginning: false,
+      retryPolicy: { maxRetries: 2, baseDelayMs: 50 },
       handler: async (payload) => {
-        try {
-          const position: EnrichedPosition = JSON.parse(payload.message.value!.toString());
-          this.trackingGateway.broadcastPosition(position);
-        } catch (error) {
-          this.logger.error(
-            'Failed to process enriched position for WebSocket broadcast',
-            error,
-          );
-        }
+        const position: EnrichedPosition = JSON.parse(payload.message.value!.toString());
+        this.trackingGateway.broadcastPosition(position);
       },
     });
 
-    // Register handler for visit lifecycle events
+    // Register handler for visit lifecycle events (with retry + DLQ)
     this.kafkaConsumer.registerHandler({
       topic: 'visits.events',
       fromBeginning: false,
+      retryPolicy: { maxRetries: 2, baseDelayMs: 50 },
       handler: async (payload) => {
-        try {
-          const visitEvent: VisitEvent = JSON.parse(payload.message.value!.toString());
-          this.trackingGateway.broadcastVisitEvent(visitEvent);
-        } catch (error) {
-          this.logger.error(
-            'Failed to process visit event for WebSocket broadcast',
-            error,
-          );
-        }
+        const visitEvent: VisitEvent = JSON.parse(payload.message.value!.toString());
+        this.trackingGateway.broadcastVisitEvent(visitEvent);
       },
     });
 

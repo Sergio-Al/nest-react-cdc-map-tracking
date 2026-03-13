@@ -6,11 +6,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
+import { DlqService } from './dlq.service';
+import { RetryPolicy, KafkaProcessingError } from './interfaces/kafka-error.interface';
 
 export interface KafkaMessageHandler {
   topic: string;
   fromBeginning?: boolean;
   handler: (payload: EachMessagePayload) => Promise<void>;
+  /** Optional retry policy. When provided, failed messages are retried then sent to DLQ. */
+  retryPolicy?: RetryPolicy;
 }
 
 @Injectable()
@@ -20,7 +24,10 @@ export class KafkaConsumerService implements OnApplicationBootstrap, OnModuleDes
   private consumer: Consumer;
   private handlers: KafkaMessageHandler[] = [];
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly dlqService: DlqService,
+  ) {
     this.kafka = new Kafka({
       clientId: this.config.get<string>('kafka.clientId'),
       brokers: [this.config.get<string>('kafka.broker')!],
@@ -59,14 +66,50 @@ export class KafkaConsumerService implements OnApplicationBootstrap, OnModuleDes
 
       await this.consumer.run({
         eachMessage: async (payload) => {
-          const { topic } = payload;
+          const { topic, partition, message } = payload;
           const handler = this.handlers.find((h) => h.topic === topic);
-          if (handler) {
+          if (!handler) return;
+
+          if (handler.retryPolicy) {
+            // ── Retry-aware processing with DLQ fallback ──
+            const retryResult = await this.dlqService.withRetry(
+              () => handler.handler(payload),
+              handler.retryPolicy,
+            );
+
+            if (!retryResult.success) {
+              const errorInfo: KafkaProcessingError = {
+                topic,
+                partition,
+                offset: message.offset,
+                key: message.key?.toString(),
+                error: retryResult.error.message,
+                errorStack: retryResult.error.stack,
+                retryCount: retryResult.retryCount,
+                sentToDlq: true,
+                timestamp: new Date().toISOString(),
+              };
+
+              this.logger.error(
+                `Message failed after ${retryResult.retryCount} retries → DLQ | ` +
+                  `topic=${topic} partition=${partition} offset=${message.offset}: ${retryResult.error.message}`,
+              );
+
+              await this.dlqService.publishToDlq(
+                topic,
+                message.key?.toString(),
+                message.value?.toString(),
+                retryResult.error,
+                { partition, offset: message.offset, retryCount: retryResult.retryCount },
+              );
+            }
+          } else {
+            // ── Legacy processing (log-and-swallow, no DLQ) ──
             try {
               await handler.handler(payload);
             } catch (error) {
               this.logger.error(
-                `Error processing message from topic ${topic} partition ${payload.partition} offset ${payload.message.offset}`,
+                `Error processing message from topic ${topic} partition ${partition} offset ${message.offset}`,
                 error,
               );
             }

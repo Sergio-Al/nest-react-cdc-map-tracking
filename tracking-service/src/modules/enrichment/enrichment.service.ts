@@ -50,11 +50,12 @@ export class EnrichmentService implements OnModuleInit {
     // Pre-load device→driver mapping
     await this.loadDeviceDriverMap();
 
-    // Register as consumer for raw GPS positions
+    // Register as consumer for raw GPS positions (with retry + DLQ)
     this.kafkaConsumer.registerHandler({
       topic: 'gps.positions',
       fromBeginning: false,
       handler: this.handleRawPosition.bind(this),
+      retryPolicy: { maxRetries: 3, baseDelayMs: 100 },
     });
 
     this.logger.log('Enrichment service initialized, consuming gps.positions');
@@ -188,13 +189,26 @@ export class EnrichmentService implements OnModuleInit {
       visitAutoArrival,
     };
 
-    // 5. Fan-out: write to all destinations in parallel
-    await Promise.all([
+    // 5. Fan-out: write to all destinations in parallel (allSettled for resilience)
+    const fanOutResults = await Promise.allSettled([
       this.updateRedisLatestPosition(driverId, tenantId, enriched),
       this.updateDriverPositionSnapshot(driverId, tenantId, enriched),
       this.writeToTimescale(enriched),
       this.publishEnrichedToKafka(enriched),
     ]);
+
+    // Report fan-out failures with destination names
+    const destinations = ['Redis', 'PostgreSQL', 'TimescaleDB', 'Kafka'];
+    const failures = fanOutResults
+      .map((r, i) => (r.status === 'rejected' ? destinations[i] : null))
+      .filter(Boolean);
+
+    if (failures.length > 0) {
+      this.logger.error(
+        `Fan-out partial failure for driver ${driverName} (${driverId}): ` +
+          `${failures.join(', ')} failed out of ${destinations.length} destinations`,
+      );
+    }
 
     // 6. Update driver status to 'active' if offline
     await this.ensureDriverActive(driverId);
@@ -234,69 +248,57 @@ export class EnrichmentService implements OnModuleInit {
     tenantId: string,
     enriched: EnrichedPosition,
   ): Promise<void> {
-    try {
-      await this.driverPosRepo.upsert(
-        {
-          driverId,
-          tenantId,
-          latitude: enriched.latitude,
-          longitude: enriched.longitude,
-          speed: enriched.speed,
-          heading: enriched.heading,
-          altitude: enriched.altitude,
-          accuracy: enriched.accuracy,
-          currentRouteId: enriched.routeId,
-          currentVisitId: enriched.currentVisitId,
-          nextVisitId: enriched.nextVisitId,
-          distanceToNextM: enriched.distanceToNextM,
-          etaToNextSec: enriched.etaToNextSec,
-          updatedAt: new Date(),
-        },
-        ['driverId'],
-      );
-    } catch (err) {
-      this.logger.error(`Failed to update PG position for ${driverId}`, err);
-    }
-  }
-
-  // ── TimescaleDB historical write ─────────────────────────
-
-  private async writeToTimescale(enriched: EnrichedPosition): Promise<void> {
-    try {
-      const row: EnrichedPositionRow = {
-        time: new Date(enriched.time),
-        driverId: enriched.driverId,
-        tenantId: enriched.tenantId,
+    await this.driverPosRepo.upsert(
+      {
+        driverId,
+        tenantId,
         latitude: enriched.latitude,
         longitude: enriched.longitude,
         speed: enriched.speed,
         heading: enriched.heading,
         altitude: enriched.altitude,
         accuracy: enriched.accuracy,
-        routeId: enriched.routeId,
-        visitId: enriched.currentVisitId || enriched.nextVisitId,
-        customerName: enriched.nextCustomerName,
+        currentRouteId: enriched.routeId,
+        currentVisitId: enriched.currentVisitId,
+        nextVisitId: enriched.nextVisitId,
         distanceToNextM: enriched.distanceToNextM,
         etaToNextSec: enriched.etaToNextSec,
-      };
-      await this.timescale.insertEnrichedPosition(row);
-    } catch (err) {
-      this.logger.error(`Failed to write to TimescaleDB`, err);
-    }
+        updatedAt: new Date(),
+      },
+      ['driverId'],
+    );
+  }
+
+  // ── TimescaleDB historical write ─────────────────────────
+
+  private async writeToTimescale(enriched: EnrichedPosition): Promise<void> {
+    const row: EnrichedPositionRow = {
+      time: new Date(enriched.time),
+      driverId: enriched.driverId,
+      tenantId: enriched.tenantId,
+      latitude: enriched.latitude,
+      longitude: enriched.longitude,
+      speed: enriched.speed,
+      heading: enriched.heading,
+      altitude: enriched.altitude,
+      accuracy: enriched.accuracy,
+      routeId: enriched.routeId,
+      visitId: enriched.currentVisitId || enriched.nextVisitId,
+      customerName: enriched.nextCustomerName,
+      distanceToNextM: enriched.distanceToNextM,
+      etaToNextSec: enriched.etaToNextSec,
+    };
+    await this.timescale.insertEnrichedPosition(row);
   }
 
   // ── Kafka enriched topic ──────────────────────────────────
 
   private async publishEnrichedToKafka(enriched: EnrichedPosition): Promise<void> {
-    try {
-      await this.kafkaProducer.produce('gps.positions.enriched', {
-        key: enriched.driverId,
-        value: JSON.stringify(enriched),
-        headers: { tenantId: enriched.tenantId },
-      });
-    } catch (err) {
-      this.logger.error(`Failed to publish enriched position to Kafka`, err);
-    }
+    await this.kafkaProducer.produce('gps.positions.enriched', {
+      key: enriched.driverId,
+      value: JSON.stringify(enriched),
+      headers: { tenantId: enriched.tenantId },
+    });
   }
 
   // ── Driver status management ─────────────────────────────

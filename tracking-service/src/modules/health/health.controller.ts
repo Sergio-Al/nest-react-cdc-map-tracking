@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from '../auth/decorators/public.decorator';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
+import { DlqService } from '../kafka/dlq.service';
 import { RedisService } from '../redis/redis.service';
 import { TimescaleService } from '../timescale/timescale.service';
 import { TrackingGateway } from '../websocket/tracking.gateway';
@@ -10,6 +11,7 @@ import { CdcMetricsService } from '../sync/cdc-metrics.service';
 export class HealthController {
   constructor(
     private readonly kafkaProducer: KafkaProducerService,
+    private readonly dlqService: DlqService,
     private readonly redis: RedisService,
     private readonly timescale: TimescaleService,
     private readonly trackingGateway: TrackingGateway,
@@ -42,11 +44,19 @@ export class HealthController {
     }
 
     const allOk = kafkaOk && redisOk && timescaleOk && maxLag < 30000;
+    const dlqCounts = this.dlqService.getDlqCounts();
+    const totalDlq = this.dlqService.getTotalDlqCount();
+    const dlqStatus = totalDlq === 0 ? 'healthy' : totalDlq <= 10 ? 'warning' : 'degraded';
+
     const overallStatus = !allOk
       ? 'critical'
+      : totalDlq > 10
+      ? 'degraded'
       : maxLag >= 5000
       ? 'degraded'
       : maxLag >= 1000
+      ? 'warning'
+      : totalDlq > 0
       ? 'warning'
       : 'ok';
 
@@ -71,6 +81,11 @@ export class HealthController {
           eventsProcessed: m.eventsProcessed,
           errors: m.errorsCount,
         })),
+      },
+      dlq: {
+        status: dlqStatus,
+        totalMessages: totalDlq,
+        topics: dlqCounts,
       },
     };
   }

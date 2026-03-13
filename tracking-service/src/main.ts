@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -12,6 +13,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
 
   app.setGlobalPrefix('api');
+  app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

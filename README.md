@@ -88,7 +88,7 @@ GPS Devices (1000)
 
 | Component | Technology | Version | Purpose |
 |---|---|---|---|
-| GPS Server | Traccar | 6.5 | Protocol decoding, device management |
+| GPS Server | Traccar | 6.11 | Protocol decoding, device management |
 | Traccar DB | PostgreSQL | 16 | Traccar's internal storage |
 | Message Broker | Apache Kafka | 3.9.0 (KRaft mode) | Event streaming, decoupling |
 | CDC | Debezium | 2.7.3.Final | MySQL → Kafka change capture |
@@ -148,17 +148,29 @@ streaming-tracking-logistic/
 │       └── traccar.xml               # Traccar configuration (webhook, ports)
 │
 ├── scripts/
-│   └── register-cdc-connector.sh     # Registers the Debezium connector with Kafka Connect
+│   ├── register-cdc-connector.sh     # Registers the Debezium connector with Kafka Connect
+│   ├── seed-load-test-drivers.sql    # Generates 1,000 test drivers (LOAD0001-LOAD1000)
+│   └── cleanup-load-test-drivers.sql # Removes load test drivers and their positions
+│
+├── load-tests/                       # k6 load testing scripts
+│   ├── gps-ingestion.js              # 1,000 GPS device simulation
+│   ├── ws-consumers.js               # 500 WebSocket client simulation
+│   ├── full-scenario.js              # Combined GPS + WS scenario
+│   ├── check-system.sh               # Health monitoring during tests
+│   └── README.md                     # Load testing documentation
 │
 ├── tracking-service/                 # NestJS backend
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── nest-cli.json
 │   └── src/
-│       ├── main.ts                   # Application bootstrap
+│       ├── main.ts                   # Application bootstrap (global filters)
 │       ├── app.module.ts             # Root module with all imports
 │       ├── adapters/
 │       │   └── redis-io.adapter.ts   # Socket.io Redis adapter for multi-instance support
+│       ├── common/
+│       │   └── filters/
+│       │       └── global-exception.filter.ts  # Consistent JSON error responses
 │       ├── config/
 │       │   ├── configuration.ts      # Centralized config (Kafka, DBs, Redis)
 │       │   └── database.config.ts    # TypeORM connections + TimescaleDB/MySQL factories
@@ -166,7 +178,8 @@ streaming-tracking-logistic/
 │       │   └── pg.d.ts               # Type declarations for the 'pg' module
 │       └── modules/
 │           ├── auth/                 # JWT authentication, guards, refresh tokens
-│           ├── kafka/                # Kafka producer & consumer (global)
+│           ├── kafka/                # Kafka producer & consumer (global) + DLQ service
+│           ├── dlq/                  # DLQ admin (peek, replay, list topics)
 │           ├── traccar/              # Webhook controller + ingestion service
 │           ├── enrichment/           # GPS position enrichment
 │           ├── sync/                 # CDC consumer + lag monitoring
@@ -205,7 +218,7 @@ streaming-tracking-logistic/
 - **Docker** and **Docker Compose** (v2+)
 - **Node.js** v18+ and **npm** v9+
 - ~6 GB of available RAM for Docker containers
-- Available ports: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8082`, `8083`, `8084`, `9094`
+- Available ports: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8080`, `8082`, `8083`, `9094`
 
 ---
 
@@ -272,7 +285,7 @@ The following services will start:
 | `kafka` | 9094 (host) | Apache Kafka broker (KRaft) |
 | `kafka-init` | — | Creates all 8 Kafka topics (runs once and exits) |
 | `kafka-connect` | 8083 | Debezium Connect for CDC |
-| `kafka-ui` | 8084 | Kafka monitoring UI |
+| `kafka-ui` | 8080 | Kafka monitoring UI |
 | `mysql` | 3306 | Source of truth database |
 | `cache-db` | 5432 | Local PostgreSQL cache |
 | `timescale` | 5433 | TimescaleDB for historical data |
@@ -385,7 +398,7 @@ Expected response:
 | Tool | URL | Description |
 |---|---|---|
 | Frontend | http://localhost:5173 | React dashboard (login: admin@tenant1.com / admin123) |
-| Kafka UI | http://localhost:8084 | Topic, consumer, and connector monitoring |
+| Kafka UI | http://localhost:8080 | Topic, consumer, and connector monitoring |
 | Traccar | http://localhost:8082 | Traccar administration interface |
 
 ---
@@ -488,7 +501,14 @@ Fallback: Direct MySQL query
 - **RedisIoAdapter**: Custom Socket.io adapter using Redis pub/sub for horizontal scaling across multiple NestJS instances.
 
 ### `health/` — Health Endpoints
-- **HealthController**: `GET /api/health` checks connectivity with Kafka, Redis, TimescaleDB, and WebSocket stats. `GET /api/health/ready` for readiness probes.
+- **HealthController**: `GET /api/health` checks connectivity with Kafka, Redis, TimescaleDB, and WebSocket stats. Includes DLQ message counts and degradation status. `GET /api/health/ready` for readiness probes.
+
+### `dlq/` — Dead Letter Queue Admin
+- **DlqAdminService**: Inspects DLQ Kafka topics — list topics, peek at messages, replay messages back to original topics.
+- **DlqController**: Admin-only REST endpoints for DLQ management (`/api/dlq/*`).
+
+### `common/filters/` — Global Filters
+- **GlobalExceptionFilter**: Catches all exceptions and returns consistent JSON error responses with timestamp and path. Logs 5xx errors with stack traces.
 
 ---
 
@@ -562,7 +582,7 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 #### Environment Variables
 
 ```bash
-JWT_SECRET=your-secret-key-change-in-production
+JWT_SECRET=change-me-in-production-please
 JWT_EXPIRES_IN=15m
 REFRESH_EXPIRES_IN=7d
 TRACCAR_API_KEY=traccar-shared-key
@@ -639,6 +659,32 @@ TRACCAR_API_KEY=traccar-shared-key
 | GET | `/api/sync/orders` | Cached orders |
 | GET | `/api/sync/orders/:id` | Order by ID |
 | GET | `/api/sync/lag` | CDC lag metrics (admin only) |
+
+### Dead Letter Queue (Admin only)
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/dlq/topics` | List all DLQ topics with message counts |
+| GET | `/api/dlq/:topic/messages?limit=20` | Peek at DLQ messages |
+| POST | `/api/dlq/:topic/replay?limit=100` | Replay DLQ messages to original topics |
+
+**DLQ Topics:**
+- `gps.positions.dlq` — Failed raw position enrichments
+- `gps.positions.enriched.dlq` — Failed WebSocket broadcasts
+- `visits.events.dlq` — Failed visit event broadcasts
+- `cdc.dlq` — Failed CDC sync messages (shared across all CDC topics)
+
+**DLQ Message Headers:**
+
+| Header | Description |
+|---|---|
+| `x-original-topic` | The topic the message originally came from |
+| `x-error-message` | Error description |
+| `x-error-stack` | Error stack trace (truncated to 1000 chars) |
+| `x-retry-count` | Number of retry attempts before DLQ |
+| `x-failed-at` | ISO timestamp of when the message was sent to DLQ |
+| `x-original-partition` | Original partition number |
+| `x-original-offset` | Original message offset |
 
 ---
 
@@ -779,6 +825,10 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 | `cdc.products` | 3 | Debezium | CdcConsumerService | Product changes |
 | `cdc.orders` | 3 | Debezium | CdcConsumerService | Order changes |
 | `cdc.users` | 3 | Debezium | CdcConsumerService | User changes |
+| `gps.positions.dlq` | 3 | DlqService | DlqAdminService | Failed raw position enrichments |
+| `gps.positions.enriched.dlq` | 3 | DlqService | DlqAdminService | Failed WebSocket broadcasts |
+| `visits.events.dlq` | 3 | DlqService | DlqAdminService | Failed visit event broadcasts |
+| `cdc.dlq` | 3 | DlqService | DlqAdminService | Failed CDC sync messages (all CDC topics) |
 
 ---
 
@@ -830,6 +880,8 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 | **Multi-tenancy** | `tenant_id` present in all entities, queries filtered by tenant |
 | **Route Optimization** | OSRM distance matrix → OR-Tools VRP solver → optimal visit sequence with ETAs |
 | **Sidecar Pattern** | OR-Tools Python solver runs as a separate FastAPI microservice |
+| **Dead Letter Queue** | Failed messages retried with exponential backoff → DLQ Kafka topics for inspection/replay |
+| **Global Exception Filter** | Consistent JSON error responses across all REST endpoints |
 
 ---
 
@@ -934,6 +986,60 @@ docker exec redis redis-cli -a redis_secret \
 
 ---
 
+## 🏋️ Load Testing
+
+The project includes **k6** load testing scripts to validate system performance under realistic conditions.
+
+### Prerequisites
+
+- [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) installed
+- All Docker Compose services running
+- Load test drivers seeded: `docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seed-load-test-drivers.sql`
+
+### Test Scripts
+
+| Script | VUs | Description |
+|---|---|---|
+| `load-tests/gps-ingestion.js` | 1,000 | Simulates 1,000 GPS devices sending positions via Traccar webhook |
+| `load-tests/ws-consumers.js` | 500 | Simulates 500 concurrent WebSocket dashboard connections |
+| `load-tests/full-scenario.js` | 1,500 | Combined scenario: GPS + WebSocket consumers |
+
+### Running
+
+```bash
+# GPS ingestion only
+k6 run load-tests/gps-ingestion.js
+
+# WebSocket consumers only
+k6 run load-tests/ws-consumers.js
+
+# Full combined scenario
+k6 run load-tests/full-scenario.js
+
+# Monitor system during test (separate terminal)
+bash load-tests/check-system.sh
+```
+
+### Performance Thresholds
+
+| Metric | Threshold |
+|---|---|
+| GPS API p95 latency | < 200ms |
+| GPS API p99 latency | < 500ms |
+| GPS API error rate | < 1% |
+| WS connection error rate | < 5% |
+| WS connection p95 time | < 3s |
+
+### Cleanup
+
+```bash
+docker exec -i mysql mysql -u root -prootpassword tracking < scripts/cleanup-load-test-drivers.sql
+```
+
+> Complete documentation: [load-tests/README.md](load-tests/README.md)
+
+---
+
 ## 📊 Project Status
 
 ### ✅ Phase 1 — Foundation (Completed)
@@ -976,13 +1082,16 @@ docker exec redis redis-cli -a redis_secret \
 - [x] Add/remove stops, create routes from frontend
 - [x] La Paz customer seed data (20 customers with real coordinates)
 
-### ⬜ Phase 6 — Monitoring & Hardening (Pending)
+### ✅ Phase 6 — Monitoring & Hardening (Completed)
 - [x] JWT authentication with role-based access control
 - [x] User management via CDC sync
 - [x] WebSocket authentication
 - [x] CDC lag monitoring
-- [ ] Error handling and dead letter queues
-- [ ] Load testing with 1,000 simulated drivers
+- [x] Error handling and dead letter queues (retry + DLQ across all consumers)
+- [x] Global HTTP exception filter
+- [x] DLQ admin REST API (inspect, replay, monitor)
+- [x] DLQ metrics integrated into health endpoint
+- [x] Load testing with k6 (1,000 GPS drivers + 500 WebSocket clients)
 
 ---
 

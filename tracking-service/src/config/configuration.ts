@@ -39,7 +39,7 @@ export default () => ({
   },
 
   auth: {
-    jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
+    jwtSecret: process.env.JWT_SECRET || 'change-me-in-production-please',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
     refreshExpiresIn: process.env.REFRESH_EXPIRES_IN || '7d',
     refreshExpiresInMs: 7 * 24 * 60 * 60 * 1000, // 7 days in ms

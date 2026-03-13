@@ -111,30 +111,24 @@ export class CdcConsumerService implements OnModuleInit {
   }
 
   onModuleInit() {
-    // Register handlers for each CDC topic
+    // Register handlers for each CDC topic (with retry + DLQ)
     for (const topic of Object.keys(this.topicEntityMap)) {
       this.kafkaConsumer.registerHandler({
         topic,
         fromBeginning: true, // Consume initial Debezium snapshot
+        retryPolicy: { maxRetries: 3, baseDelayMs: 200 },
         handler: async (payload) => {
           const value = payload.message.value?.toString();
           if (!value) return;
 
-          try {
-            const data = JSON.parse(value);
-            await this.processCdcMessage(
-              topic,
-              data,
-              payload.message.offset,
-              payload.message.timestamp,
-            );
-          } catch (error) {
-            this.cdcMetrics.recordError(topic, error.message || String(error));
-            this.logger.error(
-              `Failed to process CDC message from ${topic} offset ${payload.message.offset}`,
-              error,
-            );
-          }
+          // Parse and process — errors propagate to the consumer's retry/DLQ logic
+          const data = JSON.parse(value);
+          await this.processCdcMessage(
+            topic,
+            data,
+            payload.message.offset,
+            payload.message.timestamp,
+          );
         },
       });
       this.logger.log(`Registered CDC handler for topic: ${topic}`);

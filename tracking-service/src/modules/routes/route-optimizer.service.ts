@@ -95,7 +95,7 @@ export class RouteOptimizerService {
     @InjectRepository(Route, 'cacheDb')
     private readonly routeRepo: Repository<Route>,
   ) {
-    this.osrmUrl = this.configService.get<string>('optimization.osrmUrl', 'http://localhost:5000');
+    this.osrmUrl = this.configService.get<string>('optimization.osrmUrl', 'http://localhost:5003');
     this.orToolsUrl = this.configService.get<string>('optimization.orToolsUrl', 'http://localhost:5002');
   }
 
