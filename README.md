@@ -1,6 +1,6 @@
 # 🚚 Real-Time Vehicle Distribution Tracking System
 
-Real-time vehicle tracking system designed to monitor **1,000 drivers** making deliveries, with a dashboard supporting **500 concurrent users** viewing live positions, planned visits, route history, and route playback.
+A Real-time vehicle tracking system designed to monitor at least **1,000 drivers** making deliveries, with a dashboard supporting **500 concurrent users** viewing live positions, planned visits, route history, and route playback.
 
 > 📖 [Leer en Español](README.es.md)
 
