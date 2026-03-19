@@ -1,0 +1,11 @@
+# Compiled binaries
+/bin/
+/integration-service
+
+# Test output
+*.test
+*.out
+coverage.txt
+
+# Dependency vendor directory (if used)
+vendor/

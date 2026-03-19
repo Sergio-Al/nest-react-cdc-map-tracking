@@ -9,6 +9,7 @@ import {
   SyncState,
   CachedUser,
 } from './entities';
+import { Driver } from '../drivers/entities';
 import { CdcMetricsService } from './cdc-metrics.service';
 
 /**
@@ -44,6 +45,9 @@ export class CdcConsumerService implements OnModuleInit {
 
     @InjectRepository(CachedUser, 'cacheDb')
     private readonly userRepo: Repository<CachedUser>,
+
+    @InjectRepository(Driver, 'cacheDb')
+    private readonly driverRepo: Repository<Driver>,
 
     @InjectRepository(SyncState, 'cacheDb')
     private readonly syncStateRepo: Repository<SyncState>,
@@ -105,6 +109,20 @@ export class CdcConsumerService implements OnModuleInit {
           role: d.role,
           driverId: d.driver_id ?? null,
           isActive: d.is_active === 1 || d.is_active === true,
+        }),
+      },
+      'cdc.drivers': {
+        repo: this.driverRepo,
+        tableName: 'drivers',
+        mapFn: (d: Record<string, any>) => ({
+          id: d.id,
+          tenantId: d.tenant_id,
+          name: d.name,
+          deviceId: d.device_id ?? null,
+          phone: d.phone ?? null,
+          vehiclePlate: d.vehicle_plate ?? null,
+          vehicleType: d.vehicle_type ?? 'van',
+          status: d.status ?? 'offline',
         }),
       },
     };

@@ -9,8 +9,8 @@ import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import HistoryPage from "./pages/HistoryPage";
 import MonitoringPage from "./pages/MonitoringPage";
-import RoutesPage from "./pages/RoutesPage";
-import NotFound from "./pages/NotFound";
+import RoutesPage from "./pages/RoutesPage";import DriversPage from "./pages/DriversPage";import NotFound from "./pages/NotFound";
+import CustomersPage from "./pages/CustomersPage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +27,8 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/routes" element={<RoutesPage />} />
+              <Route path="/drivers" element={<DriversPage />} />
+              <Route path="/customers" element={<CustomersPage />} />
               <Route path="/monitoring" element={<MonitoringPage />} />
             </Route>
           </Route>

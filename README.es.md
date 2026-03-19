@@ -97,9 +97,10 @@ Dispositivos GPS (1000)
 | BD Histórica | TimescaleDB | latest-pg16 | Series de tiempo, historial de posiciones, analíticas |
 | Caché / Pub-Sub | Redis | 7-alpine | Posiciones recientes, caché de 3 niveles |
 | Motor de Ruteo | OSRM | latest | Matriz de distancias/duraciones viales (La Paz, Bolivia) |
+| Servicio de Integración | Go | 1.23 | Consumidor Kafka → MySQL (clientes, conductores) |
 | Optimizador de Rutas | OR-Tools (Python) | 9.x | Solver VRP via sidecar FastAPI |
 | WebSocket | Socket.io | 4+ | Push en tiempo real al dashboard |
-| Lenguaje | TypeScript | 5+ | Backend |
+| Lenguaje | TypeScript / Go | 5+ / 1.23 | Servicios backend |
 | Contenedores | Docker + Docker Compose | Latest | Entorno de desarrollo |
 
 ---
@@ -122,7 +123,8 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Configuración de binlog (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tablas + datos semilla (accounts, customers, products, orders)
-│   │       └── 02-users.sql          # Tabla users + cuentas admin semilla
+│   │       ├── 02-users.sql          # Tabla users + cuentas admin semilla
+│   │       └── 03-drivers.sql        # Tabla drivers (PK UUID, consumida por integration-service)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Esquema del caché (sync, drivers, routes, visits, positions)
@@ -145,6 +147,21 @@ streaming-tracking-logistic/
 │   │   └── init/01-init.sql          # Hypertables, compresión, retención, agregados continuos
 │   └── traccar/
 │       └── traccar.xml               # Configuración de Traccar (webhook, puertos)
+│
+├── integration-service/               # Microservicio Go (Kafka → MySQL)
+│   ├── Dockerfile                    # Build multi-stage alpine
+│   ├── go.mod
+│   ├── cmd/server/main.go            # Entrypoint: config → BD → consumidores → salud
+│   └── internal/
+│       ├── config/config.go          # Configuración por variables de entorno
+│       ├── db/
+│       │   ├── mysql.go              # Pool de conexiones
+│       │   └── queries.go            # Sentencias INSERT preparadas
+│       ├── consumer/
+│       │   ├── runner.go             # Loop de consumo por goroutine por tópico
+│       │   ├── customers.go          # Handler de commands.customers
+│       │   └── drivers.go            # Handler de commands.drivers
+│       └── health/server.go          # Endpoints /healthz + /metrics
 │
 ├── scripts/
 │   └── register-cdc-connector.sh     # Registra el conector Debezium en Kafka Connect
@@ -204,7 +221,7 @@ streaming-tracking-logistic/
 - **Docker** y **Docker Compose** (v2+)
 - **Node.js** v18+ y **npm** v9+
 - ~6 GB de RAM disponible para los contenedores Docker
-- Puertos disponibles: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8080`, `8082`, `8083`, `9094`
+- Puertos disponibles: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8080`, `8082`, `8083`, `8090`, `9094`
 
 ---
 
@@ -278,6 +295,7 @@ Los servicios que se levantan:
 | `redis` | 6379 | Caché y pub/sub |
 | `osrm` | 5003 | Motor de ruteo OSRM (red vial de La Paz) |
 | `or-tools-solver` | 5002 | Solver VRP OR-Tools (Python FastAPI) |
+| `integration-service` | 8090 | Microservicio Go: comandos Kafka → escrituras MySQL |
 
 ### 4. Configurar OSRM (Optimización de Rutas)
 
@@ -354,7 +372,21 @@ cd tracking-service
 npm run start:dev
 ```
 
-El servicio estará disponible en `http://localhost:3000`.
+El servicio de tracking estará disponible en `http://localhost:3000`.
+
+El **integration-service** (Go) corre como contenedor Docker y se inicia automáticamente con `docker compose up -d`. Consume `commands.customers` y `commands.drivers` de Kafka y escribe en MySQL. Para verificar que está corriendo:
+
+```bash
+curl http://localhost:8090/healthz
+# {"status":"ok","service":"integration-service"}
+```
+
+Si necesitas reconstruirlo después de cambios en el código:
+
+```bash
+docker compose build integration-service
+docker compose up -d integration-service
+```
 
 ### Verificar salud del sistema
 
@@ -382,6 +414,7 @@ Respuesta esperada:
 | Frontend | http://localhost:5173 | Dashboard React (login: admin@tenant1.com / admin123) |
 | Kafka UI | http://localhost:8080 | Monitoreo de tópicos, consumidores y conectores |
 | Traccar | http://localhost:8082 | Interfaz de administración de Traccar |
+| Integration Service | http://localhost:8090/healthz | Health check del servicio Go |
 
 ---
 
@@ -400,12 +433,25 @@ Dispositivo GPS → Traccar → Webhook HTTP → NestJS (TraccarController)
         └── Kafka [gps.positions.enriched]
 ```
 
+### Flujo de Escritura de Comandos (Creación de clientes y conductores)
+
+```
+POST /api/customers o /api/drivers
+    → NestJS produce a Kafka [commands.customers / commands.drivers]
+    → HTTP 202 Accepted { correlationId }
+    → Integration Service (Go) consume el comando
+        ├── INSERT en MySQL (con 3× reintentos + backoff exponencial)
+        └── Si falla → DLQ (commands.customers.dlq / commands.drivers.dlq)
+    → Debezium captura cambio en MySQL → cdc.customers / cdc.drivers
+    → CdcConsumerService sincroniza a caché PostgreSQL
+```
+
 ### Flujo de Sincronización CDC (MySQL → Caché Local)
 
 ```
 MySQL (INSERT/UPDATE/DELETE) → Binlog
     → Debezium captura cambios
-    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders]
+    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders, cdc.drivers]
     → NestJS CdcConsumerService
         ├── Upsert/Delete en PostgreSQL caché
         ├── Invalidar caché Redis
@@ -467,7 +513,7 @@ Fallback: MySQL directo
 - **CustomerCacheService**: Implementa caché de 3 niveles (Memoria → Redis → PG → fallback MySQL). Soporta búsqueda por ID, por tenant, y consultas geográficas.
 
 ### `drivers/` — Gestión de Conductores
-- **DriversService/Controller**: CRUD de conductores con campos `device_id`, `vehicle_plate`, `vehicle_type`, `status`.
+- **DriversService/Controller**: La creación de conductores publica al tópico Kafka `commands.drivers` (asíncrono, retorna HTTP 202). Las lecturas vienen del caché PostgreSQL local.
 - **DriverPosition**: Entidad snapshot de la última posición conocida por conductor.
 
 ### `routes/` — Rutas de Entrega

@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { Driver, DriverPosition } from './entities';
+import { KafkaProducerService } from '../kafka/kafka-producer.service';
+import { CreateDriverDto } from './dto/create-driver.dto';
 
 @Injectable()
 export class DriversService {
@@ -13,6 +16,8 @@ export class DriversService {
 
     @InjectRepository(DriverPosition, 'cacheDb')
     private readonly positionRepo: Repository<DriverPosition>,
+
+    private readonly kafkaProducer: KafkaProducerService,
   ) {}
 
   async findAll(tenantId?: string): Promise<Driver[]> {
@@ -35,6 +40,23 @@ export class DriversService {
       return this.positionRepo.find({ where: { tenantId } });
     }
     return this.positionRepo.find();
+  }
+
+  async createDriver(dto: CreateDriverDto): Promise<{ status: string; correlationId: string }> {
+    const correlationId = randomUUID();
+    const id = randomUUID();
+    try {
+      await this.kafkaProducer.produce('commands.drivers', {
+        key: dto.tenantId,
+        value: JSON.stringify({ op: 'create', correlationId, data: { id, ...dto } }),
+      });
+      return { status: 'accepted', correlationId };
+      
+    } catch (error) {
+      console.log(error);
+      this.logger.error(`Failed to produce create driver command: ${error.message}`);
+      throw error;
+    }
   }
 
   async upsertPosition(

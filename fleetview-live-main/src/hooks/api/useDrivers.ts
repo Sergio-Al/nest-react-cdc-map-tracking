@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import api from '@/lib/axios';
 import { useMapStore } from '@/stores/map.store';
@@ -83,4 +83,27 @@ export function useInitialPositions(drivers: Driver[]) {
       updatePosition(enriched);
     }
   }, [positions, drivers, updatePosition]);
+}
+
+export interface CreateDriverDto {
+  tenantId: string;
+  name: string;
+  deviceId?: string;
+  phone?: string;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  status?: string;
+}
+
+export function useCreateDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (dto: CreateDriverDto) => {
+      const response = await api.post<Driver>('/drivers', dto);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
 }

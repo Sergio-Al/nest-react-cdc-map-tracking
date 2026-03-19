@@ -99,11 +99,17 @@ services:
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.products           --partitions 3 --replication-factor 1
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.orders             --partitions 3 --replication-factor 1
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.users              --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.drivers           --partitions 3 --replication-factor 1
         echo "Creating DLQ topics..."
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic gps.positions.dlq          --partitions 3 --replication-factor 1
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic gps.positions.enriched.dlq --partitions 3 --replication-factor 1
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic visits.events.dlq          --partitions 3 --replication-factor 1
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic cdc.dlq                    --partitions 3 --replication-factor 1
+        echo "Creating command topics..."
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic commands.customers         --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic commands.customers.dlq     --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic commands.drivers           --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic commands.drivers.dlq       --partitions 3 --replication-factor 1
         echo "All topics created ✔"
     networks:
       - tracking-net
@@ -290,66 +296,90 @@ services:
       - tracking-net
 
   # ─── NestJS Tracking Service ──────────────────────────────
-  tracking-service:
-    build:
-      context: ./tracking-service
-      dockerfile: Dockerfile
-      target: development
-    container_name: tracking-service
+  # tracking-service:
+  #   build:
+  #     context: ./tracking-service
+  #     dockerfile: Dockerfile
+  #     target: development
+  #   container_name: tracking-service
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${TRACKING_SERVICE_PORT:-3000}:3000"
+  #   environment:
+  #     NODE_ENV: ${NODE_ENV:-development}
+  #     PORT: 3000
+  #     # Kafka
+  #     KAFKA_BROKER: kafka:9092
+  #     KAFKA_CLIENT_ID: tracking-service
+  #     KAFKA_GROUP_ID: tracking-service-group
+  #     # Cache DB (Local PostgreSQL)
+  #     CACHE_DB_HOST: cache-db
+  #     CACHE_DB_PORT: 5432
+  #     CACHE_DB_NAME: ${CACHE_DB_NAME:-tracking_cache}
+  #     CACHE_DB_USER: ${CACHE_DB_USER:-tracking}
+  #     CACHE_DB_PASSWORD: ${CACHE_DB_PASSWORD:-tracking_secret}
+  #     # TimescaleDB
+  #     TIMESCALE_HOST: timescale
+  #     TIMESCALE_PORT: 5432
+  #     TIMESCALE_DB: ${TIMESCALE_DB:-tracking_history}
+  #     TIMESCALE_USER: ${TIMESCALE_USER:-timescale}
+  #     TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_secret}
+  #     # MySQL (source of truth – replaces SQL Server)
+  #     MYSQL_HOST: mysql
+  #     MYSQL_PORT: 3306
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-core_business}
+  #     MYSQL_USER: ${MYSQL_USER:-app_user}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secret}
+  #     # Redis
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+  #     # Authentication
+  #     JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please}
+  #     JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+  #     REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-7d}
+  #     TRACCAR_API_KEY: ${TRACCAR_API_KEY:-traccar-shared-key}
+  #     # Route Optimization
+  #     OSRM_URL: http://osrm:5000
+  #     OR_TOOLS_URL: http://or-tools-solver:5001
+  #   volumes:
+  #     - ./tracking-service:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     kafka:
+  #       condition: service_healthy
+  #     cache-db:
+  #       condition: service_healthy
+  #     timescale:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     mysql:
+  #       condition: service_healthy
+  #   networks:
+  #     - tracking-net
+
+  # ─── Go Integration Service (Kafka → MySQL) ───────────────
+  integration-service:
+    build: ./integration-service
+    container_name: integration-service
     restart: unless-stopped
-    ports:
-      - "${TRACKING_SERVICE_PORT:-3000}:3000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 3000
-      # Kafka
       KAFKA_BROKER: kafka:9092
-      KAFKA_CLIENT_ID: tracking-service
-      KAFKA_GROUP_ID: tracking-service-group
-      # Cache DB (Local PostgreSQL)
-      CACHE_DB_HOST: cache-db
-      CACHE_DB_PORT: 5432
-      CACHE_DB_NAME: ${CACHE_DB_NAME:-tracking_cache}
-      CACHE_DB_USER: ${CACHE_DB_USER:-tracking}
-      CACHE_DB_PASSWORD: ${CACHE_DB_PASSWORD:-tracking_secret}
-      # TimescaleDB
-      TIMESCALE_HOST: timescale
-      TIMESCALE_PORT: 5432
-      TIMESCALE_DB: ${TIMESCALE_DB:-tracking_history}
-      TIMESCALE_USER: ${TIMESCALE_USER:-timescale}
-      TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_secret}
-      # MySQL (source of truth – replaces SQL Server)
+      KAFKA_GROUP_ID: integration-service-group
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE:-core_business}
       MYSQL_USER: ${MYSQL_USER:-app_user}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secret}
-      # Redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
-      # Authentication
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-      REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-7d}
-      TRACCAR_API_KEY: ${TRACCAR_API_KEY:-traccar-shared-key}
-      # Route Optimization
-      OSRM_URL: http://osrm:5000
-      OR_TOOLS_URL: http://or-tools-solver:5001
-    volumes:
-      - ./tracking-service:/app
-      - /app/node_modules
-    depends_on:
-      kafka:
-        condition: service_healthy
-      cache-db:
-        condition: service_healthy
-      timescale:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      mysql:
-        condition: service_healthy
+      HTTP_PORT: 8090
+    ports:
+      - "8090:8090"
     networks:
       - tracking-net
 

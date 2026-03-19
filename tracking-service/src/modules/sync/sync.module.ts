@@ -10,6 +10,7 @@ import {
   SyncState,
   CachedUser,
 } from './entities';
+import { Driver } from '../drivers/entities';
 import { WebsocketModule } from '../websocket/websocket.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
       CachedProduct,
       SyncState,
       CachedUser,
+      Driver,
     ], 'cacheDb'),
     forwardRef(() => WebsocketModule),
   ],

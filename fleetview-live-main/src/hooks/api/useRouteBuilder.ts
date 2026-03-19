@@ -168,3 +168,36 @@ export function useDeleteVisit() {
     },
   });
 }
+
+export interface CreateCustomerDto {
+  tenantId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  geofenceRadiusMeters?: number;
+  customerType?: string;
+}
+
+export interface CreateCustomerResponse {
+  status: 'accepted';
+  correlationId: string;
+}
+
+export function useCreateCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (dto: CreateCustomerDto) => {
+      const response = await api.post<CreateCustomerResponse>('/customers', dto);
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate after a short delay to allow CDC propagation
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+      }, 3000);
+    },
+  });
+}

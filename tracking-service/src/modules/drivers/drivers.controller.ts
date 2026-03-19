@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Param, Query, BadRequestException, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DriversService } from './drivers.service';
 import { TimescaleService } from '../timescale/timescale.service';
+import { CreateDriverDto } from './dto/create-driver.dto';
 
 @Controller('drivers')
 export class DriversController {
@@ -54,4 +55,12 @@ export class DriversController {
     }
     return this.timescaleService.getDriverPositionHistory(id, fromDate, toDate);
   }
+
+  @Roles('admin', 'dispatcher')
+  @Post()
+  @HttpCode(HttpStatus.ACCEPTED)
+  async createDriver(@Body() dto: CreateDriverDto) {
+    return this.driversService.createDriver(dto);
+  }
+
 }

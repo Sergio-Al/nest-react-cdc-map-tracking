@@ -37,49 +37,42 @@ GPS Devices (1000)
 └──────┬───────┘     └──────────────┘
        │ HTTP Webhook
        ▼
-┌──────────────┐
-│ APACHE KAFKA │◀──── Debezium CDC ◀──── MySQL (Source of Truth)
-│              │                          (Customers, Accounts,
-│ Topics:      │                           Orders, Products, Users)
-│ • gps.positions              │
-│ • gps.positions.enriched     │
-│ • gps.events                 │
-│ • visits.events              │
-│ • cdc.customers              │
-│ • cdc.accounts               │
-│ • cdc.products               │
-│ • cdc.orders                 │
-│ • cdc.users                  │
-└──────┬───────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────┐
-│         TRACKING SERVICE (NestJS)                │
-│                                                  │
-│  ┌─────────────────┐  ┌──────────────────────┐  │
-│  │ Traccar Webhook  │  │ Kafka Consumers      │  │
-│  │ Controller       │  │ • GPS Positions      │  │
-│  │ POST /positions  │  │ • CDC Sync           │  │
-│  │ POST /events     │  │ • Visit Events       │  │
-│  └────────┬─────────┘  └──────────┬───────────┘  │
-│           ▼                       ▼               │
-│  ┌──────────────────────────────────────────┐    │
-│  │         Enrichment Service                │    │
-│  │  • Join GPS position with:                │    │
-│  │    - Driver info (local cache)            │    │
-│  │    - Customer data (local cache)          │    │
-│  │    - Planned visits (local DB)            │    │
-│  │  • Calculate proximity & ETA              │    │
-│  │  • Detect arrival/departure (geofence)    │    │
-│  └──────────────────────────────────────────┘    │
-│           │                                      │
-│     ┌─────┼──────────────┬───────────────┐       │
-│     ▼     ▼              ▼               ▼       │
-│  ┌─────┐ ┌────────┐ ┌──────────┐ ┌───────────┐  │
-│  │Redis│ │Cache PG│ │Timescale │ │ WebSocket │  │
-│  │     │ │(local) │ │   DB     │ │ Gateway   │  │
-│  └─────┘ └────────┘ └──────────┘ └───────────┘  │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       APACHE KAFKA                           │
+│                                                              │
+│  Topics:                                                     │
+│  • gps.positions / gps.positions.enriched / gps.events       │
+│  • visits.events                                             │
+│  • commands.customers / commands.drivers  (command topics)    │
+│  • cdc.customers / cdc.drivers / cdc.accounts / ...          │
+└──────┬──────────────────────────────────────┬────────────────┘
+       │                                      │
+       │  commands.customers / drivers         │  cdc.* / gps.* / visits.*
+       ▼                                      ▼
+┌──────────────────────┐    ┌─────────────────────────────────────────────┐
+│ INTEGRATION SERVICE  │    │         TRACKING SERVICE (NestJS)            │
+│ (Go microservice)    │    │                                             │
+│                      │    │  ┌─────────────┐  ┌──────────────────────┐  │
+│ • Kafka consumer     │    │  │  Traccar     │  │ Kafka Consumers      │  │
+│ • commands.customers │    │  │  Webhook     │  │ • GPS Positions      │  │
+│ • commands.drivers   │    │  │  Controller  │  │ • CDC Sync           │  │
+│ • Writes to MySQL    │    │  └──────┬───────┘  │ • Visit Events       │  │
+│ • Retry + DLQ        │    │         │          └──────────┬───────────┘  │
+│ • /healthz :8090     │    │         ▼                     ▼              │
+└──────────┬───────────┘    │  ┌──────────────────────────────────────┐   │
+           │                │  │       Enrichment Service              │   │
+           ▼                │  │  • Join GPS + driver/customer/visit   │   │
+    ┌──────────────┐        │  │  • Calculate proximity & ETA          │   │
+    │    MySQL     │        │  │  • Detect arrival/departure           │   │
+    │ (Source of   │        │  └──────────────────────────────────────┘   │
+    │   Truth)     │        │         │                                    │
+    └──────┬───────┘        │   ┌─────┼──────────┬───────────────┐        │
+           │                │   ▼     ▼          ▼               ▼        │
+     Debezium CDC           │ ┌─────┐ ┌────────┐ ┌──────────┐ ┌───────┐  │
+           │                │ │Redis│ │Cache PG│ │Timescale │ │  WS   │  │
+           ▼                │ └─────┘ └────────┘ └──────────┘ └───────┘  │
+    cdc.customers /         └─────────────────────────────────────────────┘
+    cdc.drivers ──▶ CdcConsumerService ──▶ PostgreSQL cache
 ```
 
 ---
@@ -98,9 +91,10 @@ GPS Devices (1000)
 | Historical DB | TimescaleDB | latest-pg16 | Time-series, position history, analytics |
 | Cache / Pub-Sub | Redis | 7-alpine | Latest positions, 3-level cache |
 | Routing Engine | OSRM | latest | Road distance/duration matrix (La Paz, Bolivia) |
+| Integration Service | Go | 1.23 | Kafka → MySQL command consumer (customers, drivers) |
 | Route Optimizer | OR-Tools (Python) | 9.x | VRP solver via FastAPI sidecar |
 | WebSocket | Socket.io | 4+ | Real-time push to dashboard |
-| Language | TypeScript | 5+ | Backend |
+| Language | TypeScript / Go | 5+ / 1.23 | Backend services |
 | Containers | Docker + Docker Compose | Latest | Development environment |
 
 ---
@@ -123,7 +117,8 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Binlog configuration (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tables + seed data (accounts, customers, products, orders)
-│   │       └── 02-users.sql          # Users table + admin seed accounts
+│   │       ├── 02-users.sql          # Users table + admin seed accounts
+│   │       └── 03-drivers.sql        # Drivers table (UUID PK, consumed by integration-service)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Cache schema (sync, drivers, routes, visits, positions)
@@ -146,6 +141,21 @@ streaming-tracking-logistic/
 │   │   └── init/01-init.sql          # Hypertables, compression, retention, continuous aggregates
 │   └── traccar/
 │       └── traccar.xml               # Traccar configuration (webhook, ports)
+│
+├── integration-service/               # Go microservice (Kafka → MySQL)
+│   ├── Dockerfile                    # Multi-stage alpine build
+│   ├── go.mod
+│   ├── cmd/server/main.go            # Entrypoint: config → DB → consumers → health
+│   └── internal/
+│       ├── config/config.go          # Env-based configuration
+│       ├── db/
+│       │   ├── mysql.go              # Connection pool setup
+│       │   └── queries.go            # Prepared INSERT statements
+│       ├── consumer/
+│       │   ├── runner.go             # Per-topic goroutine consumer loop
+│       │   ├── customers.go          # commands.customers handler
+│       │   └── drivers.go            # commands.drivers handler
+│       └── health/server.go          # /healthz + /metrics endpoints
 │
 ├── scripts/
 │   ├── register-cdc-connector.sh     # Registers the Debezium connector with Kafka Connect
@@ -218,7 +228,7 @@ streaming-tracking-logistic/
 - **Docker** and **Docker Compose** (v2+)
 - **Node.js** v18+ and **npm** v9+
 - ~6 GB of available RAM for Docker containers
-- Available ports: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8080`, `8082`, `8083`, `9094`
+- Available ports: `3000`, `3306`, `5002`, `5003`, `5432`, `5433`, `6379`, `8080`, `8082`, `8083`, `8090`, `9094`
 
 ---
 
@@ -292,6 +302,7 @@ The following services will start:
 | `redis` | 6379 | Cache and pub/sub |
 | `osrm` | 5003 | OSRM routing engine (La Paz road network) |
 | `or-tools-solver` | 5002 | OR-Tools VRP solver (Python FastAPI) |
+| `integration-service` | 8090 | Go microservice: Kafka commands → MySQL writes |
 
 ### 4. Set up OSRM (Route Optimization)
 
@@ -368,7 +379,21 @@ cd tracking-service
 npm run start:dev
 ```
 
-The service will be available at `http://localhost:3000`.
+The tracking service will be available at `http://localhost:3000`.
+
+The **integration-service** (Go) runs as a Docker container and starts automatically with `docker compose up -d`. It consumes `commands.customers` and `commands.drivers` from Kafka and writes to MySQL. To verify it is running:
+
+```bash
+curl http://localhost:8090/healthz
+# {"status":"ok","service":"integration-service"}
+```
+
+If you need to rebuild it after code changes:
+
+```bash
+docker compose build integration-service
+docker compose up -d integration-service
+```
 
 ### Verify system health
 
@@ -400,6 +425,7 @@ Expected response:
 | Frontend | http://localhost:5173 | React dashboard (login: admin@tenant1.com / admin123) |
 | Kafka UI | http://localhost:8080 | Topic, consumer, and connector monitoring |
 | Traccar | http://localhost:8082 | Traccar administration interface |
+| Integration Service | http://localhost:8090/healthz | Go service health check |
 
 ---
 
@@ -418,12 +444,25 @@ GPS Device → Traccar → HTTP Webhook → NestJS (TraccarController)
         └── Kafka [gps.positions.enriched]
 ```
 
+### Command Write Flow (Customer & Driver creation)
+
+```
+POST /api/customers or /api/drivers
+    → NestJS produces to Kafka [commands.customers / commands.drivers]
+    → HTTP 202 Accepted { correlationId }
+    → Integration Service (Go) consumes command
+        ├── INSERT into MySQL (with 3× retry + exponential backoff)
+        └── On failure → DLQ (commands.customers.dlq / commands.drivers.dlq)
+    → Debezium captures MySQL change → cdc.customers / cdc.drivers
+    → CdcConsumerService syncs to PostgreSQL cache
+```
+
 ### CDC Sync Flow (MySQL → Local Cache)
 
 ```
 MySQL (INSERT/UPDATE/DELETE) → Binlog
     → Debezium captures changes
-    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders]
+    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders, cdc.drivers]
     → NestJS CdcConsumerService
         ├── Upsert/Delete in PostgreSQL cache
         ├── Invalidate Redis cache
@@ -479,7 +518,7 @@ Fallback: Direct MySQL query
 - **CustomerCacheService**: Implements 3-level cache (Memory → Redis → PG → MySQL fallback). Supports lookup by ID, by tenant, and geo queries.
 
 ### `drivers/` — Driver Management
-- **DriversService/Controller**: Driver CRUD with `device_id`, `vehicle_plate`, `vehicle_type`, `status` fields.
+- **DriversService/Controller**: Driver creation publishes to `commands.drivers` Kafka topic (async, returns HTTP 202). Reads from local PostgreSQL cache.
 - **DriverPosition**: Snapshot entity of the latest known position per driver.
 
 ### `routes/` — Delivery Routes
