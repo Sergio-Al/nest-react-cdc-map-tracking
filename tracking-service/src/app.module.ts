@@ -19,6 +19,7 @@ import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { DlqModule } from './modules/dlq/dlq.module';
 import { HistoryModule } from './modules/history/history.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
 
 
 @Module({
@@ -52,6 +53,7 @@ import { HistoryModule } from './modules/history/history.module';
     WebsocketModule,
     DlqModule,
     HistoryModule,
+    VehiclesModule,
     HealthModule,
   ],
 })
