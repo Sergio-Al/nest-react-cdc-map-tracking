@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Route } from './entities/route.entity';
 import { CreateRouteDto, UpdateRouteDto } from './dto/route.dto';
 
@@ -29,6 +29,24 @@ export class RoutesService {
 
   async findAll(tenantId?: string): Promise<Route[]> {
     const where = tenantId ? { tenantId } : {};
+    return this.routeRepo.find({
+      where,
+      order: { scheduledDate: 'DESC' },
+      relations: ['visits'],
+    });
+  }
+
+  async findByDateRange(
+    tenantId: string,
+    from: string,
+    to: string,
+    status?: string,
+  ): Promise<Route[]> {
+    const where: FindOptionsWhere<Route> = {
+      tenantId,
+      scheduledDate: Between(from, to),
+    };
+    if (status) where.status = status;
     return this.routeRepo.find({
       where,
       order: { scheduledDate: 'DESC' },

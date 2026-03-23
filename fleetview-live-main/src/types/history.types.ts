@@ -20,3 +20,30 @@ export interface HistoryQuery {
   from: string; // ISO 8601
   to: string;   // ISO 8601
 }
+
+/** A visit completion record from TimescaleDB */
+export interface VisitCompletion {
+  time: string;
+  visitId: string;
+  tenantId: string;
+  driverId: string;
+  customerId: number;
+  routeId: string | null;
+  visitType: string;
+  status: string;
+  arrivedAt: string | null;
+  completedAt: string | null;
+  durationSec: number | null;
+  onTime: boolean;
+}
+
+/** Daily driver statistics from the continuous aggregate */
+export interface DriverDailyStat {
+  bucket: string;
+  driverId: string;
+  tenantId: string;
+  positionCount: number;
+  avgSpeed: number;
+  maxSpeed: number;
+  movingRatio: number;
+}

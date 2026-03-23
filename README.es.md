@@ -37,48 +37,42 @@ Dispositivos GPS (1000)
 └──────┬───────┘     └──────────────┘
        │ HTTP Webhook
        ▼
-┌──────────────┐
-│ APACHE KAFKA │◀──── Debezium CDC ◀──── MySQL (Fuente de Verdad)
-│              │                          (Clientes, Cuentas,
-│ Tópicos:     │                           Pedidos, Productos)
-│ • gps.positions              │
-│ • gps.positions.enriched     │
-│ • gps.events                 │
-│ • visits.events              │
-│ • cdc.customers              │
-│ • cdc.accounts               │
-│ • cdc.products               │
-│ • cdc.orders                 │
-└──────┬───────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────┐
-│         TRACKING SERVICE (NestJS)                │
-│                                                  │
-│  ┌─────────────────┐  ┌──────────────────────┐  │
-│  │ Traccar Webhook  │  │ Consumidores Kafka   │  │
-│  │ Controller       │  │ • Posiciones GPS     │  │
-│  │ POST /positions  │  │ • Sincronización CDC │  │
-│  │ POST /events     │  │ • Eventos de visitas │  │
-│  └────────┬─────────┘  └──────────┬───────────┘  │
-│           ▼                       ▼               │
-│  ┌──────────────────────────────────────────┐    │
-│  │       Servicio de Enriquecimiento         │    │
-│  │  • Cruzar posición GPS con:               │    │
-│  │    - Info del conductor (caché local)     │    │
-│  │    - Datos del cliente (caché local)      │    │
-│  │    - Visitas planificadas (BD local)      │    │
-│  │  • Calcular proximidad y ETA              │    │
-│  │  • Detectar llegada/salida (geofence)     │    │
-│  └──────────────────────────────────────────┘    │
-│           │                                      │
-│     ┌─────┼──────────────┬───────────────┐       │
-│     ▼     ▼              ▼               ▼       │
-│  ┌─────┐ ┌────────┐ ┌──────────┐ ┌───────────┐  │
-│  │Redis│ │Cache PG│ │Timescale │ │ WebSocket │  │
-│  │     │ │(local) │ │   DB     │ │ Gateway   │  │
-│  └─────┘ └────────┘ └──────────┘ └───────────┘  │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       APACHE KAFKA                           │
+│                                                              │
+│  Tópicos:                                                    │
+│  • gps.positions / gps.positions.enriched / gps.events       │
+│  • visits.events                                             │
+│  • commands.customers / commands.drivers  (tópicos comando)  │
+│  • cdc.customers / cdc.drivers / cdc.accounts / ...          │
+└──────┬──────────────────────────────────────┬────────────────┘
+       │                                      │
+       │  commands.customers / drivers         │  cdc.* / gps.* / visits.*
+       ▼                                      ▼
+┌──────────────────────┐    ┌─────────────────────────────────────────────┐
+│ INTEGRATION SERVICE  │    │         TRACKING SERVICE (NestJS)            │
+│ (Microservicio Go)   │    │                                             │
+│                      │    │  ┌─────────────┐  ┌──────────────────────┐  │
+│ • Consumidor Kafka   │    │  │  Traccar     │  │ Consumidores Kafka   │  │
+│ • commands.customers │    │  │  Webhook     │  │ • Posiciones GPS     │  │
+│ • commands.drivers   │    │  │  Controller  │  │ • Sincronización CDC │  │
+│ • Escribe en MySQL   │    │  └──────┬───────┘  │ • Eventos de visitas │  │
+│ • Reintentos + DLQ   │    │         │          └──────────┬───────────┘  │
+│ • /healthz :8090     │    │         ▼                     ▼              │
+└──────────┬───────────┘    │  ┌──────────────────────────────────────┐   │
+           │                │  │       Servicio de Enriquecimiento     │   │
+           ▼                │  │  • Cruzar GPS + conductor/cliente     │   │
+    ┌──────────────┐        │  │  • Calcular proximidad y ETA          │   │
+    │    MySQL     │        │  │  • Detectar llegada/salida             │   │
+    │ (Fuente de   │        │  └──────────────────────────────────────┘   │
+    │   Verdad)    │        │         │                                    │
+    └──────┬───────┘        │   ┌─────┼──────────┬───────────────┐        │
+           │                │   ▼     ▼          ▼               ▼        │
+     Debezium CDC           │ ┌─────┐ ┌────────┐ ┌──────────┐ ┌───────┐  │
+           │                │ │Redis│ │Cache PG│ │Timescale │ │  WS   │  │
+           ▼                │ └─────┘ └────────┘ └──────────┘ └───────┘  │
+    cdc.customers /         └─────────────────────────────────────────────┘
+    cdc.drivers ──▶ CdcConsumerService ──▶ PostgreSQL cache
 ```
 
 ---
@@ -130,7 +124,8 @@ streaming-tracking-logistic/
 │   │       ├── 01-init.sql           # Esquema del caché (sync, drivers, routes, visits, positions)
 │   │       ├── 02-cached-users.sql   # Tabla cached_users (poblada vía CDC en runtime)
 │   │       ├── 03-route-optimizer.sql # Columnas de optimización de rutas (routes & planned_visits)
-│   │       └── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
+│   │       ├── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
+│   │       └── 05-vehicles.sql       # Tabla de vehículos + datos semilla
 │   ├── osrm/
 │   │   ├── setup.sh                  # Descarga Bolivia OSM, recorta región La Paz, construye grafo OSRM
 │   │   └── data/                     # Archivos OSRM preprocesados (generados por setup.sh)
@@ -164,17 +159,29 @@ streaming-tracking-logistic/
 │       └── health/server.go          # Endpoints /healthz + /metrics
 │
 ├── scripts/
-│   └── register-cdc-connector.sh     # Registra el conector Debezium en Kafka Connect
+│   ├── register-cdc-connector.sh     # Registra el conector Debezium en Kafka Connect
+│   ├── seed-load-test-drivers.sql    # Genera 1,000 conductores de prueba (LOAD0001-LOAD1000)
+│   └── cleanup-load-test-drivers.sql # Elimina conductores de prueba de carga y sus posiciones
+│
+├── load-tests/                       # Scripts de prueba de carga k6
+│   ├── gps-ingestion.js              # Simulación de 1,000 dispositivos GPS
+│   ├── ws-consumers.js               # Simulación de 500 conexiones WebSocket
+│   ├── full-scenario.js              # Escenario combinado GPS + WS
+│   ├── check-system.sh               # Monitoreo de salud durante pruebas
+│   └── README.md                     # Documentación de pruebas de carga
 │
 ├── tracking-service/                 # Backend NestJS
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── nest-cli.json
 │   └── src/
-│       ├── main.ts                   # Bootstrap de la aplicación
+│       ├── main.ts                   # Bootstrap de la aplicación (filtros globales)
 │       ├── app.module.ts             # Módulo raíz con todas las importaciones
 │       ├── adapters/
 │       │   └── redis-io.adapter.ts   # Adaptador Socket.io Redis para soporte multi-instancia
+│       ├── common/
+│       │   └── filters/
+│       │       └── global-exception.filter.ts  # Respuestas JSON de error consistentes
 │       ├── config/
 │       │   ├── configuration.ts      # Configuración centralizada (Kafka, DBs, Redis)
 │       │   └── database.config.ts    # Conexiones TypeORM + factories para TimescaleDB y MySQL
@@ -182,12 +189,14 @@ streaming-tracking-logistic/
 │       │   └── pg.d.ts               # Declaración de tipos para el módulo 'pg'
 │       └── modules/
 │           ├── auth/                 # Autenticación JWT, guards, refresh tokens
-│           ├── kafka/                # Productor y consumidor Kafka (global)
+│           ├── kafka/                # Productor y consumidor Kafka (global) + servicio DLQ
+│           ├── dlq/                  # Admin DLQ (peek, replay, listar tópicos)
 │           ├── traccar/              # Controller webhook + servicio de ingestión
 │           ├── enrichment/           # Enriquecimiento de posiciones GPS
 │           ├── sync/                 # Consumidor CDC + monitoreo de lag
 │           ├── customers/            # Caché de clientes de 3 niveles
 │           ├── drivers/              # CRUD de conductores + entidad de posición
+│           ├── vehicles/             # CRUD de vehículos (placa, tipo, marca, modelo, capacidad)
 │           ├── routes/               # Gestión de rutas de entrega
 │           ├── visits/               # Ciclo de vida de visitas planificadas
 │           ├── websocket/            # Gateway Socket.io con broadcasting por rooms
@@ -201,15 +210,17 @@ streaming-tracking-logistic/
     └── src/
         ├── components/
         │   ├── dashboard/            # Mapa, sidebar, tarjetas de conductores
+        │   ├── drivers/              # CreateDriverDialog
         │   ├── history/              # Reproducción de rutas
         │   ├── monitoring/           # Monitoreo de lag CDC (admin)
         │   ├── routes/               # Constructor de rutas (sidebar, mapa, drag-and-drop, diálogos)
+        │   ├── vehicles/             # CreateVehicleDialog, EditVehicleDialog
         │   ├── layout/               # AppLayout, ProtectedRoute
         │   └── ui/                   # Componentes shadcn/ui
         ├── hooks/                    # Hooks React Query, useSocket
         │   └── api/
         │       └── useRouteBuilder.ts # Hooks API del constructor de rutas (7 hooks)
-        ├── pages/                    # Index, Login, History, Monitoring, Routes, NotFound
+        ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles, Drivers, Reports, NotFound
         ├── stores/                   # Stores Zustand (auth, map, playback, routeBuilder)
         └── types/                    # Interfaces TypeScript
 ```
@@ -403,6 +414,10 @@ Respuesta esperada:
     "kafka": "up",
     "redis": "up",
     "timescale": "up"
+  },
+  "websocket": {
+    "connectedClients": 0,
+    "activeRooms": 0
   }
 }
 ```
@@ -516,9 +531,16 @@ Fallback: MySQL directo
 - **DriversService/Controller**: La creación de conductores publica al tópico Kafka `commands.drivers` (asíncrono, retorna HTTP 202). Las lecturas vienen del caché PostgreSQL local.
 - **DriverPosition**: Entidad snapshot de la última posición conocida por conductor.
 
+### `vehicles/` — Gestión de Vehículos
+- **VehiclesService/Controller**: CRUD completo para vehículos de flota. Crear, listar, buscar (por placa, tipo, estado, marca, conductor), actualizar. Almacenado directamente en el caché PostgreSQL local.
+- **Vehicle**: Entidad con placa, tipo, marca, modelo, año, color, capacidad (kg), estado (active/maintenance/inactive), y asignación opcional de conductor.
+
 ### `routes/` — Rutas de Entrega
-- **RoutesService/Controller**: Crear, listar, actualizar rutas. Buscar rutas activas y del día por conductor. Contador de paradas completadas.
+- **RoutesService/Controller**: Crear, listar, actualizar rutas. Buscar rutas activas y del día por conductor. Contador de paradas completadas. Filtrado por rango de fechas con filtro de estado opcional.
 - **RouteOptimizerService**: Orquesta la optimización de rutas — obtiene matriz de distancias/duraciones de OSRM, envía al solver VRP de OR-Tools, actualiza secuencia de visitas, ETAs y distancias.
+
+### `history/` — Reportes Históricos
+- **HistoryController**: Expone consultas filtradas sobre datos de TimescaleDB para reportes. Completaciones de visitas con filtros de conductor/fecha y estadísticas diarias de conductores.
 
 ### `visits/` — Visitas Planificadas
 - **VisitsService/Controller**: Crear visitas, gestionar ciclo de vida (`pending` → `arrived` → `in_progress` → `completed` → `departed`), llegada/salida automática, publicación de eventos, eliminar visitas pendientes.
@@ -535,7 +557,14 @@ Fallback: MySQL directo
 - **RedisIoAdapter**: Adaptador Socket.io usando Redis pub/sub para escalamiento horizontal.
 
 ### `health/` — Endpoints de Salud
-- **HealthController**: `GET /api/health` verifica conectividad con Kafka, Redis y TimescaleDB. `GET /api/health/ready` para readiness probe.
+- **HealthController**: `GET /api/health` verifica conectividad con Kafka, Redis, TimescaleDB y estadísticas WebSocket. Incluye conteos de mensajes DLQ y estado de degradación. `GET /api/health/ready` para readiness probe.
+
+### `dlq/` — Admin de Dead Letter Queue
+- **DlqAdminService**: Inspecciona tópicos DLQ de Kafka — listar tópicos, ver mensajes, reenviar mensajes a los tópicos originales.
+- **DlqController**: Endpoints REST solo para admin para gestión DLQ (`/api/dlq/*`).
+
+### `common/filters/` — Filtros Globales
+- **GlobalExceptionFilter**: Captura todas las excepciones y retorna respuestas JSON de error consistentes con timestamp y path. Registra errores 5xx con stack traces.
 
 ---
 
@@ -650,6 +679,16 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 |---|---|---|
 | GET | `/api/customers` | Listar todos los clientes (filtrado por tenant) |
 
+### Vehículos
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| POST | `/api/vehicles` | Crear un nuevo vehículo |
+| GET | `/api/vehicles` | Listar todos los vehículos (filtrado por tenant) |
+| GET | `/api/vehicles/search?plate=&type=&status=&driverId=&brand=` | Buscar vehículos por criterios |
+| GET | `/api/vehicles/:id` | Obtener vehículo por ID |
+| PATCH | `/api/vehicles/:id` | Actualizar información del vehículo |
+
 ### Visitas
 
 | Método | Ruta | Descripción |
@@ -660,6 +699,13 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | GET | `/api/visits/driver/:driverId` | Visitas de un conductor |
 | PATCH | `/api/visits/:id/status` | Actualizar estado de visita |
 | DELETE | `/api/visits/:id` | Eliminar una visita pendiente |
+
+### Historial (Reportes)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/history/visits?from=&to=&driverId=` | Completaciones de visitas (filtrable por conductor) |
+| GET | `/api/history/stats?from=&to=` | Estadísticas diarias de conductores (velocidad, posiciones, ratio en movimiento) |
 
 ### Sincronización CDC
 
@@ -675,6 +721,32 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | GET | `/api/sync/orders` | Pedidos cacheados |
 | GET | `/api/sync/orders/:id` | Pedido por ID |
 | GET | `/api/sync/lag` | Métricas de lag CDC (solo admin) |
+
+### Dead Letter Queue (Solo Admin)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/dlq/topics` | Listar todos los tópicos DLQ con conteo de mensajes |
+| GET | `/api/dlq/:topic/messages?limit=20` | Ver mensajes DLQ |
+| POST | `/api/dlq/:topic/replay?limit=100` | Reenviar mensajes DLQ a tópicos originales |
+
+**Tópicos DLQ:**
+- `gps.positions.dlq` — Enriquecimientos de posiciones crudas fallidos
+- `gps.positions.enriched.dlq` — Broadcasts WebSocket fallidos
+- `visits.events.dlq` — Broadcasts de eventos de visita fallidos
+- `cdc.dlq` — Mensajes de sincronización CDC fallidos (compartido entre todos los tópicos CDC)
+
+**Headers de Mensajes DLQ:**
+
+| Header | Descripción |
+|---|---|
+| `x-original-topic` | El tópico del que provino originalmente el mensaje |
+| `x-error-message` | Descripción del error |
+| `x-error-stack` | Stack trace del error (truncado a 1000 caracteres) |
+| `x-retry-count` | Número de intentos antes de enviar a DLQ |
+| `x-failed-at` | Timestamp ISO de cuándo se envió el mensaje a DLQ |
+| `x-original-partition` | Número de partición original |
+| `x-original-offset` | Offset original del mensaje |
 
 ---
 
@@ -812,9 +884,14 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 | `visits.events` | 3 | VisitsService | WsBroadcastService | Ciclo de vida de visitas |
 | `cdc.accounts` | 3 | Debezium | CdcConsumerService | Cambios en cuentas |
 | `cdc.customers` | 3 | Debezium | CdcConsumerService | Cambios en clientes |
+| `cdc.drivers` | 3 | Debezium | CdcConsumerService | Cambios en conductores |
 | `cdc.products` | 3 | Debezium | CdcConsumerService | Cambios en productos |
 | `cdc.orders` | 3 | Debezium | CdcConsumerService | Cambios en pedidos |
 | `cdc.users` | 3 | Debezium | CdcConsumerService | Cambios en usuarios |
+| `gps.positions.dlq` | 3 | DlqService | DlqAdminService | Enriquecimientos de posiciones crudas fallidos |
+| `gps.positions.enriched.dlq` | 3 | DlqService | DlqAdminService | Broadcasts WebSocket fallidos |
+| `visits.events.dlq` | 3 | DlqService | DlqAdminService | Broadcasts de eventos de visita fallidos |
+| `cdc.dlq` | 3 | DlqService | DlqAdminService | Mensajes CDC fallidos (todos los tópicos CDC) |
 
 ---
 
@@ -826,14 +903,16 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 - `customers` — Clientes con ubicación geográfica (lat, lng, geofence_radius)
 - `products` — Catálogo de productos
 - `orders` — Pedidos
+- `users` — Cuentas de usuario con roles (admin, dispatcher, driver)
 
 ### PostgreSQL Caché (`tracking_cache`)
 
-**Tablas sincronizadas vía CDC (solo lectura):**
+**Tablas sincronizadas vía CDC (solo lectura):**, `cached_users`
 - `accounts_cache`, `customers_cache`, `products_cache`
 
 **Tablas propias del servicio de rastreo:**
 - `drivers` — Conductores (device_id vincula con Traccar)
+- `vehicles` — Vehículos de flota (placa, tipo, marca, modelo, año, color, capacidad_kg, estado, FK conductor opcional)
 - `routes` — Rutas de entrega planificadas (+ `total_distance_meters`, `total_estimated_seconds`, `optimized_at`, `optimization_method`)
 - `planned_visits` — Paradas dentro de una ruta (+ `estimated_arrival_time`, `estimated_travel_seconds`, `estimated_distance_meters`)
 - `driver_positions` — Snapshot de la última posición por conductor
@@ -865,6 +944,8 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 | **Multi-tenancy** | `tenant_id` presente en todas las entidades, consultas filtradas por tenant |
 | **Optimización de Rutas** | Matriz de distancias OSRM → solver VRP OR-Tools → secuencia óptima de visitas con ETAs |
 | **Patrón Sidecar** | Solver OR-Tools Python ejecuta como microservicio FastAPI separado |
+| **Dead Letter Queue** | Mensajes fallidos reintentados con backoff exponencial → tópicos DLQ Kafka para inspección/reenvío |
+| **Filtro de Excepción Global** | Respuestas JSON de error consistentes en todos los endpoints REST |
 
 ---
 
@@ -1011,13 +1092,23 @@ docker exec redis redis-cli -a redis_secret \
 - [x] Agregar/eliminar paradas, crear rutas desde el frontend
 - [x] Datos semilla de clientes La Paz (20 clientes con coordenadas reales)
 
-### ⬜ Fase 6 — Monitoreo y Robustez (Pendiente)
+### ✅ Fase 6 — Monitoreo y Robustez (Completada)
 - [x] Autenticación JWT con control de acceso basado en roles
 - [x] Gestión de usuarios vía sincronización CDC
 - [x] Autenticación WebSocket
 - [x] Monitoreo de lag CDC
-- [ ] Manejo de errores y dead letter queues
-- [ ] Pruebas de carga con 1,000 conductores simulados
+- [x] Manejo de errores y dead letter queues (reintentos + DLQ en todos los consumidores)
+- [x] Filtro de excepción HTTP global
+- [x] API REST admin de DLQ (inspeccionar, reenviar, monitorear)
+- [x] Métricas DLQ integradas en endpoint de salud
+- [x] Pruebas de carga con k6 (1,000 conductores GPS + 500 clientes WebSocket)
+
+### ✅ Fase 7 — Reportes (Completada)
+- [x] Módulo de historial con endpoints de completaciones de visitas y estadísticas diarias
+- [x] Filtrado por rango de fechas en endpoint de rutas (retrocompatible)
+- [x] Página de reportes con 4 pestañas: Rutas, Visitas, Posiciones, Estadísticas
+- [x] Exportación CSV para todas las pestañas de reportes
+- [x] Sincronización CDC para conductores (tópico `cdc.drivers`)
 
 ---
 
@@ -1030,6 +1121,16 @@ El sistema viene con 3 conductores pre-cargados:
 | John Smith | DEV001 | tenant-1 | Van | ABC-1234 |
 | Jane Doe | DEV002 | tenant-1 | Truck | DEF-5678 |
 | Bob Wilson | DEV003 | tenant-2 | Van | GHI-9012 |
+
+## 📝 Vehículos de Prueba
+
+El sistema viene con 3 vehículos pre-cargados asociados a los conductores de prueba:
+
+| Placa | Tipo | Marca | Modelo | Año | Color | Capacidad (kg) | Tenant | Conductor Asignado |
+|---|---|---|---|---|---|---|---|---|
+| ABC-1234 | Van | Mercedes-Benz | Sprinter | 2022 | Blanco | 1,500 | tenant-1 | John Smith |
+| DEF-5678 | Truck | Volvo | FH16 | 2021 | Azul | 5,000 | tenant-1 | Jane Doe |
+| GHI-9012 | Van | Ford | Transit | 2023 | Plateado | 1,200 | tenant-2 | Bob Wilson |
 
 ## 📝 Clientes de Prueba (La Paz, Bolivia)
 
@@ -1058,6 +1159,60 @@ El sistema viene con 3 conductores pre-cargados:
 | Distribuidora Oruro Central | tenant-2 | -16.5000, -68.1370 | 150m | warehouse |
 | Tienda Express Miraflores | tenant-2 | -16.5060, -68.1160 | 100m | retail |
 | Almacén Sur Calacoto | tenant-2 | -16.5350, -68.0810 | 120m | warehouse |
+
+---
+
+## 🏋️ Pruebas de Carga
+
+El proyecto incluye scripts de pruebas de carga con **k6** para validar el rendimiento del sistema bajo condiciones realistas.
+
+### Requisitos Previos
+
+- [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado
+- Todos los servicios de Docker Compose ejecutándose
+- Conductores de prueba de carga sembrados: `docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seed-load-test-drivers.sql`
+
+### Scripts de Prueba
+
+| Script | VUs | Descripción |
+|---|---|---|
+| `load-tests/gps-ingestion.js` | 1,000 | Simula 1,000 dispositivos GPS enviando posiciones via webhook Traccar |
+| `load-tests/ws-consumers.js` | 500 | Simula 500 conexiones WebSocket concurrentes del dashboard |
+| `load-tests/full-scenario.js` | 1,500 | Escenario combinado: GPS + consumidores WebSocket |
+
+### Ejecución
+
+```bash
+# Solo ingestión GPS
+k6 run load-tests/gps-ingestion.js
+
+# Solo consumidores WebSocket
+k6 run load-tests/ws-consumers.js
+
+# Escenario completo combinado
+k6 run load-tests/full-scenario.js
+
+# Monitorear sistema durante prueba (terminal separado)
+bash load-tests/check-system.sh
+```
+
+### Umbrales de Rendimiento
+
+| Métrica | Umbral |
+|---|---|
+| Latencia p95 API GPS | < 200ms |
+| Latencia p99 API GPS | < 500ms |
+| Tasa de error API GPS | < 1% |
+| Tasa de error conexión WS | < 5% |
+| Tiempo de conexión p95 WS | < 3s |
+
+### Limpieza
+
+```bash
+docker exec -i mysql mysql -u root -prootpassword tracking < scripts/cleanup-load-test-drivers.sql
+```
+
+> Documentación completa: [load-tests/README.md](load-tests/README.md)
 
 ---
 

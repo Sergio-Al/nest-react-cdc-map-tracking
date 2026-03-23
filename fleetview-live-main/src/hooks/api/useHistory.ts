@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/axios';
-import type { HistoryPosition } from '@/types/history.types';
+import type { HistoryPosition, VisitCompletion, DriverDailyStat } from '@/types/history.types';
+import type { Route } from '@/types/route.types';
 
 export function useDriverHistory(driverId: string | null, from: string | null, to: string | null) {
   return useQuery({
@@ -28,6 +29,56 @@ export function useRouteHistory(routeId: string | null, from: string | null, to:
       return response.data;
     },
     enabled: !!routeId && !!from && !!to,
+    staleTime: 60000,
+  });
+}
+
+export function useRoutesByDateRange(
+  from: string | null,
+  to: string | null,
+  status?: string,
+) {
+  return useQuery({
+    queryKey: ['routes-report', from, to, status],
+    queryFn: async () => {
+      const response = await api.get<Route[]>('/routes', {
+        params: { from, to, ...(status ? { status } : {}) },
+      });
+      return response.data;
+    },
+    enabled: !!from && !!to,
+    staleTime: 60000,
+  });
+}
+
+export function useVisitCompletions(
+  from: string | null,
+  to: string | null,
+  driverId?: string,
+) {
+  return useQuery({
+    queryKey: ['visit-completions', from, to, driverId],
+    queryFn: async () => {
+      const response = await api.get<VisitCompletion[]>('/history/visits', {
+        params: { from, to, ...(driverId ? { driverId } : {}) },
+      });
+      return response.data;
+    },
+    enabled: !!from && !!to,
+    staleTime: 60000,
+  });
+}
+
+export function useDriverDailyStats(from: string | null, to: string | null) {
+  return useQuery({
+    queryKey: ['driver-daily-stats', from, to],
+    queryFn: async () => {
+      const response = await api.get<DriverDailyStat[]>('/history/stats', {
+        params: { from, to },
+      });
+      return response.data;
+    },
+    enabled: !!from && !!to,
     staleTime: 60000,
   });
 }

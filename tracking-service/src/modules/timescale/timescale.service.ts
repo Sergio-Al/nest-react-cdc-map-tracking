@@ -189,6 +189,34 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
     return result.rows;
   }
 
+  async getVisitCompletions(
+    tenantId: string,
+    from: Date,
+    to: Date,
+    driverId?: string,
+  ): Promise<VisitCompletionRow[]> {
+    const params: any[] = [tenantId, from, to];
+    let driverFilter = '';
+    if (driverId) {
+      driverFilter = ' AND driver_id = $4';
+      params.push(driverId);
+    }
+    const sql = `
+      SELECT time, visit_id AS "visitId", tenant_id AS "tenantId",
+             driver_id AS "driverId", customer_id AS "customerId",
+             route_id AS "routeId", visit_type AS "visitType",
+             status, arrived_at AS "arrivedAt",
+             completed_at AS "completedAt",
+             duration_sec AS "durationSec", on_time AS "onTime"
+      FROM visit_completions
+      WHERE tenant_id = $1 AND time >= $2 AND time <= $3${driverFilter}
+      ORDER BY time DESC
+      LIMIT 5000
+    `;
+    const result = await this.pool.query(sql, params);
+    return result.rows;
+  }
+
   async getDriverDailyStats(
     tenantId: string,
     from: Date,

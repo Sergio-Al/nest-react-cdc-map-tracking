@@ -9,6 +9,7 @@ import LoginPage from "./pages/LoginPage";
 import Index from "./pages/Index";
 import HistoryPage from "./pages/HistoryPage";
 import MonitoringPage from "./pages/MonitoringPage";
+import ReportsPage from "./pages/ReportsPage";
 import RoutesPage from "./pages/RoutesPage";import DriversPage from "./pages/DriversPage";import NotFound from "./pages/NotFound";
 import CustomersPage from "./pages/CustomersPage";
 
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/drivers" element={<DriversPage />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/monitoring" element={<MonitoringPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
             </Route>
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

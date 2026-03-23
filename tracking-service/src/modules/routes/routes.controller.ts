@@ -32,7 +32,20 @@ export class RoutesController {
   }
 
   @Get()
-  findAll(@CurrentUser() user: any) {
+  findAll(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('status') status?: string,
+    @CurrentUser() user?: any,
+  ) {
+    if (from && to) {
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+        throw new BadRequestException('"from" and "to" must be valid ISO 8601 dates');
+      }
+      return this.routesService.findByDateRange(user.tenantId, from, to, status);
+    }
     return this.routesService.findAll(user.tenantId);
   }
 

@@ -1,4 +1,4 @@
-import { Search, Bell, Truck, ChevronDown, User, LogOut, History, MapPin, Activity, Route, Users, Building2 } from "lucide-react";
+import { Search, Bell, Truck, ChevronDown, User, LogOut, History, MapPin, Activity, Route, Users, Building2, FileBarChart } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -119,6 +119,19 @@ export function DashboardHeader() {
           >
             <Activity className="h-3.5 w-3.5" />
             Monitoring
+          </Link>
+        )}
+        {(user?.role === 'admin' || user?.role === 'dispatcher') && (
+          <Link
+            to="/reports"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              pathname === '/reports'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+            }`}
+          >
+            <FileBarChart className="h-3.5 w-3.5" />
+            Reports
           </Link>
         )}
       </nav>

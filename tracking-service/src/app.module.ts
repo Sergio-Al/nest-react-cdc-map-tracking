@@ -18,6 +18,7 @@ import { VisitsModule } from './modules/visits/visits.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { DlqModule } from './modules/dlq/dlq.module';
+import { HistoryModule } from './modules/history/history.module';
 
 
 @Module({
@@ -50,6 +51,7 @@ import { DlqModule } from './modules/dlq/dlq.module';
     EnrichmentModule,
     WebsocketModule,
     DlqModule,
+    HistoryModule,
     HealthModule,
   ],
 })
