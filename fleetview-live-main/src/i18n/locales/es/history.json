@@ -1,0 +1,110 @@
+{
+  "page": {
+    "filterTab": "Formulario de filtros",
+    "tripsTab": "Lista de viajes"
+  },
+  "filter": {
+    "title": "Historial de rutas",
+    "subtitle": "Reproduce posiciones históricas",
+    "searchBy": "Buscar por",
+    "byDriver": "Conductor",
+    "byVehicle": "Vehículo",
+    "driver": "Conductor",
+    "selectDriver": "Selecciona un conductor…",
+    "noDrivers": "Sin conductores",
+    "timeRange": "Rango horario",
+    "fromTime": "Hora desde",
+    "toTime": "Hora hasta",
+    "presets": {
+      "today": "Hoy",
+      "1d": "1d",
+      "3d": "3d",
+      "7d": "7d"
+    },
+    "showOnMap": "Mostrar en el mapa",
+    "toggles": {
+      "speedPath": "Trazo coloreado por velocidad",
+      "stopMarkers": "Marcadores de paradas",
+      "idleEvents": "Eventos inactivos",
+      "speedingEvents": "Eventos de exceso de velocidad"
+    },
+    "loadHistory": "Cargar historial",
+    "reloadHistory": "Recargar historial"
+  },
+  "trips": {
+    "selectDriverHint": "Selecciona un conductor",
+    "driverWindow": "{{name}} · últimos {{window}}",
+    "driver": "Conductor",
+    "selectDriver": "Selecciona un conductor…",
+    "window": "Ventana",
+    "trips": "Viajes",
+    "kmHours": "{{km}} km · {{hours}}",
+    "depotAchumani": "Depósito · Achumani",
+    "stopsCount": "{{count}} paradas"
+  },
+  "detail": {
+    "empty": {
+      "title": "Ningún viaje seleccionado",
+      "body": "Elige un conductor y rango de fechas, luego carga el historial para ver detalles, segmentos y eventos."
+    },
+    "tripSuffix": "viaje #{{id}}",
+    "statusComplete": "Completo",
+    "actions": {
+      "replay": "Reproducir",
+      "gpx": "GPX",
+      "share": "Compartir"
+    },
+    "tabs": {
+      "summary": "Resumen",
+      "segments": "Segmentos",
+      "events": "Eventos",
+      "stops": "Paradas"
+    },
+    "summary": {
+      "tripOverview": "Resumen del viaje",
+      "distance": "Distancia",
+      "duration": "Duración",
+      "avgSpeed": "Vel. promedio",
+      "topSpeed": "Vel. máx.",
+      "stops": "Paradas",
+      "idleTime": "Tiempo inactivo",
+      "timeComposition": "Composición del tiempo",
+      "moving": "En movimiento",
+      "stopped": "Detenido",
+      "idle": "Inactivo",
+      "offline": "Desconectado",
+      "minSuffix": "{{count}} min",
+      "ofTen": "/ 10",
+      "minUnit": "min",
+      "segmentsHeader": "Segmentos"
+    },
+    "placeholder": {
+      "events": "Eventos — marcador MOCK.",
+      "stops": "Paradas — marcador MOCK.",
+      "body": "Reemplaza con datos reales del endpoint."
+    }
+  },
+  "map": {
+    "summary": {
+      "distance": "Distancia",
+      "duration": "Duración",
+      "stops": "Paradas",
+      "avgSpeed": "Vel. promedio"
+    },
+    "legend": {
+      "title": "Velocidad",
+      "unit": "km/h"
+    }
+  },
+  "playback": {
+    "restart": "Reiniciar",
+    "stepBack": "Paso atrás",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "stepForward": "Paso adelante",
+    "skipToEnd": "Ir al final",
+    "speed": "vel.",
+    "exportGpx": "Exportar GPX",
+    "share": "Compartir"
+  }
+}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Car } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   Field,
@@ -17,12 +18,7 @@ interface CreateVehicleDialogProps {
   isLoading?: boolean;
 }
 
-const TYPES = [
-  { id: 'van', label: 'Van' },
-  { id: 'truck', label: 'Truck' },
-  { id: 'motorcycle', label: 'Moto' },
-  { id: 'car', label: 'Car' },
-];
+const TYPE_IDS = ['van', 'truck', 'motorcycle', 'car'] as const;
 
 export function CreateVehicleDialog({
   open,
@@ -38,6 +34,9 @@ export function CreateVehicleDialog({
   const [color, setColor] = useState('');
   const [capacityKg, setCapacityKg] = useState('');
   const [notes, setNotes] = useState('');
+  const { t } = useTranslation('vehicles');
+
+  const types = TYPE_IDS.map((id) => ({ id, label: t(`dialog.types.${id}`) }));
 
   const reset = () => {
     setPlate('');
@@ -75,11 +74,11 @@ export function CreateVehicleDialog({
       }}
     >
       <DialogContent className="max-w-[480px] gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">New Vehicle</DialogTitle>
-        <DenseDialogHeader icon={<Car className="h-3.5 w-3.5" />} title="New Vehicle" />
+        <DialogTitle className="sr-only">{t('dialog.createTitle')}</DialogTitle>
+        <DenseDialogHeader icon={<Car className="h-3.5 w-3.5" />} title={t('dialog.createTitle')} />
 
         <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
-          <Field label="Plate" required>
+          <Field label={t('dialog.plate')} required>
             <DenseInput
               value={plate}
               onChange={(e) => setPlate(e.target.value.toUpperCase())}
@@ -88,19 +87,19 @@ export function CreateVehicleDialog({
             />
           </Field>
 
-          <Field label="Type">
-            <ChipGroup value={type} onChange={setType} options={TYPES} />
+          <Field label={t('dialog.type')}>
+            <ChipGroup value={type} onChange={setType} options={types} />
           </Field>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Brand">
+            <Field label={t('dialog.brand')}>
               <DenseInput
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 placeholder="Mercedes-Benz"
               />
             </Field>
-            <Field label="Model">
+            <Field label={t('dialog.model')}>
               <DenseInput
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
@@ -110,7 +109,7 @@ export function CreateVehicleDialog({
           </div>
 
           <div className="grid grid-cols-3 gap-2.5">
-            <Field label="Year">
+            <Field label={t('dialog.year')}>
               <DenseInput
                 type="number"
                 value={year}
@@ -118,14 +117,14 @@ export function CreateVehicleDialog({
                 placeholder="2024"
               />
             </Field>
-            <Field label="Color">
+            <Field label={t('dialog.color')}>
               <DenseInput
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                placeholder="White"
+                placeholder={t('dialog.colorPlaceholder')}
               />
             </Field>
-            <Field label="Capacity (kg)">
+            <Field label={t('dialog.capacityKg')}>
               <DenseInput
                 type="number"
                 value={capacityKg}
@@ -135,11 +134,11 @@ export function CreateVehicleDialog({
             </Field>
           </div>
 
-          <Field label="Notes">
+          <Field label={t('dialog.notes')}>
             <DenseInput
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional notes…"
+              placeholder={t('dialog.notesPlaceholder')}
             />
           </Field>
         </div>
@@ -147,7 +146,7 @@ export function CreateVehicleDialog({
         <DialogFormFooter
           onCancel={() => onOpenChange(false)}
           onSubmit={handleSubmit}
-          submitLabel="Create"
+          submitLabel={t('dialog.create')}
           submitIcon={<Plus className="h-[13px] w-[13px]" />}
           canSubmit={!!plate.trim()}
           isLoading={isLoading}

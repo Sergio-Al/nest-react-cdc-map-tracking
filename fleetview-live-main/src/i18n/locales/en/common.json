@@ -1,0 +1,60 @@
+{
+  "filters": {
+    "addFilter": "Add filter",
+    "newView": "+ New view",
+    "saveViewTitle": "Save current filters as a view",
+    "viewNamePlaceholder": "View name",
+    "saveView": "Save view",
+    "deleteView": "Delete view",
+    "demoData": "demo data",
+    "search": "Search…",
+    "noOptions": "No options",
+    "value": "value",
+    "and": "and",
+    "cancel": "Cancel",
+    "update": "Update",
+    "operators": {
+      "any_of": "is any of",
+      "not_any_of": "is not",
+      "lt": "<",
+      "lte": "≤",
+      "eq": "=",
+      "gte": "≥",
+      "gt": ">",
+      "between": "between"
+    }
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "create": "Create",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "save": "Save",
+    "search": "Search"
+  },
+  "language": {
+    "label": "Language",
+    "es": "Español",
+    "en": "English"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "states": {
+    "empty": "No results",
+    "error": "Something went wrong",
+    "loading": "Loading…"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The requested route does not exist.",
+    "back": "Back to home"
+  }
+}

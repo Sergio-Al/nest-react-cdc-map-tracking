@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import type { CdcLagSnapshot } from '@/types/monitoring.types';
 
@@ -9,7 +10,7 @@ function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   } else if (minutes > 0) {
@@ -32,6 +33,7 @@ function formatLag(lagMs: number): { text: string; color: string } {
 }
 
 export function CdcSummaryBar({ snapshot }: Props) {
+  const { t, i18n } = useTranslation('monitoring');
   const maxLag = formatLag(snapshot.totals.maxLagMs);
   const avgLag = formatLag(snapshot.totals.avgLagMs);
 
@@ -40,42 +42,42 @@ export function CdcSummaryBar({ snapshot }: Props) {
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-8">
           <div>
-            <div className="text-sm text-muted-foreground">Total Events</div>
+            <div className="text-sm text-muted-foreground">{t('summary.totalEvents')}</div>
             <div className="text-2xl font-bold">
-              {snapshot.totals.totalEventsProcessed.toLocaleString()}
+              {snapshot.totals.totalEventsProcessed.toLocaleString(i18n.language)}
             </div>
           </div>
-          
+
           <div className="h-10 w-px bg-border" />
-          
+
           <div>
-            <div className="text-sm text-muted-foreground">Errors</div>
+            <div className="text-sm text-muted-foreground">{t('summary.errors')}</div>
             <div className={`text-2xl font-bold ${snapshot.totals.totalErrors > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {snapshot.totals.totalErrors.toLocaleString()}
+              {snapshot.totals.totalErrors.toLocaleString(i18n.language)}
             </div>
           </div>
-          
+
           <div className="h-10 w-px bg-border" />
-          
+
           <div>
-            <div className="text-sm text-muted-foreground">Max Lag</div>
+            <div className="text-sm text-muted-foreground">{t('summary.maxLag')}</div>
             <div className={`text-2xl font-bold ${maxLag.color}`}>
               {maxLag.text}
             </div>
           </div>
-          
+
           <div className="h-10 w-px bg-border" />
-          
+
           <div>
-            <div className="text-sm text-muted-foreground">Avg Lag</div>
+            <div className="text-sm text-muted-foreground">{t('summary.avgLag')}</div>
             <div className={`text-2xl font-bold ${avgLag.color}`}>
               {avgLag.text}
             </div>
           </div>
         </div>
-        
+
         <div className="text-right">
-          <div className="text-sm text-muted-foreground">Uptime</div>
+          <div className="text-sm text-muted-foreground">{t('summary.uptime')}</div>
           <div className="text-lg font-semibold">
             {formatDuration(snapshot.uptimeSeconds)}
           </div>

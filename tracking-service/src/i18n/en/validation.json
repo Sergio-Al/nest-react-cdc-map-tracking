@@ -1,0 +1,17 @@
+{
+  "isNotEmpty": "{property} must not be empty",
+  "isString": "{property} must be a string",
+  "isInt": "{property} must be an integer",
+  "isNumber": "{property} must be a number",
+  "isBoolean": "{property} must be a boolean",
+  "isEmail": "{property} must be a valid email address",
+  "isUUID": "{property} must be a valid UUID",
+  "isDateString": "{property} must be a valid ISO 8601 date string",
+  "isUrl": "{property} must be a valid URL",
+  "isEnum": "{property} must be one of the allowed values",
+  "min": "{property} must be at least {constraints[0]}",
+  "max": "{property} must not exceed {constraints[0]}",
+  "minLength": "{property} must be at least {constraints[0]} characters long",
+  "maxLength": "{property} must not exceed {constraints[0]} characters",
+  "matches": "{property} has an invalid format"
+}

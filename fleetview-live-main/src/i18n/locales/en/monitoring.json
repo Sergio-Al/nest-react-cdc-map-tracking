@@ -1,0 +1,50 @@
+{
+  "page": {
+    "title": "CDC Lag Monitor",
+    "subtitle": "Real-time Change Data Capture synchronization metrics",
+    "lastUpdated": "Last updated",
+    "tableSync": "Table Synchronization",
+    "errorTitle": "Error",
+    "errorBody": "Failed to load CDC monitoring data: {{message}}",
+    "unknownError": "Unknown error",
+    "noDataTitle": "No Data",
+    "noDataBody": "CDC monitoring data is not available yet. Please wait a moment."
+  },
+  "lagCard": {
+    "endToEndLag": "End-to-end lag",
+    "eventsProcessed": "Events processed:",
+    "lastOperation": "Last operation:",
+    "lastEvent": "Last event:",
+    "errors_one": "{{count}} error",
+    "errors_other": "{{count}} errors",
+    "never": "Never",
+    "na": "N/A",
+    "lastError": "Last Error:",
+    "secondsAgo": "{{count}}s ago",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "ops": {
+      "c": "CREATE",
+      "u": "UPDATE",
+      "d": "DELETE",
+      "r": "READ"
+    }
+  },
+  "offsetLag": {
+    "title": "Kafka Offset Lag",
+    "topic": "Topic",
+    "partition": "Partition",
+    "latest": "Latest",
+    "committed": "Committed",
+    "lag": "Lag",
+    "totalFor": "Total for {{topic}}:",
+    "empty": "No offset lag data available"
+  },
+  "summary": {
+    "totalEvents": "Total Events",
+    "errors": "Errors",
+    "maxLag": "Max Lag",
+    "avgLag": "Avg Lag",
+    "uptime": "Uptime"
+  }
+}

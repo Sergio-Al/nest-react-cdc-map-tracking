@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,6 @@ import { newFilter, isComplete } from './engine';
 import {
   ENUM_OPERATORS,
   NUMBER_OPERATORS,
-  OPERATOR_LABEL,
   type ActiveFilter,
   type FieldDef,
   type Operator,
@@ -27,6 +27,8 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
   const [step, setStep] = useState<'field' | 'value'>('field');
   const [draft, setDraft] = useState<ActiveFilter | null>(null);
   const [search, setSearch] = useState('');
+  const { t } = useTranslation('common');
+  const opLabel = (op: Operator) => t(`filters.operators.${op}`);
 
   const def = draft ? fields.find((f) => f.id === draft.field) : undefined;
 
@@ -111,7 +113,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                           : 'text-mc-text-muted hover:text-foreground',
                       )}
                     >
-                      {OPERATOR_LABEL[op]}
+                      {opLabel(op)}
                     </button>
                   ))}
                 </div>
@@ -121,14 +123,14 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                       autoFocus
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search…"
+                      placeholder={t('filters.search')}
                       className="h-7 text-xs"
                     />
                   </div>
                 )}
                 <div className="max-h-56 overflow-y-auto p-1">
                   {options.length === 0 && (
-                    <div className="px-2 py-3 text-center text-[11px] text-mc-text-dim">No options</div>
+                    <div className="px-2 py-3 text-center text-[11px] text-mc-text-dim">{t('filters.noOptions')}</div>
                   )}
                   {options.map((o) => {
                     const on = draft.values.includes(o.value);
@@ -170,7 +172,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                           : 'bg-mc-surface text-mc-text-muted hover:text-foreground',
                       )}
                     >
-                      {OPERATOR_LABEL[op]}
+                      {opLabel(op)}
                     </button>
                   ))}
                 </div>
@@ -183,12 +185,12 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                       setDraft((d) => (d ? { ...d, num1: e.target.value === '' ? null : Number(e.target.value) } : d))
                     }
                     onKeyDown={(e) => e.key === 'Enter' && apply()}
-                    placeholder="value"
+                    placeholder={t('filters.value')}
                     className="h-7 text-xs"
                   />
                   {draft.operator === 'between' && (
                     <>
-                      <span className="text-xs text-mc-text-dim">and</span>
+                      <span className="text-xs text-mc-text-dim">{t('filters.and')}</span>
                       <Input
                         type="number"
                         value={draft.num2 ?? ''}
@@ -196,7 +198,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                           setDraft((d) => (d ? { ...d, num2: e.target.value === '' ? null : Number(e.target.value) } : d))
                         }
                         onKeyDown={(e) => e.key === 'Enter' && apply()}
-                        placeholder="value"
+                        placeholder={t('filters.value')}
                         className="h-7 text-xs"
                       />
                     </>
@@ -212,7 +214,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                 onClick={() => setOpen(false)}
                 className="h-7 rounded-md px-2.5 text-[11.5px] font-medium text-mc-text-muted hover:text-foreground"
               >
-                Cancel
+                {t('filters.cancel')}
               </button>
               <button
                 type="button"
@@ -220,7 +222,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                 disabled={!isComplete(draft)}
                 className="h-7 rounded-md bg-mc-accent px-3 text-[11.5px] font-medium text-mc-accent-fg hover:bg-mc-accent-strong disabled:opacity-50"
               >
-                {editing ? 'Update' : 'Add filter'}
+                {editing ? t('filters.update') : t('filters.addFilter')}
               </button>
             </div>
           </div>

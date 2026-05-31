@@ -1,5 +1,6 @@
 import { X, ExternalLink, Download, Share2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Sparkline } from './Sparkline';
 import { avatarTone, statusPill, stopTone } from './tones';
@@ -42,14 +43,16 @@ export function DrillPanel({
 }) {
   const navigate = useNavigate();
   const d = useRouteDrilldown(routeId, fallbackName);
+  const { t } = useTranslation('reports');
   const status = (d.route?.status as RouteDisplayStatus | undefined) ?? fallbackStatus ?? 'completed';
-  const otpLabel = `${d.route?.totalStops ? Math.round((d.route.completedStops / d.route.totalStops) * 100) : 96}% on-time`;
+  const pct = d.route?.totalStops ? Math.round((d.route.completedStops / d.route.totalStops) * 100) : 96;
+  const otpLabel = t('drilldown.ontimeSuffix', { pct });
 
   return (
     <aside className="flex w-[420px] min-h-0 shrink-0 flex-col border-l border-border bg-background">
       <div className="border-b border-border px-4 pb-3 pt-3.5">
         <div className="mb-2 flex items-center gap-2">
-          <span className="font-mono text-[11px] text-mc-text-dim">Routes</span>
+          <span className="font-mono text-[11px] text-mc-text-dim">{t('drilldown.breadcrumb')}</span>
           <span className="text-mc-text-dim">/</span>
           <span className="font-mono text-[11px] text-mc-text-muted">
             {d.route?.scheduledDate ?? '—'}
@@ -74,7 +77,7 @@ export function DrillPanel({
           </span>
           <div className="min-w-0 flex-1">
             <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-foreground">
-              {d.driverName} · Route
+              {d.driverName} · {t('drilldown.routeSuffix')}
             </div>
             <div className="font-mono text-[11px] text-mc-text-muted">
               {d.plate} · {d.durationLabel} · #{routeId.slice(0, 6)}
@@ -90,11 +93,11 @@ export function DrillPanel({
             )}
           >
             <span className="h-[5px] w-[5px] rounded-full bg-current" />
-            {status === 'in_progress' ? 'in progress' : status}
+            {t(`routeStatus.${status}`, { defaultValue: status })}
           </span>
           <span>·</span>
           <span>
-            {d.route?.completedStops ?? 0}/{d.route?.totalStops ?? 0} stops
+            {t('drilldown.stopsSuffix', { done: d.route?.completedStops ?? 0, total: d.route?.totalStops ?? 0 })}
           </span>
           <span>·</span>
           <span>{otpLabel}</span>
@@ -107,21 +110,21 @@ export function DrillPanel({
             className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-[7px] bg-mc-accent text-[11.5px] font-medium text-mc-accent-fg hover:bg-mc-accent-strong"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Open route
+            {t('drilldown.openRoute')}
           </button>
           <button
             type="button"
             className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-[7px] border border-border bg-mc-elev text-[11.5px] font-medium text-foreground hover:border-mc-border-strong"
           >
             <Download className="h-3.5 w-3.5" />
-            GPX
+            {t('drilldown.gpx')}
           </button>
           <button
             type="button"
             className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-[7px] border border-border bg-mc-elev text-[11.5px] font-medium text-foreground hover:border-mc-border-strong"
           >
             <Share2 className="h-3.5 w-3.5" />
-            Share
+            {t('drilldown.share')}
           </button>
         </div>
       </div>
@@ -134,27 +137,27 @@ export function DrillPanel({
         ) : (
           <>
             <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-mc-elev">
-              <StatCell label="Distance" value={d.distanceKm != null ? d.distanceKm.toFixed(1) : '—'} unit="km" />
-              <StatCell label="Duration" value={d.durationLabel} />
-              <StatCell label="Idle" value={d.idle} unit="m" />
-              <StatCell label="Avg speed" value={d.avgSpeed} unit="km/h" />
-              <StatCell label="Top speed" value={d.topSpeed} unit="km/h" />
-              <StatCell label="Speeding" value={d.speeding} unit="events" />
+              <StatCell label={t('drilldown.stats.distance')} value={d.distanceKm != null ? d.distanceKm.toFixed(1) : '—'} unit={t('drilldown.units.km')} />
+              <StatCell label={t('drilldown.stats.duration')} value={d.durationLabel} />
+              <StatCell label={t('drilldown.stats.idle')} value={d.idle} unit={t('drilldown.units.minutes')} />
+              <StatCell label={t('drilldown.stats.avgSpeed')} value={d.avgSpeed} unit={t('drilldown.units.kmh')} />
+              <StatCell label={t('drilldown.stats.topSpeed')} value={d.topSpeed} unit={t('drilldown.units.kmh')} />
+              <StatCell label={t('drilldown.stats.speeding')} value={d.speeding} unit={t('drilldown.units.events')} />
             </div>
 
             <div>
-              <SectionHd title="Speed · last route" meta={`0–${d.topSpeed} km/h`} />
+              <SectionHd title={t('drilldown.speedSection')} meta={`0–${d.topSpeed} ${t('drilldown.units.kmh')}`} />
               <div className="h-[100px] rounded-lg border border-border bg-mc-elev px-3 py-2.5">
                 <Sparkline data={d.speed} color="var(--mc-accent)" height={80} />
               </div>
             </div>
 
             <div>
-              <SectionHd title="Stops" meta={d.shownLabel} />
+              <SectionHd title={t('drilldown.stopsSection')} meta={d.shownLabel} />
               <div className="flex flex-col overflow-hidden rounded-lg border border-border">
                 {d.stops.length === 0 && (
                   <div className="px-3 py-6 text-center text-xs text-mc-text-dim">
-                    No planned stops for this route.
+                    {t('drilldown.noStops')}
                   </div>
                 )}
                 {d.stops.map((s) => (

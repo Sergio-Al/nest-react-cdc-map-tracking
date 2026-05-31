@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Plus, Wand2, Save, Loader2, Route as RouteIcon, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { SortableVisitList } from './SortableVisitList';
 import { CreateRouteDialog } from './CreateRouteDialog';
@@ -10,18 +11,11 @@ import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
 import { useRouteVisits, useCustomers } from '@/hooks/api/useRouteBuilder';
 import { useRoutes } from '@/hooks/api/useRoutes';
 import { useDrivers } from '@/hooks/api/useDrivers';
+import { useDateLocale } from '@/i18n/useDateLocale';
 import { cn } from '@/lib/utils';
 import type { Route } from '@/types/route.types';
 
 const START_TIME = '07:30';
-
-function fmtDate(date: string): string {
-  try {
-    return format(new Date(date), 'd MMM');
-  } catch {
-    return date;
-  }
-}
 
 function fmtDuration(seconds: number): string {
   const mins = Math.round(seconds / 60);
@@ -40,19 +34,24 @@ function returnEta(seconds: number | null): string | null {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function statusBadge(route: Route | undefined, stops: number) {
+/** Returns a translation key under `routes:sidebar.status.*` based on route state. */
+function statusBadgeKey(route: Route | undefined, stops: number): {
+  key: string;
+  cls: string;
+  dot: string;
+} {
   if (!route || (route.status === 'planned' && stops === 0)) {
-    return { label: 'draft', cls: 'border-mc-accent-border bg-mc-accent-soft text-mc-accent', dot: 'var(--mc-accent)' };
+    return { key: 'draft', cls: 'border-mc-accent-border bg-mc-accent-soft text-mc-accent', dot: 'var(--mc-accent)' };
   }
   switch (route.status) {
     case 'in_progress':
-      return { label: 'in progress', cls: 'border-border bg-mc-surface text-foreground', dot: 'var(--mc-status-moving)' };
+      return { key: 'in_progress', cls: 'border-border bg-mc-surface text-foreground', dot: 'var(--mc-status-moving)' };
     case 'completed':
-      return { label: 'completed', cls: 'border-border bg-mc-surface text-foreground', dot: 'var(--mc-status-moving)' };
+      return { key: 'completed', cls: 'border-border bg-mc-surface text-foreground', dot: 'var(--mc-status-moving)' };
     case 'cancelled':
-      return { label: 'cancelled', cls: 'border-border bg-mc-surface text-mc-text-dim', dot: 'var(--mc-status-offline)' };
+      return { key: 'cancelled', cls: 'border-border bg-mc-surface text-mc-text-dim', dot: 'var(--mc-status-offline)' };
     default:
-      return { label: 'planned', cls: 'border-mc-accent-border bg-mc-accent-soft text-mc-accent', dot: 'var(--mc-accent)' };
+      return { key: 'planned', cls: 'border-mc-accent-border bg-mc-accent-soft text-mc-accent', dot: 'var(--mc-accent)' };
   }
 }
 
@@ -65,13 +64,14 @@ function DepotRow({
   meta: string;
   tag: string;
 }) {
+  const { t } = useTranslation('routes');
   return (
     <div className="flex items-center gap-2.5 px-1 py-1.5">
       <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border border-mc-border-strong bg-mc-surface font-mono text-[11px] font-bold text-mc-text-muted">
         {label}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-medium text-foreground">Depot</div>
+        <div className="truncate text-[13px] font-medium text-foreground">{t('sidebar.depot')}</div>
         <div className="text-[11px] text-mc-text-dim">{meta}</div>
       </div>
       <span className="shrink-0 text-[10px] uppercase tracking-[0.06em] text-mc-text-dim">{tag}</span>
@@ -94,6 +94,16 @@ function StatCell({ label, value, unit }: { label: string; value: string; unit?:
 export function RouteBuilderSidebar() {
   const store = useRouteBuilderStore();
   const { selectedRouteId, selectedDriverId, localVisits, isDirty, isOptimizing } = store;
+  const { t } = useTranslation('routes');
+  const dateLocale = useDateLocale();
+
+  const fmtDate = (date: string): string => {
+    try {
+      return format(new Date(date), 'd MMM', { locale: dateLocale });
+    } catch {
+      return date;
+    }
+  };
 
   const { data: routes = [], isLoading: routesLoading } = useRoutes();
   const { data: drivers = [] } = useDrivers();
@@ -123,13 +133,13 @@ export function RouteBuilderSidebar() {
               <RouteIcon className="h-[14px] w-[14px]" />
             </span>
             <div>
-              <div className="text-[13px] font-semibold">Route Builder</div>
-              <div className="text-[11px] text-mc-text-dim">Pick a route to edit</div>
+              <div className="text-[13px] font-semibold">{t('sidebar.title')}</div>
+              <div className="text-[11px] text-mc-text-dim">{t('sidebar.subtitle')}</div>
             </div>
           </div>
           <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={() => store.setCreateRouteDialogOpen(true)}>
             <Plus className="h-3.5 w-3.5" />
-            New
+            {t('sidebar.new')}
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
@@ -159,7 +169,7 @@ export function RouteBuilderSidebar() {
   const driver = drivers.find((d) => d.id === selectedDriverId);
   const isEditable = !selectedRoute || selectedRoute.status === 'planned';
   const hasStops = localVisits.length > 0;
-  const badge = statusBadge(selectedRoute, localVisits.length);
+  const badge = statusBadgeKey(selectedRoute, localVisits.length);
   const distanceKm =
     selectedRoute?.totalDistanceMeters != null ? (selectedRoute.totalDistanceMeters / 1000).toFixed(1) : '—';
   const duration =
@@ -174,7 +184,7 @@ export function RouteBuilderSidebar() {
           <button
             type="button"
             onClick={() => store.setSelectedRoute(null)}
-            title="Back to routes"
+            title={t('sidebar.back')}
             className="group grid h-7 w-7 shrink-0 place-items-center rounded-[7px] border border-mc-accent-border bg-mc-accent-soft text-mc-accent transition-colors hover:border-mc-border-strong"
           >
             <RouteIcon className="h-[14px] w-[14px] group-hover:hidden" />
@@ -182,7 +192,7 @@ export function RouteBuilderSidebar() {
           </button>
           <div className="min-w-0 flex-1">
             <div className="truncate text-[13px] font-semibold text-foreground">
-              {driver?.name ?? 'Unknown driver'}
+              {driver?.name ?? t('sidebar.unknownDriver')}
             </div>
             <div className="font-mono text-[11px] text-mc-text-dim">
               {selectedRoute ? fmtDate(selectedRoute.scheduledDate) : '—'}
@@ -191,16 +201,16 @@ export function RouteBuilderSidebar() {
           </div>
           <span className={cn('flex shrink-0 items-center gap-1.5 rounded-pill border px-2 py-0.5 text-[11px] font-medium', badge.cls)}>
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: badge.dot }} />
-            {badge.label}
+            {t(`sidebar.status.${badge.key}`)}
           </span>
         </div>
 
         {/* Stats */}
         {hasStops && (
           <div className="mt-3 grid grid-cols-3 rounded-mc border border-border bg-mc-surface">
-            <div className="px-3 py-2"><StatCell label="Distance" value={distanceKm} unit="km" /></div>
-            <div className="border-l border-border px-3 py-2"><StatCell label="Duration" value={duration} /></div>
-            <div className="border-l border-border px-3 py-2"><StatCell label="Stops" value={String(localVisits.length)} /></div>
+            <div className="px-3 py-2"><StatCell label={t('sidebar.stats.distance')} value={distanceKm} unit="km" /></div>
+            <div className="border-l border-border px-3 py-2"><StatCell label={t('sidebar.stats.duration')} value={duration} /></div>
+            <div className="border-l border-border px-3 py-2"><StatCell label={t('sidebar.stats.stops')} value={String(localVisits.length)} /></div>
           </div>
         )}
 
@@ -213,15 +223,15 @@ export function RouteBuilderSidebar() {
               disabled={isOptimizing || localVisits.length < 2}
             >
               {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Optimize
+              {t('sidebar.actions.optimize')}
             </Button>
             <Button variant="outline" className="h-9 gap-1.5" onClick={saveOrder} disabled={!isDirty || isSaving}>
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save
+              {t('sidebar.actions.save')}
             </Button>
             <Button variant="outline" className="h-9 gap-1.5" onClick={() => store.setPaletteOpen(true)}>
               <Plus className="h-4 w-4" />
-              Stop
+              {t('sidebar.actions.stop')}
             </Button>
           </div>
         )}
@@ -229,7 +239,7 @@ export function RouteBuilderSidebar() {
 
       {/* Stop list */}
       <div className="flex-1 space-y-2 overflow-y-auto px-3.5 py-3">
-        <DepotRow label="A" meta={`start ${START_TIME}`} tag="origin" />
+        <DepotRow label="A" meta={t('sidebar.depotStart', { time: START_TIME })} tag={t('sidebar.depotTagOrigin')} />
 
         {hasStops && (
           <SortableVisitList
@@ -241,7 +251,13 @@ export function RouteBuilderSidebar() {
           />
         )}
 
-        {hasStops && <DepotRow label="B" meta={eta ? `return · ETA ${eta}` : 'return'} tag="end" />}
+        {hasStops && (
+          <DepotRow
+            label="B"
+            meta={eta ? t('sidebar.depotReturnEta', { eta }) : t('sidebar.depotReturn')}
+            tag={t('sidebar.depotTagEnd')}
+          />
+        )}
 
         {/* Add a stop */}
         <button
@@ -252,7 +268,7 @@ export function RouteBuilderSidebar() {
           <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border border-dashed border-mc-border-strong">
             <Plus className="h-3 w-3" />
           </span>
-          <span className="flex-1 text-left">Add a stop</span>
+          <span className="flex-1 text-left">{t('sidebar.addStop')}</span>
           <kbd className="rounded border border-border bg-mc-surface px-1.5 py-px font-mono text-[10.5px] text-mc-text-dim">
             ⌘K
           </kbd>

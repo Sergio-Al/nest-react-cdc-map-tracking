@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   Mail,
@@ -24,13 +25,11 @@ import { cn } from '@/lib/utils';
    Validation — maps to the real auth payload { email, password, tenantId }.
    The mock's "Workspace" field is the tenantId (no .fleettrack.app suffix).
    ────────────────────────────────────────────────────────── */
-const loginSchema = z.object({
-  tenantId: z.string().min(1, 'Workspace is required'),
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+type LoginFormData = {
+  tenantId: string;
+  email: string;
+  password: string;
+};
 
 /* A small pulsing "live" dot, reused in the eyebrow, chip and footer. */
 function LiveDot({ className }: { className?: string }) {
@@ -241,6 +240,7 @@ function Pins() {
    Floating "Now tracking" card — the single focal point on the map.
    ────────────────────────────────────────────────────────── */
 function NowCard() {
+  const { t } = useTranslation('auth');
   return (
     <div
       className="absolute z-[3] min-w-[240px] rounded-mc-lg border border-mc-border-strong bg-mc-elev px-3.5 py-3 shadow-mc-float"
@@ -285,7 +285,7 @@ function NowCard() {
 
       <div className="mt-1.5 flex items-baseline justify-between font-mono text-[10.5px] text-mc-text-dim">
         <span className="uppercase tracking-[0.04em]">Andes Foods · R-04</span>
-        <span>6 / 10 stops</span>
+        <span>{t('visual.stops', { done: 6, total: 10 })}</span>
       </div>
     </div>
   );
@@ -293,6 +293,7 @@ function NowCard() {
 
 /* The right-hand ambient visual column. */
 function Visual() {
+  const { t } = useTranslation('auth');
   return (
     <div className="relative hidden min-w-0 flex-1 flex-col overflow-hidden bg-map-bg min-[1080px]:flex">
       <div className="absolute inset-0">
@@ -327,9 +328,9 @@ function Visual() {
       <div className="relative z-[3] flex items-center gap-2.5 p-[18px_22px]">
         <div className="inline-flex h-7 items-center gap-[7px] rounded-pill border border-mc-border-strong bg-mc-elev pl-2.5 pr-3 font-mono text-[11.5px] tracking-[0.01em] text-mc-text-muted shadow-mc-float">
           <LiveDot />
-          <strong className="font-medium text-mc-text">Live</strong>
+          <strong className="font-medium text-mc-text">{t('visual.live')}</strong>
           <span className="text-mc-text-dim">·</span>
-          <span>5 of 8 drivers moving</span>
+          <span>{t('visual.driversMoving', { moving: 5, total: 8 })}</span>
         </div>
       </div>
     </div>
@@ -345,6 +346,19 @@ function LoginForm() {
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const { t, i18n } = useTranslation('auth');
+
+  const loginSchema = useMemo(
+    () =>
+      z.object({
+        tenantId: z.string().min(1, t('validation.workspaceRequired')),
+        email: z.string().email(t('validation.emailInvalid')),
+        password: z.string().min(1, t('validation.passwordRequired')),
+      }),
+    // Re-derive when the language flips so error messages stay in sync.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [i18n.language],
+  );
 
   const {
     register,
@@ -365,12 +379,12 @@ function LoginForm() {
       // zod infers all fields optional under this repo's strictNullChecks:false,
       // but the resolver has already validated they're present.
       await login(data as LoginRequest);
-      toast.success('Welcome back!');
+      toast.success(t('success'));
       navigate('/');
     } catch (error) {
       const apiMessage = (error as { response?: { data?: { message?: string | string[] } } })?.response
         ?.data?.message;
-      const message = apiMessage ?? 'Your email or password doesn’t match our records.';
+      const message = apiMessage ?? t('errors.fallback');
       setAuthError(Array.isArray(message) ? message.join(' ') : message);
     } finally {
       setIsLoading(false);
@@ -389,14 +403,14 @@ function LoginForm() {
     >
       <div className="mb-4 inline-flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-mc-text-dim">
         <LiveDot />
-        <span>Mission Control · v4.2</span>
+        <span>{t('brand.eyebrow')}</span>
       </div>
 
       <h1 className="mb-2 text-[32px] font-semibold leading-[1.1] tracking-[-0.025em] text-mc-text">
-        Welcome back.
+        {t('form.title')}
       </h1>
       <p className="mb-7 max-w-[360px] text-sm leading-relaxed text-mc-text-muted">
-        Sign in to keep an eye on the fleet — drivers, routes, and live position updates, all in one place.
+        {t('form.subtitle')}
       </p>
 
       {authError && (
@@ -407,16 +421,11 @@ function LoginForm() {
           <AlertTriangle className="mt-px h-4 w-4 shrink-0" style={{ color: 'var(--mc-error)' }} />
           <div className="min-w-0 flex-1 text-[12.5px] leading-[1.45]">
             <div className="mb-0.5 font-medium" style={{ color: 'var(--mc-error)' }}>
-              Couldn’t sign you in
+              {t('errors.title')}
             </div>
             <div className="text-mc-text-muted">
               {authError}
-              {email ? (
-                <>
-                  {' '}
-                  Check the credentials for <span className="font-mono text-mc-text">{email}</span> and try again.
-                </>
-              ) : null}
+              {email ? <> {t('errors.checkCredentials', { email })}</> : null}
             </div>
           </div>
         </div>
@@ -427,9 +436,9 @@ function LoginForm() {
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-2">
             <label htmlFor="tenantId" className="text-[11.5px] font-medium text-mc-text-muted">
-              Workspace
+              {t('form.workspace')}
             </label>
-            <span className="font-mono text-[11.5px] text-mc-text-dim">Tenant ID</span>
+            <span className="font-mono text-[11.5px] text-mc-text-dim">{t('form.workspaceHint')}</span>
           </div>
           <div
             className={cn(
@@ -445,7 +454,7 @@ function LoginForm() {
             <input
               id="tenantId"
               type="text"
-              placeholder="tenant-1"
+              placeholder={t('form.workspacePlaceholder')}
               autoComplete="organization"
               className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[13.5px] text-mc-text outline-none placeholder:text-mc-text-dim"
               {...register('tenantId')}
@@ -461,7 +470,7 @@ function LoginForm() {
         {/* Email */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-[11.5px] font-medium text-mc-text-muted">
-            Email
+            {t('form.email')}
           </label>
           <div
             className={cn(
@@ -477,7 +486,7 @@ function LoginForm() {
             <input
               id="email"
               type="email"
-              placeholder="you@company.com"
+              placeholder={t('form.emailPlaceholder')}
               autoComplete="email"
               className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[13.5px] text-mc-text outline-none placeholder:text-mc-text-dim"
               {...register('email')}
@@ -494,13 +503,13 @@ function LoginForm() {
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-2">
             <label htmlFor="password" className="text-[11.5px] font-medium text-mc-text-muted">
-              Password
+              {t('form.password')}
             </label>
             <a
               href="#"
               className="font-mono text-[11.5px] text-mc-accent transition-colors hover:text-mc-accent-strong"
             >
-              Forgot password?
+              {t('form.forgotPassword')}
             </a>
           </div>
           <div
@@ -518,14 +527,14 @@ function LoginForm() {
             <input
               id="password"
               type={showPw ? 'text' : 'password'}
-              placeholder="Enter your password"
+              placeholder={t('form.passwordPlaceholder')}
               autoComplete="current-password"
               className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[13.5px] text-mc-text outline-none placeholder:text-mc-text-dim"
               {...register('password')}
             />
             <button
               type="button"
-              aria-label={showPw ? 'Hide password' : 'Show password'}
+              aria-label={showPw ? t('form.hidePassword') : t('form.showPassword')}
               onClick={() => setShowPw((v) => !v)}
               className="grid place-items-center px-3 text-mc-text-dim transition-colors hover:text-mc-text-muted"
             >
@@ -547,7 +556,7 @@ function LoginForm() {
           className="flex h-[42px] w-full items-center justify-center gap-2 rounded-mc border border-mc-accent-strong bg-mc-accent text-[13.5px] font-semibold text-mc-accent-fg transition-[background,transform] duration-100 hover:bg-mc-accent-strong active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70"
           style={{ boxShadow: 'inset 0 1px 0 oklch(1 0 0 / 0.25), 0 1px 2px oklch(0 0 0 / 0.15)' }}
         >
-          <span>{isLoading ? 'Signing in…' : 'Sign in to mission control'}</span>
+          <span>{isLoading ? t('form.submitting') : t('form.submit')}</span>
           {!isLoading && <ArrowRight className="h-3.5 w-3.5" />}
           <span className="ml-auto inline-flex items-center gap-[3px] font-mono text-[11px] font-medium tracking-[0.04em] opacity-70">
             <span className="inline-flex items-center rounded border border-mc-accent-strong/40 bg-black/10 px-1.5 py-px leading-[1.4]">
@@ -557,12 +566,12 @@ function LoginForm() {
         </button>
 
         <div className="text-center text-xs text-mc-text-muted">
-          New to FleetTrack?{' '}
+          {t('brand.newTo')}{' '}
           <a
             href="#"
             className="border-b border-mc-border-strong pb-px font-medium text-mc-text transition-colors hover:border-mc-accent-border hover:text-mc-accent"
           >
-            Request access
+            {t('brand.requestAccess')}
           </a>
         </div>
       </div>
@@ -576,6 +585,7 @@ function LoginForm() {
 export default function LoginPage() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const { t } = useTranslation('auth');
 
   return (
     <div className="flex h-screen min-h-[720px] flex-col bg-mc text-mc-text">
@@ -584,8 +594,8 @@ export default function LoginPage() {
         <div className="relative flex w-full shrink-0 flex-col border-mc-border bg-mc min-[1080px]:w-[520px] min-[1080px]:border-r">
           <button
             type="button"
-            aria-label="Toggle theme"
-            title="Toggle theme"
+            aria-label={t('form.toggleTheme')}
+            title={t('form.toggleTheme')}
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
             className="absolute right-6 top-[18px] z-[4] grid h-8 w-8 place-items-center rounded-[7px] border border-mc-border bg-mc-elev text-mc-text-muted transition-colors hover:border-mc-border-strong hover:bg-mc-surface hover:text-mc-text"
           >
@@ -602,7 +612,7 @@ export default function LoginPage() {
       <footer className="flex h-[30px] shrink-0 items-center gap-3.5 border-t border-mc-border bg-mc px-3.5 text-[11px] text-mc-text-dim">
         <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.01em] text-mc-text-muted">
           <LiveDot />
-          Connected · La Paz, Bolivia
+          {t('brand.footer')}
         </span>
       </footer>
     </div>

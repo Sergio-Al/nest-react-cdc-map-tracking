@@ -1,16 +1,16 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
-const CITY = "La Paz, Bolivia";
 const STATUS_GREEN = "var(--mc-status-moving)";
 const STATUS_RED = "var(--mc-status-offline)";
 
-const HINTS: { keys: string[]; label: string }[] = [
-  { keys: ["↑", "↓"], label: "navigate" },
-  { keys: ["↵"], label: "open driver" },
-  { keys: ["F"], label: "focus on map" },
-  { keys: ["N"], label: "new route" },
-  { keys: ["⌘", "K"], label: "commands" },
-  { keys: ["⌘", "/"], label: "all shortcuts" },
+const HINT_KEYS: { keys: string[]; labelKey: string }[] = [
+  { keys: ["↑", "↓"], labelKey: "navigate" },
+  { keys: ["↵"], labelKey: "openDriver" },
+  { keys: ["F"], labelKey: "focus" },
+  { keys: ["N"], labelKey: "newRoute" },
+  { keys: ["⌘", "K"], labelKey: "commands" },
+  { keys: ["⌘", "/"], labelKey: "shortcuts" },
 ];
 
 function Kbd({ children }: { children: React.ReactNode }) {
@@ -22,17 +22,18 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 export function Footer({ isConnected }: { isConnected: boolean }) {
+  const { t } = useTranslation("dashboard");
   return (
     <footer className="flex h-[30px] shrink-0 items-center gap-3.5 border-t border-border bg-background px-3.5">
       <div className="hidden items-center gap-3.5 md:flex">
-        {HINTS.map((h, i) => (
-          <div key={h.label} className="flex items-center gap-3.5">
+        {HINT_KEYS.map((h, i) => (
+          <div key={h.labelKey} className="flex items-center gap-3.5">
             {i > 0 && <span className="h-3 w-px bg-border" />}
             <span className="flex items-center gap-1 text-[10.5px] text-mc-text-dim">
               {h.keys.map((k) => (
                 <Kbd key={k}>{k}</Kbd>
               ))}
-              <span className="ml-0.5">{h.label}</span>
+              <span className="ml-0.5">{t(`footer.hints.${h.labelKey}`)}</span>
             </span>
           </div>
         ))}
@@ -44,7 +45,7 @@ export function Footer({ isConnected }: { isConnected: boolean }) {
           style={{ background: isConnected ? STATUS_GREEN : STATUS_RED }}
         />
         <span className={isConnected ? "text-muted-foreground" : "text-status-offline"}>
-          {isConnected ? `Connected · ${CITY}` : "Reconnecting…"}
+          {isConnected ? t("footer.connected", { city: t("city") }) : t("footer.reconnecting")}
         </span>
       </div>
     </footer>

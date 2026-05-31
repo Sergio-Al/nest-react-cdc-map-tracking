@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { deltaText } from './tones';
 import type { LeaderRow } from '@/hooks/api/useReports';
@@ -15,10 +16,11 @@ function metricRaw(r: LeaderRow, metric: Metric): number {
 }
 
 export function Leaderboard({ rows, metric = 'visits' }: { rows: LeaderRow[]; metric?: Metric }) {
+  const { t } = useTranslation('reports');
   if (rows.length === 0) {
     return (
       <div className="py-8 text-center text-xs text-mc-text-dim">
-        No driver activity in this range.
+        {t('leaderboard.noActivity')}
       </div>
     );
   }

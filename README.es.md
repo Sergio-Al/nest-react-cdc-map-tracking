@@ -20,6 +20,7 @@ Sistema de rastreo vehicular en tiempo real diseñado para monitorear **1,000 co
 - [Tópicos de Kafka](#-tópicos-de-kafka)
 - [Esquemas de Base de Datos](#-esquemas-de-base-de-datos)
 - [Patrones de Diseño](#-patrones-de-diseño)
+- [Internacionalización](#-internacionalización)
 - [Pruebas Manuales](#-pruebas-manuales)
 - [Estado del Proyecto](#-estado-del-proyecto)
 
@@ -953,6 +954,56 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 | **Patrón Sidecar** | Solver OR-Tools Python ejecuta como microservicio FastAPI separado |
 | **Dead Letter Queue** | Mensajes fallidos reintentados con backoff exponencial → tópicos DLQ Kafka para inspección/reenvío |
 | **Filtro de Excepción Global** | Respuestas JSON de error consistentes en todos los endpoints REST |
+| **I18n (Bilingüe)** | `react-i18next` en el frontend, `nestjs-i18n` en el backend. El idioma se resuelve desde `Accept-Language` (también `?lang=` y `x-lang`). Español es el predeterminado; inglés es opcional vía el conmutador de idiomas en la barra lateral. |
+
+---
+
+## 🌐 Internacionalización
+
+El dashboard y el backend son bilingües (**español por defecto**, inglés opcional). El conmutador de idiomas en la barra lateral persiste la elección en `localStorage` (`fleetview.language`), y el cliente axios envía `Accept-Language` en cada petición para que los errores del backend vuelvan en el mismo idioma.
+
+### Frontend (`fleetview-live-main/src/i18n/`)
+
+- Se inicializa en `src/main.tsx` vía `src/i18n/index.ts` usando `i18next` + `react-i18next` + `i18next-browser-languagedetector`.
+- Doce namespaces, un archivo JSON por idioma: `common`, `nav`, `auth`, `dashboard`, `routes`, `reports`, `drivers`, `vehicles`, `customers`, `history`, `monitoring`, `errors`.
+- Consumir en cualquier componente: `const { t } = useTranslation('routes'); t('sidebar.actions.optimize')`.
+- Formato de fechas: `useDateLocale()` (desde `src/i18n/useDateLocale.ts`) devuelve el locale de `date-fns` correspondiente — pásalo a `format(date, 'd MMM', { locale })`.
+- Formato de números: pasa `i18n.language` a `toLocaleString()` / `toLocaleTimeString()` / `toLocaleDateString()`.
+
+**Para agregar una clave de traducción:** añade la misma ruta a `src/i18n/locales/es/<ns>.json` y `src/i18n/locales/en/<ns>.json`, luego úsala como `t('<clave>')`.
+
+### Backend (`tracking-service/src/i18n/`)
+
+- `AppI18nModule` (registrado en `app.module.ts`) envuelve `I18nModule.forRoot` con `fallbackLanguage: 'es'`, resolvers en orden de prioridad `?lang=` → `Accept-Language` → `x-lang`, y el cargador JSON apuntando a `src/i18n/` (copiado a `dist/i18n/` en build vía los `assets` de `nest-cli.json`).
+- Dos namespaces por idioma: `errors.json` (dominios de negocio + auth + validación) y `validation.json` (nombres de constraints de class-validator como `isEmail`, `isNotEmpty`, `minLength`).
+- Los mensajes de validación de DTO se localizan automáticamente: `main.ts` registra `I18nValidationPipe` + `I18nValidationExceptionFilter`, por lo que un DTO con un decorador `@IsEmail()` produce un mensaje resuelto desde `validation.isEmail` en el idioma de la petición.
+- Las excepciones de negocio se lanzan con un `errorCode`:
+
+  ```ts
+  throw new BadRequestException({ errorCode: 'routes.notFound', args: { id } });
+  ```
+
+  `GlobalExceptionFilter` (`src/common/filters/global-exception.filter.ts`) lee el idioma desde `I18nContext` y resuelve `errors.<errorCode>` con los `args` como sustituciones de estilo ICU `{{placeholder}}`.
+
+**Para agregar una clave de traducción:** añade la misma ruta a `src/i18n/es/errors.json` y `src/i18n/en/errors.json`, luego lanza con `{ errorCode: 'grupo.clave', args }`.
+
+### Contrato de errores frontend ↔ backend
+
+Toda respuesta de error ahora lleva un `errorCode` para que el frontend pueda re-traducir en cliente incluso si `Accept-Language` estaba desactualizado al momento de la petición:
+
+```jsonc
+// 401 Unauthorized — login fallido bajo Accept-Language: es
+{
+  "statusCode": 401,
+  "errorCode": "auth.invalidCredentials",
+  "message": "Credenciales inválidas",
+  "error": "Unauthorized",
+  "timestamp": "2026-05-31T10:23:14.182Z",
+  "path": "/api/auth/login"
+}
+```
+
+El helper `translateApiError()` del frontend (`src/lib/apiError.ts`) inspecciona primero `error.response.data.errorCode`, luego cae al `message` del servidor, y por último al fallback traducido localmente del caller. Los call sites de toasts pasan este helper a `toast.error(...)` para que los usuarios siempre vean un mensaje localizado.
 
 ---
 

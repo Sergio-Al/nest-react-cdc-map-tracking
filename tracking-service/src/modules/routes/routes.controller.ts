@@ -42,7 +42,7 @@ export class RoutesController {
       const fromDate = new Date(from);
       const toDate = new Date(to);
       if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-        throw new BadRequestException('"from" and "to" must be valid ISO 8601 dates');
+        throw new BadRequestException({ errorCode: 'routes.fromToInvalid' });
       }
       return this.routesService.findByDateRange(user.tenantId, from, to, status);
     }
@@ -107,12 +107,12 @@ export class RoutesController {
     @CurrentUser() user: any,
   ) {
     if (!from || !to) {
-      throw new BadRequestException('Query params "from" and "to" are required (ISO 8601)');
+      throw new BadRequestException({ errorCode: 'routes.fromToRequired' });
     }
     const fromDate = new Date(from);
     const toDate = new Date(to);
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      throw new BadRequestException('"from" and "to" must be valid ISO 8601 dates');
+      throw new BadRequestException({ errorCode: 'routes.fromToInvalid' });
     }
     return this.timescaleService.getRoutePositionHistory(id, fromDate, toDate);
   }

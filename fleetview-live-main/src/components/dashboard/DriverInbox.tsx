@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Filter, Plus, ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Driver } from "@/types/driver.types";
 import type { EnrichedPosition } from "@/types/position.types";
 import { getDriverStatus, formatAge, statusColorVar } from "@/lib/driverStatus";
@@ -13,11 +14,6 @@ type DriverWithPosition = Driver & { position?: EnrichedPosition };
 type StatusFilter = "all" | "moving" | "idle";
 type SortKey = "speed" | "last_seen" | "name";
 
-const SORT_LABEL: Record<SortKey, string> = {
-  speed: "Speed",
-  last_seen: "Last seen",
-  name: "Name",
-};
 const SORT_CYCLE: SortKey[] = ["speed", "last_seen", "name"];
 
 interface DriverInboxProps {
@@ -82,6 +78,7 @@ function InboxRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useTranslation("dashboard");
   const status = getDriverStatus(driver.position);
   const color = statusColorVar(status);
   const route = getMockRouteSummary(driver.id);
@@ -90,9 +87,13 @@ function InboxRow({
   const snippet =
     status === "offline"
       ? driver.position
-        ? `Last seen ${formatAge(driver.position.time)}`
-        : "No recent signal"
-      : `${route.routeName} · ${route.progress}/${route.total} stops`;
+        ? t("inbox.lastSeen", { age: formatAge(driver.position.time) })
+        : t("inbox.noSignal")
+      : t("inbox.stopsProgress", {
+          routeName: route.routeName,
+          progress: route.progress,
+          total: route.total,
+        });
 
   return (
     <button
@@ -148,7 +149,7 @@ function InboxRow({
               background: `color-mix(in oklch, ${statusColorVar("idle")} 16%, transparent)`,
             }}
           >
-            idle
+            {t("inbox.idleBadge")}
           </span>
         ) : null}
       </div>
@@ -171,6 +172,7 @@ export function DriverInbox({
   const listRef = useRef<HTMLDivElement>(null);
   const inboxSheetOpen = useDashboardStore((s) => s.inboxSheetOpen);
   const setInboxSheetOpen = useDashboardStore((s) => s.setInboxSheetOpen);
+  const { t } = useTranslation("dashboard");
 
   useEffect(() => {
     localStorage.setItem("fleet.inboxSort", sort);
@@ -270,21 +272,21 @@ export function DriverInbox({
       {/* Header */}
       <div className="border-b border-border px-4 pb-2.5 pt-3.5">
         <div className="mb-2.5 flex items-center gap-2">
-          <h2 className="text-sm font-semibold tracking-[-0.01em]">Fleet</h2>
+          <h2 className="text-sm font-semibold tracking-[-0.01em]">{t("inbox.fleet")}</h2>
           <span className="rounded-pill border border-border bg-secondary px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
             {counts.all}
           </span>
           <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
-              aria-label="Filter"
+              aria-label={t("inbox.filter")}
               className="flex h-[30px] w-[30px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <Filter className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
-              aria-label="Add driver"
+              aria-label={t("inbox.addDriver")}
               className="flex h-[30px] w-[30px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <Plus className="h-4 w-4" />
@@ -298,7 +300,7 @@ export function DriverInbox({
             ref={searchRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search drivers, plates…"
+            placeholder={t("inbox.searchPlaceholder")}
             className="h-[30px] w-full rounded-[7px] border border-border bg-background pl-8 pr-8 text-xs outline-none transition-colors placeholder:text-muted-foreground focus:border-mc-accent-border"
           />
           <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-mc-elev px-1.5 font-mono text-[10.5px] text-muted-foreground">
@@ -309,16 +311,16 @@ export function DriverInbox({
 
       {/* Filters */}
       <div className="flex items-center gap-1.5 border-b border-border px-4 py-2">
-        <FilterChip label="All" count={counts.all} active={filter === "all"} onClick={() => setFilter("all")} />
+        <FilterChip label={t("inbox.filters.all")} count={counts.all} active={filter === "all"} onClick={() => setFilter("all")} />
         <FilterChip
-          label="Moving"
+          label={t("inbox.filters.moving")}
           count={counts.moving}
           active={filter === "moving"}
           dotStatus="moving"
           onClick={() => setFilter("moving")}
         />
         <FilterChip
-          label="Idle"
+          label={t("inbox.filters.idle")}
           count={counts.idle}
           active={filter === "idle"}
           dotStatus="idle"
@@ -329,7 +331,7 @@ export function DriverInbox({
           onClick={cycleSort}
           className="ml-auto inline-flex h-6 items-center gap-1 rounded-pill border border-border px-2.5 text-[11.5px] font-medium text-muted-foreground transition-colors hover:bg-secondary"
         >
-          {SORT_LABEL[sort]}
+          {t(`inbox.sort.${sort}`)}
           <ChevronDown className="h-3 w-3" />
         </button>
       </div>
@@ -348,7 +350,7 @@ export function DriverInbox({
           ))
         ) : visible.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            No drivers found
+            {t("inbox.noResults")}
           </div>
         ) : (
           visible.map((driver) => (

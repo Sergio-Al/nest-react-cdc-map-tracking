@@ -59,7 +59,7 @@ export class RoutesService {
       where: { id },
       relations: ['visits'],
     });
-    if (!route) throw new NotFoundException(`Route ${id} not found`);
+    if (!route) throw new NotFoundException({ errorCode: 'routes.notFound', args: { id } });
     return route;
   }
 

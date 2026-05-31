@@ -8,6 +8,7 @@ import {
 } from 'react-leaflet';
 import { DivIcon, LatLngBounds, type LatLngExpression } from 'leaflet';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
 import 'leaflet/dist/leaflet.css';
 import { usePlaybackStore } from '@/stores/playback.store';
 import { MapControls } from '@/components/dashboard/MapControls';
@@ -147,8 +148,9 @@ interface RouteSummaryProps {
 
 function RouteSummaryChip({ driver, positions }: RouteSummaryProps) {
   const summary = useMemo(() => tripSummaryFrom(positions), [positions]);
+  const { t, i18n } = useTranslation('history');
   const dateStr = positions.length > 0
-    ? new Date(positions[0].time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    ? new Date(positions[0].time).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })
     : '';
 
   return (
@@ -173,10 +175,10 @@ function RouteSummaryChip({ driver, positions }: RouteSummaryProps) {
 
       {/* Stats */}
       {[
-        { lbl: 'Distance', val: `${summary.distanceKm}`, unit: 'km' },
-        { lbl: 'Duration', val: fmtDuration(summary.durationMin), unit: '' },
-        { lbl: 'Stops',    val: `${summary.stops}`, unit: '/ 10' },
-        { lbl: 'Avg speed',val: `${summary.avgSpeedKmh}`, unit: 'km/h' },
+        { lbl: t('map.summary.distance'), val: `${summary.distanceKm}`, unit: 'km' },
+        { lbl: t('map.summary.duration'), val: fmtDuration(summary.durationMin), unit: '' },
+        { lbl: t('map.summary.stops'), val: `${summary.stops}`, unit: '/ 10' },
+        { lbl: t('map.summary.avgSpeed'), val: `${summary.avgSpeedKmh}`, unit: 'km/h' },
       ].map(({ lbl, val, unit }) => (
         <div
           key={lbl}
@@ -206,6 +208,7 @@ export function RouteHistoryMap({ driver, toggles, showPlayback }: RouteHistoryM
   const { positions, currentIndex } = usePlaybackStore();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const { t } = useTranslation('history');
 
   const tileUrl = isDark
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -318,7 +321,7 @@ export function RouteHistoryMap({ driver, toggles, showPlayback }: RouteHistoryM
           style={{ bottom: showPlayback ? 90 : 14, right: 14 }}
         >
           <div className="mb-[6px] text-[9.5px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Speed
+            {t('map.legend.title')}
           </div>
           <div className="flex flex-col gap-1">
             {SPEED_LEGEND.map(({ color, label }) => (
@@ -331,7 +334,7 @@ export function RouteHistoryMap({ driver, toggles, showPlayback }: RouteHistoryM
               </div>
             ))}
           </div>
-          <div className="mt-1 text-right font-mono text-[10px] text-mc-text-dim">km/h</div>
+          <div className="mt-1 text-right font-mono text-[10px] text-mc-text-dim">{t('map.legend.unit')}</div>
         </div>
       )}
 

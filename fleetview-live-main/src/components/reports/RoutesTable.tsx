@@ -1,4 +1,5 @@
 import { Check, MoreHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { avatarTone, statusPill, barColor, toneForPct } from './tones';
 import { ROUTE_COLUMNS, type SortCol, type SortState } from './routeColumns';
@@ -6,17 +7,16 @@ import type { RouteReportRow } from '@/hooks/api/useReports';
 
 function SortHead({
   col,
-  label,
   num,
   sort,
   onSort,
 }: {
   col: SortCol;
-  label: string;
   num?: boolean;
   sort: SortState;
   onSort: (c: SortCol) => void;
 }) {
+  const { t } = useTranslation('reports');
   const active = sort.col === col;
   return (
     <th
@@ -34,7 +34,7 @@ function SortHead({
           active && 'text-foreground',
         )}
       >
-        {label}
+        {t(`columns.${col}`)}
         {active &&
           (sort.dir === 'desc' ? (
             <ChevronDown className="h-3 w-3 text-mc-accent" />
@@ -86,6 +86,7 @@ export function RoutesTable({
   drillId: string | null;
   onRowClick: (id: string) => void;
 }) {
+  const { t } = useTranslation('reports');
   const pad = density === 'dense' ? 'py-1.5' : 'py-[9px]';
   const show = (col: SortCol) => visible.has(col);
   return (
@@ -94,12 +95,12 @@ export function RoutesTable({
         <thead>
           <tr>
             <th className="sticky top-0 z-[2] w-7 border-b border-border bg-background py-[9px] pl-3.5">
-              <button type="button" onClick={onToggleAll} aria-label="Select all">
+              <button type="button" onClick={onToggleAll}>
                 <Checkbox on={allSelected} />
               </button>
             </th>
             {ROUTE_COLUMNS.filter((c) => show(c.id)).map((c) => (
-              <SortHead key={c.id} col={c.id} label={c.label} num={c.num} sort={sort} onSort={onSort} />
+              <SortHead key={c.id} col={c.id} num={c.num} sort={sort} onSort={onSort} />
             ))}
             <th className="sticky top-0 z-[2] w-8 border-b border-border bg-background" />
           </tr>
@@ -156,7 +157,7 @@ export function RoutesTable({
                       )}
                     >
                       <span className="h-[5px] w-[5px] rounded-full bg-current" />
-                      {r.status === 'in_progress' ? 'in progress' : r.status}
+                      {t(`routeStatus.${r.status}`, { defaultValue: r.status })}
                     </span>
                   </td>
                 )}

@@ -1,4 +1,5 @@
-import { OPERATOR_LABEL, type ActiveFilter, type FieldDef, type Operator } from './types';
+import i18n from '@/i18n';
+import { type ActiveFilter, type FieldDef, type Operator } from './types';
 
 /** A filter only takes effect once it has enough operands to evaluate. */
 export function isComplete(f: ActiveFilter): boolean {
@@ -55,17 +56,18 @@ export function describeFilter<T>(
   rows: T[],
 ): { key: string; value: string } {
   const key = def.label.toLowerCase();
+  const tOp = (op: Operator) => i18n.t(`filters.operators.${op}`, { ns: 'common' });
   if (def.kind === 'enum') {
     const opts = def.options ? def.options(rows) : [];
     const labels = f.values.map((val) => opts.find((o) => o.value === val)?.label ?? val);
     const shown = labels.slice(0, 2).join(', ');
     const extra = labels.length > 2 ? `, +${labels.length - 2}` : '';
-    const prefix = f.operator === 'not_any_of' ? 'not ' : '';
+    const prefix = f.operator === 'not_any_of' ? `${tOp('not_any_of')} ` : '';
     return { key, value: `${prefix}${shown}${extra}` || '—' };
   }
   const unit = def.unit ?? '';
   if (f.operator === 'between') return { key, value: `${f.num1}–${f.num2}${unit}` };
-  return { key, value: `${OPERATOR_LABEL[f.operator]} ${f.num1}${unit}` };
+  return { key, value: `${tOp(f.operator)} ${f.num1}${unit}` };
 }
 
 export function newFilter(fieldId: string, operator: Operator): ActiveFilter {

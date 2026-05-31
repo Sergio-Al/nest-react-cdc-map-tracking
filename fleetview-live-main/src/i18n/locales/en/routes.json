@@ -1,0 +1,161 @@
+{
+  "page": {
+    "fleet": "Fleet",
+    "routes": "Routes",
+    "builder": "Builder",
+    "findCustomer": "Find customer to add…",
+    "filters": "Filters"
+  },
+  "sidebar": {
+    "title": "Route Builder",
+    "subtitle": "Pick a route to edit",
+    "new": "New",
+    "back": "Back to routes",
+    "unknownDriver": "Unknown driver",
+    "depot": "Depot",
+    "depotStart": "start {{time}}",
+    "depotReturn": "return",
+    "depotReturnEta": "return · ETA {{eta}}",
+    "depotTagOrigin": "origin",
+    "depotTagEnd": "end",
+    "addStop": "Add a stop",
+    "actions": {
+      "optimize": "Optimize",
+      "save": "Save",
+      "stop": "Stop"
+    },
+    "stats": {
+      "distance": "Distance",
+      "duration": "Duration",
+      "stops": "Stops"
+    },
+    "status": {
+      "draft": "draft",
+      "planned": "planned",
+      "in_progress": "in progress",
+      "completed": "completed",
+      "cancelled": "cancelled"
+    }
+  },
+  "selector": {
+    "empty": "No routes yet. Create one to get started.",
+    "stops": "{{count}} stops",
+    "statusBadge": {
+      "planned": "Planned",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "createDialog": {
+    "title": "Create Route",
+    "driver": "Driver",
+    "driverPlaceholder": "Select a driver",
+    "scheduledDate": "Scheduled Date",
+    "cancel": "Cancel",
+    "create": "Create"
+  },
+  "visitCard": {
+    "customerFallback": "Customer #{{id}}",
+    "remove": "Remove stop",
+    "noStops": {
+      "title": "No stops yet",
+      "body": "Add a stop to begin building the route"
+    }
+  },
+  "map": {
+    "controls": {
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitRoute": "Fit route",
+      "recenter": "Recenter",
+      "layers": "Layers"
+    },
+    "depot": {
+      "title": "Depot",
+      "subtitle": "Start & end of route"
+    },
+    "addStop": "+ Add stop",
+    "popup": {
+      "status": "Status",
+      "eta": "ETA",
+      "statusValues": {
+        "pending": "pending",
+        "in_progress": "in progress",
+        "completed": "completed",
+        "cancelled": "cancelled",
+        "skipped": "skipped"
+      }
+    },
+    "zeroState": {
+      "title": "Start building the route",
+      "body": "Click a customer pin on the map, search via the command palette, or pick from a list of frequent stops to begin.",
+      "rows": {
+        "openPalette": "Open the palette",
+        "clickPin": "Click any pin on the map",
+        "optimizeHint": "Optimize when you have 3+ stops",
+        "clickKey": "Click"
+      }
+    }
+  },
+  "toasts": {
+    "stopAdded": "Stop added",
+    "stopsAdded_one": "{{count}} stop added",
+    "stopsAdded_other": "{{count}} stops added",
+    "addFailed": "Failed to add stop",
+    "optimized": "Route optimized",
+    "optimizeFailed": "Optimization failed",
+    "orderSaved": "Order saved",
+    "saveFailed": "Failed to save order",
+    "stopRemoved": "Stop removed",
+    "removeFailed": "Failed to remove stop",
+    "routeCreated": "Route created",
+    "createFailed": "Failed to create route"
+  },
+  "palette": {
+    "searchPlaceholder": "Search customers by name or address…",
+    "chips": {
+      "all": "All",
+      "recent": "Recent",
+      "frequent": "Frequent",
+      "near": "Near route"
+    },
+    "categories": {
+      "restaurants": "Restaurants",
+      "retail": "Retail",
+      "healthcare": "Healthcare",
+      "industrial": "Industrial"
+    },
+    "noResults": "No customers match.",
+    "sections": {
+      "matching": "Matching",
+      "suggested": "Suggested near this route"
+    },
+    "urgency": {
+      "urgent": "Urgent",
+      "priority": "Priority"
+    },
+    "lastVisit": "last visit {{label}}",
+    "lastVisitLabel": {
+      "today": "today",
+      "days": "{{count}}d",
+      "weeks": "{{count}}w"
+    },
+    "monthlyFrequency": "{{count}}× /mo",
+    "window": {
+      "anytime": "Anytime",
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening"
+    },
+    "windowLabel": "Window",
+    "footer": {
+      "navigate": "navigate",
+      "addCount": "add",
+      "addCountN": "add {{count}}",
+      "addAndNew": "add & new",
+      "selectAll": "select all",
+      "customers": "{{count}} customers"
+    }
+  }
+}

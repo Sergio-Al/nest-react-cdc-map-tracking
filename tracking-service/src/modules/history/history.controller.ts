@@ -21,16 +21,12 @@ export class HistoryController {
     @CurrentUser() user: any,
   ) {
     if (!from || !to) {
-      throw new BadRequestException(
-        'Query params "from" and "to" are required (ISO 8601)',
-      );
+      throw new BadRequestException({ errorCode: 'history.fromToRequired' });
     }
     const fromDate = new Date(from);
     const toDate = new Date(to);
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      throw new BadRequestException(
-        '"from" and "to" must be valid ISO 8601 dates',
-      );
+      throw new BadRequestException({ errorCode: 'history.fromToInvalid' });
     }
     return this.timescaleService.getVisitCompletions(
       user.tenantId,
@@ -48,16 +44,12 @@ export class HistoryController {
     @CurrentUser() user: any,
   ) {
     if (!from || !to) {
-      throw new BadRequestException(
-        'Query params "from" and "to" are required (ISO 8601)',
-      );
+      throw new BadRequestException({ errorCode: 'history.fromToRequired' });
     }
     const fromDate = new Date(from);
     const toDate = new Date(to);
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      throw new BadRequestException(
-        '"from" and "to" must be valid ISO 8601 dates',
-      );
+      throw new BadRequestException({ errorCode: 'history.fromToInvalid' });
     }
     return this.timescaleService.getDriverDailyStats(
       user.tenantId,

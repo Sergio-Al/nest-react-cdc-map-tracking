@@ -1,0 +1,345 @@
+{
+  "header": {
+    "title": "Reportes",
+    "subtitle": "Analítica operacional, rankings y exportaciones — flota La Paz"
+  },
+  "tabs": {
+    "overview": "Resumen",
+    "routes": "Rutas",
+    "visits": "Visitas",
+    "drivers": "Conductores",
+    "vehicles": "Vehículos",
+    "customers": "Clientes",
+    "fuel": "Combustible",
+    "safety": "Seguridad"
+  },
+  "presets": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "7d": "7d",
+    "14d": "14d",
+    "30d": "30d",
+    "mtd": "MTD",
+    "qtd": "QTD",
+    "ytd": "YTD"
+  },
+  "grains": {
+    "hour": "hora",
+    "day": "día",
+    "week": "semana",
+    "month": "mes"
+  },
+  "compare": {
+    "label": "Comparar",
+    "previous_period": "período anterior",
+    "previous_year": "año anterior",
+    "none": "sin comparar",
+    "items": {
+      "previous_period": "Período anterior",
+      "previous_year": "Año anterior",
+      "none": "Sin comparar"
+    }
+  },
+  "actions": {
+    "share": "Compartir",
+    "schedule": "Programar",
+    "export": "Exportar",
+    "openRoute": "Abrir ruta"
+  },
+  "share": {
+    "title": "FleetTrack · Reportes",
+    "copied": "Enlace copiado al portapapeles",
+    "failed": "No se pudo compartir esta vista"
+  },
+  "scheduleDialog": {
+    "title": "Programar reporte",
+    "subtitle": "Enviado por correo en CSV para la vista <strong>{{tab}}</strong>.",
+    "frequency": "Frecuencia",
+    "daily": "Diario",
+    "weekly": "Semanal",
+    "monthly": "Mensual",
+    "email": "Correo del destinatario",
+    "emailPlaceholder": "ops@fleet.bo",
+    "submit": "Programar reporte",
+    "savedCount_one": "{{count}} programación guardada en este dispositivo.",
+    "savedCount_other": "{{count}} programaciones guardadas en este dispositivo.",
+    "errors": {
+      "invalidEmail": "Introduce un correo electrónico válido",
+      "saveFailed": "No se pudo guardar la programación"
+    },
+    "success": "Reporte {{frequency}} de {{tab}} programado a {{email}}"
+  },
+  "overview": {
+    "kpi": {
+      "visits": "Visitas",
+      "distance": "Distancia",
+      "ontime": "A tiempo",
+      "idleTime": "Tiempo inactivo",
+      "avgSpeed": "Vel. promedio",
+      "active": "Activos"
+    },
+    "kpiUnits": {
+      "completed": "completadas",
+      "km": "km",
+      "percent": "%",
+      "hm": "h 22m",
+      "kmh": "km/h",
+      "of9": "/ 9"
+    },
+    "kpiTargets": {
+      "goal1200": "Meta · 1,200",
+      "plus260km": "+260 km vs anterior",
+      "goal95": "Meta · 95%",
+      "lowerBetter": "Menos es mejor",
+      "steady": "Estable",
+      "oneOff": "1 vehículo apagado"
+    },
+    "kpiVsPrev": "vs período anterior",
+    "trend": {
+      "title": "Visitas y A tiempo",
+      "sub": "últimos 14 días",
+      "legend": {
+        "visitsCurrent": "Visitas (actual)",
+        "visitsPrevYear": "Visitas (año ant.)",
+        "visitsPrevPeriod": "Visitas (período ant.)",
+        "ontimePct": "A tiempo %"
+      },
+      "more": "Más",
+      "marker": {
+        "visits": "{{count}} visitas",
+        "ontime": "{{pct}}% a tiempo"
+      }
+    },
+    "leaderboard": {
+      "title": "Top conductores",
+      "sub": "por visitas",
+      "filter": "Filtrar",
+      "open": "Abrir"
+    },
+    "heatmap": {
+      "title": "Visitas por día y hora",
+      "sub": "dónde se hace el trabajo",
+      "days": "LMMJVSD",
+      "tooltip": "{{day}} {{hour}}:00 · {{count}} visitas/hora"
+    },
+    "insights": {
+      "title": "Tendencias",
+      "sub": "auto-detectadas",
+      "items": {
+        "ontimeDropped": {
+          "title": "A tiempo bajó",
+          "body": "en los últimos 3 días. Mayor contribuyente: tráfico en Av. 6 de Agosto entre 11:30–13:00.",
+          "cta": "Ver rutas"
+        },
+        "visitsUp": {
+          "title": "Visitas +12.4% vs período anterior",
+          "body": "— superando la meta de 1,200 visitas por 84.",
+          "cta": "Definir nueva meta"
+        },
+        "driverOffline": {
+          "title": "Roberto Mamani ha estado fuera de línea 3 días.",
+          "body": "El vehículo MNO-345 no envía datos desde el 22 May 08:14.",
+          "cta": "Abrir conductor"
+        }
+      }
+    },
+    "serviceLevel": {
+      "title": "Nivel de servicio",
+      "sub": "por resultado",
+      "rows": {
+        "onTime": "Completadas a tiempo",
+        "lateButCompleted": "Tarde pero completadas",
+        "missed": "Perdidas",
+        "cancelled": "Canceladas"
+      }
+    },
+    "stopDuration": {
+      "title": "Duración de paradas",
+      "sub": "distribución · minutos"
+    },
+    "byZone": {
+      "title": "Por zona",
+      "sub": "distancia · km"
+    },
+    "exportedKpis": "KPIs del resumen exportados"
+  },
+  "table": {
+    "showingOfRoutes": "Mostrando {{shown}} de {{total}} rutas",
+    "columns": "Columnas",
+    "toggleColumns": "Mostrar/ocultar columnas",
+    "density": {
+      "cozy": "Cómodo",
+      "dense": "Denso"
+    },
+    "exportRows": "Exportar {{count}} filas",
+    "empty": {
+      "title": "Ninguna ruta coincide con estos filtros",
+      "body": "Prueba ampliando el rango, eliminando un filtro o eligiendo otra vista guardada.",
+      "clear": "Limpiar filtros",
+      "reset": "Restablecer vista"
+    },
+    "selected": "{{count}} seleccionadas · 1.10 MB",
+    "rowsPerPage": "Filas por página",
+    "pageRangeOf": "{{from}}–{{to}} de {{total}}"
+  },
+  "columns": {
+    "date": "Fecha",
+    "driver": "Conductor",
+    "vehicle": "Vehículo",
+    "status": "Estado",
+    "visits": "Visitas",
+    "distance": "Distancia (km)",
+    "duration": "Duración",
+    "otp": "Puntualidad %"
+  },
+  "routeStatus": {
+    "planned": "planificada",
+    "in_progress": "en progreso",
+    "completed": "completada",
+    "cancelled": "cancelada",
+    "late": "tarde",
+    "missed": "perdida"
+  },
+  "csvHeaders": {
+    "rutas": "rutas",
+    "visitas": "visitas",
+    "vehiculos": "vehiculos",
+    "clientes": "clientes",
+    "metric": "Métrica",
+    "value": "Valor",
+    "unit": "Unidad",
+    "delta": "Delta",
+    "context": "Contexto",
+    "rank": "Rango",
+    "driver": "Conductor",
+    "visits": "Visitas",
+    "ontimePct": "Puntualidad %",
+    "distanceKm": "Distancia (km)",
+    "date": "Fecha",
+    "vehicle": "Vehículo",
+    "status": "Estado",
+    "stops": "Paradas",
+    "duration": "Duración",
+    "dateTime": "Fecha/Hora",
+    "customer": "Cliente",
+    "type": "Tipo",
+    "durationSec": "Duración (s)",
+    "onTime": "Puntual",
+    "yes": "Sí",
+    "no": "No",
+    "plate": "Placa",
+    "brand": "Marca",
+    "model": "Modelo",
+    "year": "Año",
+    "capacityKg": "Capacidad (kg)",
+    "name": "Nombre",
+    "phone": "Teléfono",
+    "address": "Dirección",
+    "geofenceM": "Geocerca (m)",
+    "active": "Activo"
+  },
+  "exportToasts": {
+    "noRoutes": "No hay rutas para exportar",
+    "noDrivers": "No hay actividad de conductores para exportar",
+    "noVisits": "No hay visitas para exportar",
+    "noVehicles": "No hay vehículos para exportar",
+    "noCustomers": "No hay clientes para exportar",
+    "exportedRoutes_one": "Exportada {{count}} ruta",
+    "exportedRoutes_other": "Exportadas {{count}} rutas",
+    "exportedVisits_one": "Exportada {{count}} visita",
+    "exportedVisits_other": "Exportadas {{count}} visitas",
+    "exportedVehicles_one": "Exportado {{count}} vehículo",
+    "exportedVehicles_other": "Exportados {{count}} vehículos",
+    "exportedCustomers_one": "Exportado {{count}} cliente",
+    "exportedCustomers_other": "Exportados {{count}} clientes",
+    "exportedDrivers": "Ranking de conductores exportado"
+  },
+  "drilldown": {
+    "breadcrumb": "Rutas",
+    "openRoute": "Abrir ruta",
+    "gpx": "GPX",
+    "share": "Compartir",
+    "routeSuffix": "Ruta",
+    "ontimeSuffix": "{{pct}}% a tiempo",
+    "stopsSuffix": "{{done}}/{{total}} paradas",
+    "stats": {
+      "distance": "Distancia",
+      "duration": "Duración",
+      "idle": "Inactivo",
+      "avgSpeed": "Vel. prom.",
+      "topSpeed": "Vel. máx.",
+      "speeding": "Exc. veloc."
+    },
+    "units": {
+      "km": "km",
+      "minutes": "m",
+      "kmh": "km/h",
+      "events": "eventos"
+    },
+    "speedSection": "Velocidad · última ruta",
+    "stopsSection": "Paradas",
+    "noStops": "No hay paradas planificadas para esta ruta."
+  },
+  "drivers": {
+    "byVisits": "Por visitas",
+    "byVisitsSub": "últimos 14 días",
+    "byOnTime": "Por % a tiempo",
+    "byOnTimeSub": "últimos 14 días",
+    "byDistance": "Por distancia",
+    "byDistanceSub": "km recorridos",
+    "comparison": "Comparación · todos los conductores",
+    "comparisonSub": "visitas por día vs prom. de la flota",
+    "metricLabel": "Visitas",
+    "noActivity": "Sin actividad de conductores en este rango."
+  },
+  "leaderboard": {
+    "noActivity": "Sin actividad de conductores en este rango."
+  },
+  "tables": {
+    "visits": {
+      "dateTime": "Fecha / Hora",
+      "driver": "Conductor",
+      "customer": "Cliente",
+      "type": "Tipo",
+      "status": "Estado",
+      "duration": "Duración",
+      "onTime": "A tiempo",
+      "empty": "Ninguna visita coincide con estos filtros.",
+      "minutes": "{{minutes}} min"
+    },
+    "vehicles": {
+      "plate": "Placa",
+      "type": "Tipo",
+      "brandModel": "Marca / Modelo",
+      "year": "Año",
+      "capacity": "Capacidad",
+      "status": "Estado",
+      "driver": "Conductor",
+      "empty": "Ningún vehículo coincide con estos filtros.",
+      "active": "activo",
+      "inactive": "inactivo"
+    },
+    "customers": {
+      "customer": "Cliente",
+      "type": "Tipo",
+      "phone": "Teléfono",
+      "address": "Dirección",
+      "geofence": "Geocerca",
+      "status": "Estado",
+      "empty": "Ningún cliente coincide con estos filtros.",
+      "active": "activo",
+      "inactive": "inactivo"
+    }
+  },
+  "comingSoon": {
+    "fuel": {
+      "title": "Reportes de combustible",
+      "body": "Consumo, costo-por-km y registros de carga aparecerán aquí cuando la telemetría de combustible esté conectada."
+    },
+    "safety": {
+      "title": "Reportes de seguridad",
+      "body": "Tarjetas de frenado brusco, exceso de velocidad y tiempo inactivo aparecerán cuando los eventos de seguridad sean capturados."
+    },
+    "badge": "próximamente"
+  }
+}

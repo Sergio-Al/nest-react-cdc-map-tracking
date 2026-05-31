@@ -1,4 +1,5 @@
 import { FileBarChart, BarChart3 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import {
   useReportsStore,
@@ -9,30 +10,22 @@ import {
 import { DateRangeControl, CompareControl } from './ToolbarControls';
 import { ShareButton, ScheduleButton, ExportButton } from './HeaderActions';
 
-const TABS: { id: ReportTab; label: string; icon?: boolean }[] = [
-  { id: 'overview', label: 'Overview', icon: true },
-  { id: 'routes', label: 'Routes' },
-  { id: 'visits', label: 'Visits' },
-  { id: 'drivers', label: 'Drivers' },
-  { id: 'vehicles', label: 'Vehicles' },
-  { id: 'customers', label: 'Customers' },
+const TAB_IDS: { id: ReportTab; icon?: boolean }[] = [
+  { id: 'overview', icon: true },
+  { id: 'routes' },
+  { id: 'visits' },
+  { id: 'drivers' },
+  { id: 'vehicles' },
+  { id: 'customers' },
 ];
 
-const PRESETS: { id: DatePreset; label: string }[] = [
-  { id: 'today', label: 'Today' },
-  { id: 'yesterday', label: 'Yesterday' },
-  { id: '7d', label: '7d' },
-  { id: '14d', label: '14d' },
-  { id: '30d', label: '30d' },
-  { id: 'mtd', label: 'MTD' },
-  { id: 'qtd', label: 'QTD' },
-  { id: 'ytd', label: 'YTD' },
-];
+const PRESET_IDS: DatePreset[] = ['today', 'yesterday', '7d', '14d', '30d', 'mtd', 'qtd', 'ytd'];
 
 const GRAINS: Grain[] = ['hour', 'day', 'week', 'month'];
 
 export function ReportsHeader({ counts }: { counts: Partial<Record<ReportTab, number>> }) {
   const { tab, setTab, preset, setPreset, grain, setGrain } = useReportsStore();
+  const { t, i18n } = useTranslation('reports');
 
   return (
     <>
@@ -43,10 +36,8 @@ export function ReportsHeader({ counts }: { counts: Partial<Record<ReportTab, nu
             <FileBarChart className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">Reports</div>
-            <div className="mt-0.5 text-xs text-mc-text-muted">
-              Operational analytics, leaderboards and exports — La Paz fleet
-            </div>
+            <div className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">{t('header.title')}</div>
+            <div className="mt-0.5 text-xs text-mc-text-muted">{t('header.subtitle')}</div>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <ShareButton />
@@ -56,14 +47,14 @@ export function ReportsHeader({ counts }: { counts: Partial<Record<ReportTab, nu
         </div>
 
         <div className="-mb-px mt-4 flex gap-0 overflow-x-auto">
-          {TABS.map((t) => {
-            const ct = counts[t.id];
-            const active = t.id === tab;
+          {TAB_IDS.map((entry) => {
+            const ct = counts[entry.id];
+            const active = entry.id === tab;
             return (
               <button
-                key={t.id}
+                key={entry.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => setTab(entry.id)}
                 className={cn(
                   'relative inline-flex items-center gap-1.5 whitespace-nowrap border-b-[1.5px] px-3.5 py-2.5 text-[12.5px] font-medium transition-colors',
                   active
@@ -71,8 +62,8 @@ export function ReportsHeader({ counts }: { counts: Partial<Record<ReportTab, nu
                     : 'border-transparent text-mc-text-muted hover:text-foreground',
                 )}
               >
-                {t.icon && <BarChart3 className="h-[13px] w-[13px]" />}
-                {t.label}
+                {entry.icon && <BarChart3 className="h-[13px] w-[13px]" />}
+                {t(`tabs.${entry.id}`)}
                 {ct !== undefined && (
                   <span
                     className={cn(
@@ -81,7 +72,7 @@ export function ReportsHeader({ counts }: { counts: Partial<Record<ReportTab, nu
                       active ? 'bg-mc-accent-soft text-mc-accent' : 'bg-mc-surface text-mc-text-dim',
                     )}
                   >
-                    {ct.toLocaleString()}
+                    {ct.toLocaleString(i18n.language)}
                   </span>
                 )}
               </button>
@@ -93,19 +84,19 @@ export function ReportsHeader({ counts }: { counts: Partial<Record<ReportTab, nu
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-2.5">
         <div className="flex gap-0.5">
-          {PRESETS.map((p) => (
+          {PRESET_IDS.map((p) => (
             <button
-              key={p.id}
+              key={p}
               type="button"
-              onClick={() => setPreset(p.id)}
+              onClick={() => setPreset(p)}
               className={cn(
                 'h-7 rounded-md px-2.5 font-mono text-xs font-medium transition-colors',
-                preset === p.id
+                preset === p
                   ? 'bg-mc-surface text-foreground'
                   : 'text-mc-text-muted hover:bg-mc-surface hover:text-foreground',
               )}
             >
-              {p.label}
+              {t(`presets.${p}`)}
             </button>
           ))}
         </div>
@@ -122,13 +113,13 @@ export function ReportsHeader({ counts }: { counts: Partial<Record<ReportTab, nu
                 type="button"
                 onClick={() => setGrain(g)}
                 className={cn(
-                  'h-[22px] rounded px-2 font-mono text-[11.5px] font-medium capitalize transition-colors',
+                  'h-[22px] rounded px-2 font-mono text-[11.5px] font-medium transition-colors',
                   grain === g
                     ? 'bg-mc-elev text-foreground shadow-sm'
                     : 'text-mc-text-muted hover:text-foreground',
                 )}
               >
-                {g}
+                {t(`grains.${g}`)}
               </button>
             ))}
           </div>

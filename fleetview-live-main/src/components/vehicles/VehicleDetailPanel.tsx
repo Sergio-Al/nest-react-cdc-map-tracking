@@ -1,5 +1,6 @@
 import { Car, Pencil, Wrench, User, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { DirectoryDetailPanel } from '@/components/ui/directory-detail-panel';
 import { useDrivers } from '@/hooks/api/useDrivers';
 import { cn } from '@/lib/utils';
@@ -18,13 +19,15 @@ function initials(name: string): string {
 
 export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props) {
   const { data: drivers = [] } = useDrivers();
+  const { t } = useTranslation('vehicles');
+  const { t: tDrivers } = useTranslation('drivers');
 
   if (!vehicle) {
     return (
       <DirectoryDetailPanel
         isEmpty
-        emptyTitle="No vehicle selected"
-        emptySubtitle="Pick a vehicle from the list to see its details and assigned driver."
+        emptyTitle={t('detail.empty.title')}
+        emptySubtitle={t('detail.empty.subtitle')}
       />
     );
   }
@@ -45,7 +48,7 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
       status={
         <span
           className={cn(
-            'flex items-center gap-1 rounded-[5px] border px-[7px] py-[2px] font-mono text-[10.5px] font-medium capitalize',
+            'flex items-center gap-1 rounded-[5px] border px-[7px] py-[2px] font-mono text-[10.5px] font-medium',
             vehicle.status === 'active'
               ? 'border-[oklch(0.72_0.16_150/0.35)] bg-[oklch(0.72_0.16_150/0.12)] text-[oklch(0.55_0.16_150)] dark:text-[oklch(0.85_0.18_150)]'
               : isMaintenance
@@ -54,7 +57,7 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
           )}
         >
           {isMaintenance && <Wrench className="h-2.5 w-2.5" />}
-          {vehicle.status}
+          {t(`status.${vehicle.status}`, { defaultValue: vehicle.status })}
         </span>
       }
       actions={
@@ -65,7 +68,7 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
             className="flex h-8 items-center gap-[6px] rounded-mc bg-mc-accent px-3 text-[12px] font-medium text-white hover:bg-mc-accent-strong"
           >
             <Pencil className="h-[13px] w-[13px]" />
-            <span>Edit</span>
+            <span>{t('detail.actions.edit')}</span>
           </button>
         ) : null
       }
@@ -74,16 +77,16 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
         {/* Specs */}
         <div className="border-b border-border px-4 py-3">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Vehicle
+            {t('detail.sections.specs')}
           </div>
           <div className="overflow-hidden rounded-[8px] border border-border bg-mc-elev">
-            <SpecRow label="Type" value={<span className="capitalize">{vehicle.type}</span>} />
-            <SpecRow label="Brand" value={vehicle.brand ?? '—'} />
-            <SpecRow label="Model" value={vehicle.model ?? '—'} />
-            <SpecRow label="Year" value={vehicle.year ?? '—'} mono />
-            <SpecRow label="Color" value={vehicle.color ?? '—'} />
+            <SpecRow label={t('detail.specs.type')} value={<span className="capitalize">{vehicle.type}</span>} />
+            <SpecRow label={t('detail.specs.brand')} value={vehicle.brand ?? '—'} />
+            <SpecRow label={t('detail.specs.model')} value={vehicle.model ?? '—'} />
+            <SpecRow label={t('detail.specs.year')} value={vehicle.year ?? '—'} mono />
+            <SpecRow label={t('detail.specs.color')} value={vehicle.color ?? '—'} />
             <SpecRow
-              label="Capacity"
+              label={t('detail.specs.capacity')}
               value={vehicle.capacityKg != null ? `${vehicle.capacityKg} kg` : '—'}
               mono
               last
@@ -95,7 +98,7 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
         {vehicle.notes && (
           <div className="border-b border-border px-4 py-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-              Notes
+              {t('detail.sections.notes')}
             </div>
             <div className="rounded-[8px] border border-border bg-mc-elev p-3 text-[12px] text-foreground">
               {vehicle.notes}
@@ -106,7 +109,7 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
         {/* Assigned driver */}
         <div className="px-4 py-3">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Assigned driver
+            {t('detail.sections.assignedDriver')}
           </div>
           {assignedDriver ? (
             <Link
@@ -121,7 +124,8 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
                   {assignedDriver.name}
                 </div>
                 <div className="font-mono text-[10.5px] text-mc-text-dim">
-                  {assignedDriver.status} · {assignedDriver.phone ?? 'no phone'}
+                  {tDrivers(`status.${assignedDriver.status}`, { defaultValue: assignedDriver.status })} ·{' '}
+                  {assignedDriver.phone ?? t('detail.sections.noPhone')}
                 </div>
               </div>
               <ExternalLink className="h-3.5 w-3.5 text-mc-text-dim" />
@@ -133,9 +137,9 @@ export function VehicleDetailPanel({ vehicle, onClose, onEdit, canEdit }: Props)
             >
               <span className="flex items-center gap-2">
                 <User className="h-3.5 w-3.5" />
-                No driver assigned
+                {t('detail.sections.noDriver')}
               </span>
-              <span className="font-mono text-[10px]">go to drivers →</span>
+              <span className="font-mono text-[10px]">{t('detail.sections.goToDrivers')}</span>
             </Link>
           )}
         </div>

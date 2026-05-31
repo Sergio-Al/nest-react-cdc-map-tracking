@@ -12,17 +12,6 @@ export type Operator =
   | 'gt'
   | 'between';
 
-export const OPERATOR_LABEL: Record<Operator, string> = {
-  any_of: 'is any of',
-  not_any_of: 'is not',
-  lt: '<',
-  lte: '≤',
-  eq: '=',
-  gte: '≥',
-  gt: '>',
-  between: 'between',
-};
-
 export const ENUM_OPERATORS: Operator[] = ['any_of', 'not_any_of'];
 export const NUMBER_OPERATORS: Operator[] = ['lt', 'lte', 'eq', 'gte', 'gt', 'between'];
 

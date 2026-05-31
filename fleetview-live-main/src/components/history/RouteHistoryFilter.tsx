@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Loader2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Switch } from '@/components/ui/switch';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { useDrivers } from '@/hooks/api/useDrivers';
@@ -48,6 +49,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
   } = usePlaybackStore();
 
   const { data: drivers = [], isLoading: driversLoading } = useDrivers();
+  const { t } = useTranslation('history');
 
   const loaded = positions.length > 0;
 
@@ -120,8 +122,8 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
           <History className="h-[14px] w-[14px]" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold tracking-[-0.005em]">Route History</div>
-          <div className="mt-px text-[11px] text-muted-foreground">Play back historical positions</div>
+          <div className="text-[13px] font-semibold tracking-[-0.005em]">{t('filter.title')}</div>
+          <div className="mt-px text-[11px] text-muted-foreground">{t('filter.subtitle')}</div>
         </div>
       </div>
 
@@ -130,7 +132,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
         {/* Search by segmented control */}
         <div>
           <div className="field-label mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Search by
+            {t('filter.searchBy')}
           </div>
           <div className="grid grid-cols-2 gap-[2px] rounded-[8px] border border-border bg-mc-surface p-[3px]">
             {(['driver', 'vehicle'] as const).map((opt) => (
@@ -150,7 +152,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
                 ) : (
                   <Car className="h-3 w-3" />
                 )}
-                <span className="capitalize">{opt}</span>
+                <span>{t(opt === 'driver' ? 'filter.byDriver' : 'filter.byVehicle')}</span>
               </button>
             ))}
           </div>
@@ -159,7 +161,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
         {/* Driver select */}
         <div>
           <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Driver
+            {t('filter.driver')}
           </div>
           <div className="relative">
             <button
@@ -188,7 +190,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
               ) : (
                 <>
                   <User className="h-[13px] w-[13px] shrink-0 text-mc-text-dim" />
-                  <span className="flex-1 text-left text-mc-text-dim">Select a driver…</span>
+                  <span className="flex-1 text-left text-mc-text-dim">{t('filter.selectDriver')}</span>
                   <ChevronDown className="ml-auto h-[13px] w-[13px] text-mc-text-dim" />
                 </>
               )}
@@ -221,7 +223,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
                   </button>
                 ))}
                 {!driversLoading && drivers.length === 0 && (
-                  <div className="p-3 text-center text-[11px] text-mc-text-dim">No drivers</div>
+                  <div className="p-3 text-center text-[11px] text-mc-text-dim">{t('filter.noDrivers')}</div>
                 )}
               </div>
             )}
@@ -231,7 +233,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
         {/* Time range */}
         <div>
           <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Time range
+            {t('filter.timeRange')}
           </div>
 
           {/* Date range picker (shared with Reports) */}
@@ -249,7 +251,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
           {/* Time-only inputs */}
           <div className="mt-2 grid grid-cols-[1fr_14px_1fr] items-end gap-2">
             <div>
-              <div className="mb-1 text-[10px] text-mc-text-dim">From time</div>
+              <div className="mb-1 text-[10px] text-mc-text-dim">{t('filter.fromTime')}</div>
               <div className="flex h-8 items-center gap-2 rounded-[7px] border border-border bg-mc-elev px-[10px] transition-colors hover:border-mc-border-strong">
                 <Clock className="h-[13px] w-[13px] shrink-0 text-mc-text-dim" />
                 <input
@@ -264,7 +266,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
             </div>
             <div className="pb-2 text-center text-[11px] text-mc-text-dim">→</div>
             <div>
-              <div className="mb-1 text-[10px] text-mc-text-dim">To time</div>
+              <div className="mb-1 text-[10px] text-mc-text-dim">{t('filter.toTime')}</div>
               <div className="flex h-8 items-center gap-2 rounded-[7px] border border-border bg-mc-elev px-[10px] transition-colors hover:border-mc-border-strong">
                 <Clock className="h-[13px] w-[13px] shrink-0 text-mc-text-dim" />
                 <input
@@ -293,7 +295,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
                     : 'border-border bg-mc-elev text-muted-foreground hover:bg-mc-surface hover:text-foreground',
                 )}
               >
-                {p === 'today' ? 'Today' : p}
+                {t(`filter.presets.${p}`)}
               </button>
             ))}
           </div>
@@ -302,22 +304,17 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
         {/* Show on map toggles */}
         <div>
           <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Show on map
+            {t('filter.showOnMap')}
           </div>
           <div className="flex flex-col gap-[6px]">
             {(
-              [
-                { key: 'speedPath',     label: 'Speed-coloured path' },
-                { key: 'stopMarkers',   label: 'Stop markers' },
-                { key: 'idleEvents',    label: 'Idle events' },
-                { key: 'speedingEvents',label: 'Speeding events' },
-              ] as { key: keyof FilterToggles; label: string }[]
-            ).map(({ key, label }) => (
+              ['speedPath', 'stopMarkers', 'idleEvents', 'speedingEvents'] as (keyof FilterToggles)[]
+            ).map((key) => (
               <div
                 key={key}
                 className="flex items-center justify-between rounded-[7px] border border-border bg-mc-elev px-[10px] py-2 text-[12px]"
               >
-                <span className="text-foreground">{label}</span>
+                <span className="text-foreground">{t(`filter.toggles.${key}`)}</span>
                 <Switch
                   checked={toggles[key]}
                   onCheckedChange={(val) => onToggleChange(key, val)}
@@ -343,7 +340,7 @@ export function RouteHistoryFilter({ toggles, onToggleChange }: RouteHistoryFilt
           )}
         >
           <Search className="h-[13px] w-[13px]" />
-          <span>{loaded ? 'Reload history' : 'Load history'}</span>
+          <span>{loaded ? t('filter.reloadHistory') : t('filter.loadHistory')}</span>
         </button>
       </div>
     </aside>

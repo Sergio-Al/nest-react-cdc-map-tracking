@@ -20,6 +20,7 @@ A Real-time vehicle tracking system designed to monitor at least **1,000 drivers
 - [Kafka Topics](#-kafka-topics)
 - [Database Schemas](#-database-schemas)
 - [Design Patterns](#-design-patterns)
+- [Internationalization](#-internationalization)
 - [Manual Testing](#-manual-testing)
 - [Project Status](#-project-status)
 
@@ -958,6 +959,56 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 | **Sidecar Pattern** | OR-Tools Python solver runs as a separate FastAPI microservice |
 | **Dead Letter Queue** | Failed messages retried with exponential backoff → DLQ Kafka topics for inspection/replay |
 | **Global Exception Filter** | Consistent JSON error responses across all REST endpoints |
+| **I18n (Bilingual)** | `react-i18next` on the frontend, `nestjs-i18n` on the backend. Locale resolves from `Accept-Language` (also `?lang=` and `x-lang`). Spanish is the default; English is opt-in via the icon-rail Languages toggle. |
+
+---
+
+## 🌐 Internationalization
+
+The dashboard and backend are bilingual (**Spanish default**, English opt-in). The icon-rail Languages toggle persists the user's choice in `localStorage` (`fleetview.language`), and the axios client sends `Accept-Language` on every request so backend errors come back in the same language.
+
+### Frontend (`fleetview-live-main/src/i18n/`)
+
+- Bootstrapped in `src/main.tsx` via `src/i18n/index.ts` using `i18next` + `react-i18next` + `i18next-browser-languagedetector`.
+- Twelve namespaces, one JSON file per language: `common`, `nav`, `auth`, `dashboard`, `routes`, `reports`, `drivers`, `vehicles`, `customers`, `history`, `monitoring`, `errors`.
+- Consume in any component: `const { t } = useTranslation('routes'); t('sidebar.actions.optimize')`.
+- Date formatting: `useDateLocale()` (from `src/i18n/useDateLocale.ts`) returns the matching `date-fns` locale — pass it to `format(date, 'd MMM', { locale })`.
+- Number formatting: pass `i18n.language` to `toLocaleString()` / `toLocaleTimeString()` / `toLocaleDateString()`.
+
+**To add a translation key:** add the same path to both `src/i18n/locales/es/<ns>.json` and `src/i18n/locales/en/<ns>.json`, then reference it as `t('<key>')`.
+
+### Backend (`tracking-service/src/i18n/`)
+
+- `AppI18nModule` (registered in `app.module.ts`) wraps `I18nModule.forRoot` with `fallbackLanguage: 'es'`, resolvers in priority order `?lang=` → `Accept-Language` → `x-lang`, and the JSON loader pointed at `src/i18n/` (copied to `dist/i18n/` on build via `nest-cli.json` assets).
+- Two namespaces per language: `errors.json` (business + auth + validation domains) and `validation.json` (class-validator constraint names like `isEmail`, `isNotEmpty`, `minLength`).
+- DTO validation messages are auto-localized: `main.ts` registers `I18nValidationPipe` + `I18nValidationExceptionFilter`, so a DTO using a bare `@IsEmail()` decorator produces a message resolved from `validation.isEmail` in the request's language.
+- Business exceptions throw with an `errorCode`:
+
+  ```ts
+  throw new BadRequestException({ errorCode: 'routes.notFound', args: { id } });
+  ```
+
+  `GlobalExceptionFilter` (`src/common/filters/global-exception.filter.ts`) reads the language from `I18nContext` and resolves `errors.<errorCode>` with the `args` as ICU-style `{{placeholder}}` substitutions.
+
+**To add a translation key:** add the same path to both `src/i18n/es/errors.json` and `src/i18n/en/errors.json`, then throw with `{ errorCode: 'group.key', args }`.
+
+### Frontend ↔ backend error contract
+
+Every error response now carries an `errorCode` so the frontend can re-translate client-side even if `Accept-Language` was stale at request time:
+
+```jsonc
+// 401 Unauthorized — bad login under Accept-Language: es
+{
+  "statusCode": 401,
+  "errorCode": "auth.invalidCredentials",
+  "message": "Credenciales inválidas",
+  "error": "Unauthorized",
+  "timestamp": "2026-05-31T10:23:14.182Z",
+  "path": "/api/auth/login"
+}
+```
+
+The frontend's `src/lib/apiError.ts` `translateApiError()` helper inspects `error.response.data.errorCode` first, falls back to the server's `message`, then to the caller's locally-translated fallback. Toast call sites pass this helper to `toast.error(...)` so users always see a localized message.
 
 ---
 

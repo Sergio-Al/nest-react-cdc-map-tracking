@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { Moon, Sun, Plus, Users, Navigation } from "lucide-react";
 import {
   CommandDialog,
@@ -31,6 +32,7 @@ export function CommandPalette() {
   const role = useAuthStore((s) => s.user?.role);
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const { t } = useTranslation("nav");
 
   const { data: drivers = [] } = useDrivers();
   const selectDriver = useMapStore((s) => s.selectDriver);
@@ -60,20 +62,17 @@ export function CommandPalette() {
       navigate("/");
     });
 
-  const canCreateRoute = canSee(
-    { to: "/routes", label: "Routes", icon: Plus, roles: ["admin", "dispatcher"], group: "primary" },
-    role,
-  );
+  const canCreateRoute = canSee({ roles: ["admin", "dispatcher"] }, role);
   const visibleNav = navItems.filter((item) => canSee(item, role));
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search drivers or type a command…" />
+      <CommandInput placeholder={t("palette.placeholder")} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>{t("palette.empty")}</CommandEmpty>
 
         {drivers.length > 0 && (
-          <CommandGroup heading="Drivers">
+          <CommandGroup heading={t("palette.groups.drivers")}>
             {drivers.map((d) => (
               <CommandItem
                 key={d.id}
@@ -92,11 +91,11 @@ export function CommandPalette() {
 
         <CommandSeparator />
 
-        <CommandGroup heading="Actions">
+        <CommandGroup heading={t("palette.groups.actions")}>
           {canCreateRoute && (
             <CommandItem value="create new route" onSelect={() => run(() => navigate("/routes"))}>
               <Plus className="mr-2 h-4 w-4" />
-              <span>Create new route</span>
+              <span>{t("palette.actions.createRoute")}</span>
               <CommandShortcut>N</CommandShortcut>
             </CommandItem>
           )}
@@ -106,7 +105,7 @@ export function CommandPalette() {
               onSelect={() => run(() => { navigate("/"); focusSelected(); })}
             >
               <Navigation className="mr-2 h-4 w-4" />
-              <span>Focus on {selectedDriver.name} on map</span>
+              <span>{t("palette.actions.focusDriver", { name: selectedDriver.name })}</span>
               <CommandShortcut>F</CommandShortcut>
             </CommandItem>
           )}
@@ -115,23 +114,26 @@ export function CommandPalette() {
             onSelect={() => run(() => setTheme(isDark ? "light" : "dark"))}
           >
             {isDark ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-            <span>{isDark ? "Switch to light theme" : "Switch to dark theme"}</span>
+            <span>{isDark ? t("palette.actions.switchToLight") : t("palette.actions.switchToDark")}</span>
           </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
-        <CommandGroup heading="Navigate">
-          {visibleNav.map((item) => (
-            <CommandItem
-              key={item.to}
-              value={`go ${item.label}`}
-              onSelect={() => run(() => navigate(item.to))}
-            >
-              <item.icon className="mr-2 h-4 w-4" />
-              <span>{item.label}</span>
-            </CommandItem>
-          ))}
+        <CommandGroup heading={t("palette.groups.navigate")}>
+          {visibleNav.map((item) => {
+            const label = t(item.labelKey);
+            return (
+              <CommandItem
+                key={item.to}
+                value={`go ${label}`}
+                onSelect={() => run(() => navigate(item.to))}
+              >
+                <item.icon className="mr-2 h-4 w-4" />
+                <span>{label}</span>
+              </CommandItem>
+            );
+          })}
         </CommandGroup>
       </CommandList>
     </CommandDialog>

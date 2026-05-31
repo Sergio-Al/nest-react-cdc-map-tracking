@@ -115,7 +115,7 @@ export class RouteOptimizerService {
     const visits = await this.visitsService.findByRoute(routeId);
 
     if (visits.length === 0) {
-      throw new BadRequestException('Route has no visits to optimize');
+      throw new BadRequestException({ errorCode: 'routes.noVisitsToOptimize' });
     }
 
     // Only optimize pending/en_route visits
@@ -124,7 +124,7 @@ export class RouteOptimizerService {
     );
 
     if (optimizableVisits.length === 0) {
-      throw new BadRequestException('No pending visits to optimize');
+      throw new BadRequestException({ errorCode: 'routes.noPendingVisits' });
     }
 
     // ── 2. Fetch customer locations ─────────────────────
@@ -199,9 +199,10 @@ export class RouteOptimizerService {
 
     for (const item of dto.visits) {
       if (!routeVisitIds.has(item.visitId)) {
-        throw new BadRequestException(
-          `Visit ${item.visitId} does not belong to route ${routeId}`,
-        );
+        throw new BadRequestException({
+          errorCode: 'routes.visitNotInRoute',
+          args: { visitId: item.visitId, routeId },
+        });
       }
     }
 
@@ -317,9 +318,10 @@ export class RouteOptimizerService {
       if (locations.has(visit.customerId)) continue;
       const customer = await this.customerCache.getById(visit.customerId);
       if (!customer || customer.latitude == null || customer.longitude == null) {
-        throw new BadRequestException(
-          `Customer ${visit.customerId} not found or has no coordinates`,
-        );
+        throw new BadRequestException({
+          errorCode: 'routes.customerHasNoCoords',
+          args: { customerId: visit.customerId },
+        });
       }
       locations.set(visit.customerId, {
         lat: customer.latitude,
@@ -390,9 +392,7 @@ export class RouteOptimizerService {
       return { distanceMatrix, timeMatrix };
     } catch (error) {
       this.logger.error('OSRM request failed', error);
-      throw new InternalServerErrorException(
-        'Failed to get routing data from OSRM. Is the OSRM service running?',
-      );
+      throw new InternalServerErrorException({ errorCode: 'osrm.matricesFailed' });
     }
   }
 
@@ -466,9 +466,7 @@ export class RouteOptimizerService {
       return await response.json();
     } catch (error) {
       this.logger.error('OR-Tools solver request failed', error);
-      throw new InternalServerErrorException(
-        'Failed to optimize route. Is the OR-Tools solver service running?',
-      );
+      throw new InternalServerErrorException({ errorCode: 'orTools.solverFailed' });
     }
   }
 
@@ -490,7 +488,7 @@ export class RouteOptimizerService {
       .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 
     if (pendingVisits.length === 0) {
-      throw new BadRequestException('Route has no visits');
+      throw new BadRequestException({ errorCode: 'routes.noVisits' });
     }
 
     const customerLocations = await this.getCustomerLocations(pendingVisits);
@@ -532,9 +530,7 @@ export class RouteOptimizerService {
       };
     } catch (error) {
       this.logger.error('OSRM route request failed', error);
-      throw new InternalServerErrorException(
-        'Failed to get route geometry from OSRM.',
-      );
+      throw new InternalServerErrorException({ errorCode: 'osrm.geometryFailed' });
     }
   }
 

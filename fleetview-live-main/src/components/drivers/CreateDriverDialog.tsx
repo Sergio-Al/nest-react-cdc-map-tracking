@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Users, Phone, Hash, Truck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   Field,
@@ -18,12 +19,7 @@ interface CreateDriverDialogProps {
   isLoading?: boolean;
 }
 
-const VEHICLE_TYPES = [
-  { id: 'van', label: 'Van' },
-  { id: 'truck', label: 'Truck' },
-  { id: 'motorcycle', label: 'Moto' },
-  { id: 'car', label: 'Car' },
-];
+const VEHICLE_TYPE_IDS = ['van', 'truck', 'motorcycle', 'car'] as const;
 
 export function CreateDriverDialog({
   open,
@@ -37,6 +33,9 @@ export function CreateDriverDialog({
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [vehicleType, setVehicleType] = useState('van');
   const [deviceId, setDeviceId] = useState('');
+  const { t } = useTranslation('drivers');
+
+  const vehicleTypes = VEHICLE_TYPE_IDS.map((id) => ({ id, label: t(`dialog.types.${id}`) }));
 
   const reset = () => {
     setName('');
@@ -70,29 +69,29 @@ export function CreateDriverDialog({
       }}
     >
       <DialogContent className="max-w-[440px] gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">New Driver</DialogTitle>
-        <DenseDialogHeader icon={<Users className="h-3.5 w-3.5" />} title="New Driver" />
+        <DialogTitle className="sr-only">{t('dialog.title')}</DialogTitle>
+        <DenseDialogHeader icon={<Users className="h-3.5 w-3.5" />} title={t('dialog.title')} />
 
         <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
-          <Field label="Name" required>
+          <Field label={t('dialog.name')} required>
             <DenseInput
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Full name"
+              placeholder={t('dialog.namePlaceholder')}
             />
           </Field>
 
-          <Field label="Phone">
+          <Field label={t('dialog.phone')}>
             <DenseInput
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+591 …"
+              placeholder={t('dialog.phonePlaceholder')}
               icon={<Phone className="h-3.5 w-3.5 text-mc-text-dim" />}
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Vehicle plate">
+            <Field label={t('dialog.vehiclePlate')}>
               <DenseInput
                 value={vehiclePlate}
                 onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
@@ -101,7 +100,7 @@ export function CreateDriverDialog({
                 icon={<Truck className="h-3.5 w-3.5 text-mc-text-dim" />}
               />
             </Field>
-            <Field label="Device ID">
+            <Field label={t('dialog.deviceId')}>
               <DenseInput
                 value={deviceId}
                 onChange={(e) => setDeviceId(e.target.value)}
@@ -112,15 +111,15 @@ export function CreateDriverDialog({
             </Field>
           </div>
 
-          <Field label="Vehicle type">
-            <ChipGroup value={vehicleType} onChange={setVehicleType} options={VEHICLE_TYPES} />
+          <Field label={t('dialog.vehicleType')}>
+            <ChipGroup value={vehicleType} onChange={setVehicleType} options={vehicleTypes} />
           </Field>
         </div>
 
         <DialogFormFooter
           onCancel={() => onOpenChange(false)}
           onSubmit={handleSubmit}
-          submitLabel="Create"
+          submitLabel={t('dialog.create')}
           submitIcon={<Plus className="h-[13px] w-[13px]" />}
           canSubmit={!!name.trim()}
           isLoading={isLoading}

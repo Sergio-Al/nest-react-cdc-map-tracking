@@ -1,0 +1,50 @@
+{
+  "page": {
+    "title": "Monitor de retraso CDC",
+    "subtitle": "Métricas en tiempo real de Change Data Capture",
+    "lastUpdated": "Última actualización",
+    "tableSync": "Sincronización de tablas",
+    "errorTitle": "Error",
+    "errorBody": "No se pudo cargar la información de monitoreo CDC: {{message}}",
+    "unknownError": "Error desconocido",
+    "noDataTitle": "Sin datos",
+    "noDataBody": "Los datos de monitoreo CDC aún no están disponibles. Por favor espera un momento."
+  },
+  "lagCard": {
+    "endToEndLag": "Retraso de extremo a extremo",
+    "eventsProcessed": "Eventos procesados:",
+    "lastOperation": "Última operación:",
+    "lastEvent": "Último evento:",
+    "errors_one": "{{count}} error",
+    "errors_other": "{{count}} errores",
+    "never": "Nunca",
+    "na": "N/D",
+    "lastError": "Último error:",
+    "secondsAgo": "hace {{count}}s",
+    "minutesAgo": "hace {{count}}m",
+    "hoursAgo": "hace {{count}}h",
+    "ops": {
+      "c": "CREAR",
+      "u": "ACTUALIZAR",
+      "d": "ELIMINAR",
+      "r": "LEER"
+    }
+  },
+  "offsetLag": {
+    "title": "Retraso de offsets en Kafka",
+    "topic": "Tópico",
+    "partition": "Partición",
+    "latest": "Último",
+    "committed": "Confirmado",
+    "lag": "Retraso",
+    "totalFor": "Total para {{topic}}:",
+    "empty": "Sin datos de retraso de offsets"
+  },
+  "summary": {
+    "totalEvents": "Eventos totales",
+    "errors": "Errores",
+    "maxLag": "Retraso máx.",
+    "avgLag": "Retraso prom.",
+    "uptime": "Tiempo activo"
+  }
+}

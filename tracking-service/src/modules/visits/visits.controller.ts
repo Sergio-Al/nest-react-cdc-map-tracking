@@ -43,7 +43,7 @@ export class VisitsController {
   ) {
     // Drivers can only see their own visits
     if (user.role === 'driver' && user.driverId !== driverId) {
-      throw new ForbiddenException('Cannot access other drivers visits');
+      throw new ForbiddenException({ errorCode: 'visits.cannotAccessOtherDriver' });
     }
     return this.visitsService.findByDriver(driverId, date);
   }
@@ -59,7 +59,7 @@ export class VisitsController {
       const visit = await this.visitsService.findById(id);
       const route = await this.visitsService['routesService'].findById(visit.routeId);
       if (route.driverId !== user.driverId) {
-        throw new ForbiddenException('Cannot update visits for other drivers');
+        throw new ForbiddenException({ errorCode: 'visits.cannotUpdateOtherDriver' });
       }
     }
     return this.visitsService.updateStatus(id, dto);

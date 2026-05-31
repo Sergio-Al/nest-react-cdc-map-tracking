@@ -42,12 +42,12 @@ export class DriversController {
     @CurrentUser() user: any,
   ) {
     if (!from || !to) {
-      throw new BadRequestException('Query params "from" and "to" are required (ISO 8601)');
+      throw new BadRequestException({ errorCode: 'drivers.fromToRequired' });
     }
     const fromDate = new Date(from);
     const toDate = new Date(to);
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      throw new BadRequestException('"from" and "to" must be valid ISO 8601 dates');
+      throw new BadRequestException({ errorCode: 'drivers.fromToInvalid' });
     }
     // Drivers can only see their own history
     if (user.role === 'driver' && user.driverId !== id) {

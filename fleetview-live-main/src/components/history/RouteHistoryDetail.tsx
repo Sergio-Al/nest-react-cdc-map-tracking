@@ -5,6 +5,7 @@ import {
   Share2,
   CircleDashed,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { usePlaybackStore } from '@/stores/playback.store';
 import {
   tripSummaryFrom,
@@ -12,6 +13,7 @@ import {
   getMockTimeComposition,
   fmtDuration,
 } from '@/lib/mock/historyMock';
+import { useDateLocale } from '@/i18n/useDateLocale';
 import type { Driver } from '@/types/driver.types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -29,6 +31,8 @@ interface RouteHistoryDetailProps {
 export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
   const { positions, goToStart, play } = usePlaybackStore();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
+  const { t } = useTranslation('history');
+  const dateLocale = useDateLocale();
 
   const hasPositions = positions.length > 0;
 
@@ -42,10 +46,9 @@ export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
           >
             <CircleDashed className="h-5 w-5" />
           </div>
-          <div className="mt-1 text-[13px] font-semibold text-foreground">No trip selected</div>
+          <div className="mt-1 text-[13px] font-semibold text-foreground">{t('detail.empty.title')}</div>
           <div className="max-w-[220px] text-[11.5px] leading-relaxed text-muted-foreground">
-            Choose a driver and date range, then load history to see route details, segments and
-            events here.
+            {t('detail.empty.body')}
           </div>
         </div>
       </aside>
@@ -55,18 +58,18 @@ export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
   const summary = tripSummaryFrom(positions);
   const segments = getMockSegments(driver.id);
   const timeComp = getMockTimeComposition();
-  const dateStr = format(new Date(positions[0].time), 'd MMM');
+  const dateStr = format(new Date(positions[0].time), 'd MMM', { locale: dateLocale });
 
   const handleReplay = () => {
     goToStart();
     play();
   };
 
-  const TABS: { id: Tab; label: string; count?: number }[] = [
-    { id: 'summary',  label: 'Summary' },
-    { id: 'segments', label: 'Segments', count: segments.length },
-    { id: 'events',   label: 'Events',   count: 12 },
-    { id: 'stops',    label: 'Stops',    count: 4 },
+  const TABS: { id: Tab; count?: number }[] = [
+    { id: 'summary' },
+    { id: 'segments', count: segments.length },
+    { id: 'events', count: 12 },
+    { id: 'stops', count: 4 },
   ];
 
   return (
@@ -82,7 +85,7 @@ export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
           <div className="min-w-0 flex-1">
             <div className="text-[13px] font-semibold">{driver.name}</div>
             <div className="font-mono text-[11px] text-mc-text-dim">
-              {driver.vehiclePlate ?? '—'} · {dateStr} · trip #482
+              {driver.vehiclePlate ?? '—'} · {dateStr} · {t('detail.tripSuffix', { id: 482 })}
             </div>
           </div>
           <span
@@ -93,7 +96,7 @@ export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
               className="inline-block h-[5px] w-[5px] rounded-full"
               style={{ background: 'var(--mc-status-moving)' }}
             />
-            Complete
+            {t('detail.statusComplete')}
           </span>
         </div>
 
@@ -105,21 +108,21 @@ export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
             className="flex h-8 items-center gap-[6px] rounded-mc bg-mc-accent px-3 text-[12px] font-medium text-white hover:bg-mc-accent-strong"
           >
             <Play className="h-[13px] w-[13px]" />
-            <span>Replay</span>
+            <span>{t('detail.actions.replay')}</span>
           </button>
           <button
             type="button"
             className="flex h-8 items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-muted-foreground hover:bg-mc-surface hover:text-foreground"
           >
             <Download className="h-[13px] w-[13px]" />
-            <span>GPX</span>
+            <span>{t('detail.actions.gpx')}</span>
           </button>
           <button
             type="button"
             className="flex h-8 items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-muted-foreground hover:bg-mc-surface hover:text-foreground"
           >
             <Share2 className="h-[13px] w-[13px]" />
-            <span>Share</span>
+            <span>{t('detail.actions.share')}</span>
           </button>
         </div>
       </div>
@@ -138,7 +141,7 @@ export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {tab.label}
+            {t(`detail.tabs.${tab.id}`)}
             {tab.count !== undefined && (
               <span className="font-mono text-[10px] text-mc-text-dim">{tab.count}</span>
             )}
@@ -154,12 +157,8 @@ export function RouteHistoryDetail({ driver }: RouteHistoryDetailProps) {
         {activeTab === 'segments' && (
           <SegmentsTab segments={segments} />
         )}
-        {activeTab === 'events' && (
-          <MockPlaceholderTab label="Events" />
-        )}
-        {activeTab === 'stops' && (
-          <MockPlaceholderTab label="Stops" />
-        )}
+        {activeTab === 'events' && <MockPlaceholderTab kind="events" />}
+        {activeTab === 'stops' && <MockPlaceholderTab kind="stops" />}
       </div>
     </aside>
   );
@@ -177,6 +176,7 @@ function SummaryTab({
   timeComp: TimeComposition;
   segments: MockSegment[];
 }) {
+  const { t } = useTranslation('history');
   const movePct = Math.round((timeComp.movingMin  / timeComp.totalMin) * 100);
   const stopPct = Math.round((timeComp.stoppedMin / timeComp.totalMin) * 100);
   const idlePct = Math.round((timeComp.idleMin    / timeComp.totalMin) * 100);
@@ -187,25 +187,25 @@ function SummaryTab({
       {/* Trip overview */}
       <div className="border-b border-border px-4 py-3">
         <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-          Trip overview
+          {t('detail.summary.tripOverview')}
         </div>
         <div
           className="overflow-hidden rounded-[8px] border border-border bg-mc-elev"
           style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}
         >
-          <StatCell lbl="Distance"  val={`${summary.distanceKm}`}    unit="km"   />
-          <StatCell lbl="Duration"  val={fmtDuration(summary.durationMin)} unit="" noBorderR />
-          <StatCell lbl="Avg speed" val={`${summary.avgSpeedKmh}`}   unit="km/h" delta={summary.avgSpeedDelta}  noBorderB />
-          <StatCell lbl="Top speed" val={`${summary.topSpeedKmh}`}   unit="km/h" noBorderR noBorderB />
-          <StatCell lbl="Stops"     val={`${summary.stops}`}          unit="/ 10" extraRow />
-          <StatCell lbl="Idle time" val={`${summary.idleMin}`}        unit="min"  delta={summary.idleDelta} noBorderR extraRow />
+          <StatCell lbl={t('detail.summary.distance')}  val={`${summary.distanceKm}`}    unit="km"   />
+          <StatCell lbl={t('detail.summary.duration')}  val={fmtDuration(summary.durationMin)} unit="" noBorderR />
+          <StatCell lbl={t('detail.summary.avgSpeed')} val={`${summary.avgSpeedKmh}`}   unit="km/h" delta={summary.avgSpeedDelta}  noBorderB />
+          <StatCell lbl={t('detail.summary.topSpeed')} val={`${summary.topSpeedKmh}`}   unit="km/h" noBorderR noBorderB />
+          <StatCell lbl={t('detail.summary.stops')}     val={`${summary.stops}`}          unit={t('detail.summary.ofTen')} extraRow />
+          <StatCell lbl={t('detail.summary.idleTime')} val={`${summary.idleMin}`}        unit={t('detail.summary.minUnit')}  delta={summary.idleDelta} noBorderR extraRow />
         </div>
       </div>
 
       {/* Time composition */}
       <div className="border-b border-border px-4 py-3">
         <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-          <span>Time composition</span>
+          <span>{t('detail.summary.timeComposition')}</span>
           <span className="font-mono normal-case tracking-normal text-muted-foreground">
             {fmtDuration(timeComp.totalMin)}
           </span>
@@ -221,23 +221,23 @@ function SummaryTab({
         <div className="mt-[10px] grid grid-cols-4 gap-2 font-mono text-[10.5px] text-muted-foreground">
           <div>
             <span style={{ color: 'var(--mc-status-moving)' }}>● </span>
-            Moving<br />
+            {t('detail.summary.moving')}<br />
             <span className="text-[12px] text-foreground">{fmtDuration(timeComp.movingMin)}</span>
           </div>
           <div>
             <span style={{ color: 'var(--mc-accent)' }}>● </span>
-            Stopped<br />
+            {t('detail.summary.stopped')}<br />
             <span className="text-[12px] text-foreground">{fmtDuration(timeComp.stoppedMin)}</span>
           </div>
           <div>
             <span style={{ color: 'var(--mc-status-idle)' }}>● </span>
-            Idle<br />
-            <span className="text-[12px] text-foreground">{timeComp.idleMin} min</span>
+            {t('detail.summary.idle')}<br />
+            <span className="text-[12px] text-foreground">{t('detail.summary.minSuffix', { count: timeComp.idleMin })}</span>
           </div>
           <div>
             <span style={{ color: 'var(--mc-text-dim)' }}>● </span>
-            Offline<br />
-            <span className="text-[12px] text-foreground">{timeComp.offlineMin} min</span>
+            {t('detail.summary.offline')}<br />
+            <span className="text-[12px] text-foreground">{t('detail.summary.minSuffix', { count: timeComp.offlineMin })}</span>
           </div>
         </div>
       </div>
@@ -245,7 +245,7 @@ function SummaryTab({
       {/* Segments preview */}
       <div className="px-4 py-3">
         <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-          <span>Segments</span>
+          <span>{t('detail.summary.segmentsHeader')}</span>
           <span className="font-mono normal-case tracking-normal text-muted-foreground">
             {segments.length}
           </span>
@@ -367,16 +367,17 @@ function SegmentList({ segments }: { segments: MockSegment[] }) {
   );
 }
 
-function MockPlaceholderTab({ label }: { label: string }) {
+function MockPlaceholderTab({ kind }: { kind: 'events' | 'stops' }) {
+  const { t } = useTranslation('history');
   return (
     <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
       <div className="grid h-10 w-10 place-items-center rounded-[10px] border border-border bg-mc-surface text-mc-text-dim">
         <CircleDashed className="h-5 w-5" />
       </div>
       <div className="text-[12px] text-muted-foreground">
-        {label} tab — MOCK placeholder.
+        {t(`detail.placeholder.${kind}`)}
         <br />
-        Replace with real endpoint data.
+        {t('detail.placeholder.body')}
       </div>
     </div>
   );

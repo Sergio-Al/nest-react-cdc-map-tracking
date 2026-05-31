@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { exportToCsv } from '@/lib/utils';
 import { ReportCard, ReportCardHead, ReportCardBody } from './ReportCard';
 import { Leaderboard } from './Leaderboard';
@@ -14,25 +15,26 @@ const RED = 'oklch(0.65 0.18 25)';
 export function DriversTab() {
   const { from, to } = useReportsStore();
   const { byVisits, byOnTime, byDistance } = useDriverLeaderboard(from, to);
+  const { t } = useTranslation('reports');
 
   const doExport = useCallback(() => {
     if (byVisits.length === 0) {
-      toast.info('No driver activity to export');
+      toast.info(t('exportToasts.noDrivers'));
       return;
     }
     exportToCsv(
       byVisits.map((d, i) => ({
-        Rank: i + 1,
-        Driver: d.name,
-        Visits: d.visits,
-        'On-time %': d.otp,
-        'Distance (km)': d.km,
-        Delta: d.delta,
+        [t('csvHeaders.rank')]: i + 1,
+        [t('csvHeaders.driver')]: d.name,
+        [t('csvHeaders.visits')]: d.visits,
+        [t('csvHeaders.ontimePct')]: d.otp,
+        [t('csvHeaders.distanceKm')]: d.km,
+        [t('csvHeaders.delta')]: d.delta,
       })),
       'drivers-leaderboard',
     );
-    toast.success('Exported driver leaderboard');
-  }, [byVisits]);
+    toast.success(t('exportToasts.exportedDrivers'));
+  }, [byVisits, t]);
   useRegisterExporter(doExport);
 
   const perDay = byVisits.map((d) => d.visits / 14);
@@ -43,11 +45,11 @@ export function DriversTab() {
       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
         <ReportCard>
           <ReportCardHead
-            title="By visits"
-            sub="last 14 days"
+            title={t('drivers.byVisits')}
+            sub={t('drivers.byVisitsSub')}
             actions={
               <button className="inline-flex h-[26px] items-center gap-1 rounded-md border border-border bg-mc-elev px-2 text-[11.5px] font-medium text-foreground hover:border-mc-border-strong">
-                Visits
+                {t('drivers.metricLabel')}
                 <ChevronDown className="h-3 w-3 text-mc-text-dim" />
               </button>
             }
@@ -58,7 +60,7 @@ export function DriversTab() {
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title="By on-time %" sub="last 14 days" />
+          <ReportCardHead title={t('drivers.byOnTime')} sub={t('drivers.byOnTimeSub')} />
           <ReportCardBody>
             <Leaderboard rows={byOnTime} metric="otp" />
           </ReportCardBody>
@@ -67,14 +69,14 @@ export function DriversTab() {
 
       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
         <ReportCard>
-          <ReportCardHead title="By distance" sub="km driven" />
+          <ReportCardHead title={t('drivers.byDistance')} sub={t('drivers.byDistanceSub')} />
           <ReportCardBody>
             <Leaderboard rows={byDistance} metric="km" />
           </ReportCardBody>
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title="Comparison · all drivers" sub="visits per day vs fleet avg" />
+          <ReportCardHead title={t('drivers.comparison')} sub={t('drivers.comparisonSub')} />
           <ReportCardBody className="flex flex-col gap-3">
             {byVisits.map((d) => {
               const v = d.visits / 14;

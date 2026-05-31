@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pencil, PowerOff, Phone, Hash, Truck, ExternalLink, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { DirectoryDetailPanel, type DirectoryDetailTab } from '@/components/ui/directory-detail-panel';
 import { LocationPickerMap } from '@/components/ui/location-picker-map';
 import { useMapStore } from '@/stores/map.store';
@@ -27,6 +28,8 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function DriverDetailPanel({ driver, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const { t, i18n } = useTranslation('drivers');
+  const { t: tDashboard } = useTranslation('dashboard');
 
   const position = useMapStore((s) => (driver ? s.positions[driver.id] : null));
   const { data: vehicles = [] } = useVehicles();
@@ -35,8 +38,8 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
     return (
       <DirectoryDetailPanel
         isEmpty
-        emptyTitle="No driver selected"
-        emptySubtitle="Pick a driver from the list to see contact, assigned vehicle and last-known position."
+        emptyTitle={t('detail.empty.title')}
+        emptySubtitle={t('detail.empty.subtitle')}
       />
     );
   }
@@ -46,8 +49,8 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
     : null;
 
   const tabs: DirectoryDetailTab[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'vehicle', label: 'Vehicle' },
+    { id: 'overview', label: t('detail.tabs.overview') },
+    { id: 'vehicle', label: t('detail.tabs.vehicle') },
   ];
 
   return (
@@ -59,11 +62,11 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
         </span>
       }
       title={driver.name}
-      subtitle={`${driver.vehiclePlate ?? 'no vehicle'} · ${driver.deviceId ?? 'no device'}`}
+      subtitle={`${driver.vehiclePlate ?? t('detail.subtitle.noVehicle')} · ${driver.deviceId ?? t('detail.subtitle.noDevice')}`}
       status={
         <span
           className={cn(
-            'flex items-center gap-1 rounded-[5px] border px-[7px] py-[2px] font-mono text-[10.5px] font-medium capitalize',
+            'flex items-center gap-1 rounded-[5px] border px-[7px] py-[2px] font-mono text-[10.5px] font-medium',
             STATUS_STYLES[driver.status] ?? STATUS_STYLES.offline,
           )}
         >
@@ -71,7 +74,7 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
             className="inline-block h-[5px] w-[5px] rounded-full bg-current"
             style={{ opacity: 0.75 }}
           />
-          {driver.status}
+          {t(`status.${driver.status}`, { defaultValue: driver.status })}
         </span>
       }
       actions={
@@ -80,20 +83,20 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
           <button
             type="button"
             disabled
-            title="Backend endpoint not yet available"
+            title={t('detail.actions.notAvailable')}
             className="flex h-8 cursor-not-allowed items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim"
           >
             <Pencil className="h-[13px] w-[13px]" />
-            <span>Edit</span>
+            <span>{t('detail.actions.edit')}</span>
           </button>
           <button
             type="button"
             disabled
-            title="Backend endpoint not yet available"
+            title={t('detail.actions.notAvailable')}
             className="flex h-8 cursor-not-allowed items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim"
           >
             <PowerOff className="h-[13px] w-[13px]" />
-            <span>Deactivate</span>
+            <span>{t('detail.actions.deactivate')}</span>
           </button>
         </>
       }
@@ -106,7 +109,7 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
           {/* Last-known position */}
           <div className="border-b border-border px-4 py-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-              Last-known position
+              {t('detail.sections.lastPosition')}
             </div>
             {position ? (
               <>
@@ -115,14 +118,16 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
                   <span>
                     {position.latitude.toFixed(4)}, {position.longitude.toFixed(4)}
                   </span>
-                  <span>{Math.round(position.speed)} km/h</span>
+                  <span>
+                    {Math.round(position.speed).toLocaleString(i18n.language)} {tDashboard('stats.units.kmh')}
+                  </span>
                 </div>
               </>
             ) : (
               <div className="grid h-[170px] place-items-center rounded-[8px] border border-dashed border-border bg-mc-surface text-[11.5px] text-mc-text-muted">
                 <span className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
-                  No recent position
+                  {t('detail.sections.noPosition')}
                 </span>
               </div>
             )}
@@ -131,17 +136,17 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
           {/* Contact */}
           <div className="px-4 py-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-              Contact
+              {t('detail.sections.contact')}
             </div>
             <div className="overflow-hidden rounded-[8px] border border-border bg-mc-elev">
               <Row
                 icon={<Phone className="h-3.5 w-3.5 text-mc-text-dim" />}
-                label="Phone"
+                label={t('detail.sections.phone')}
                 value={driver.phone ?? '—'}
               />
               <Row
                 icon={<Hash className="h-3.5 w-3.5 text-mc-text-dim" />}
-                label="Device ID"
+                label={t('detail.sections.deviceId')}
                 value={driver.deviceId ?? '—'}
                 last
               />
@@ -153,7 +158,7 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
       {activeTab === 'vehicle' && (
         <div className="px-4 py-3">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Assigned vehicle
+            {t('detail.sections.assignedVehicle')}
           </div>
           {assignedVehicle ? (
             <Link
@@ -182,9 +187,9 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
             >
               <span className="flex items-center gap-2">
                 <Truck className="h-3.5 w-3.5" />
-                No vehicle assigned
+                {t('detail.sections.noVehicle')}
               </span>
-              <span className="font-mono text-[10px]">go to vehicles →</span>
+              <span className="font-mono text-[10px]">{t('detail.sections.goToVehicles')}</span>
             </Link>
           )}
         </div>

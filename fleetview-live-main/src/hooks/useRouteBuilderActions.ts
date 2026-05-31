@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { useRouteBuilderStore } from '@/stores/routeBuilder.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useRoutes } from '@/hooks/api/useRoutes';
@@ -10,12 +11,9 @@ import {
   useDeleteVisit,
   useCreateRoute,
 } from '@/hooks/api/useRouteBuilder';
+import { translateApiError } from '@/lib/apiError';
 
-/** Pull a server error message out of an axios-style error, with a fallback. */
-function errMsg(err: unknown, fallback: string): string {
-  const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
-  return data?.message ?? fallback;
-}
+const errMsg = translateApiError;
 
 /**
  * Shared Route-Builder write actions. Lives in a hook so the sidebar buttons,
@@ -28,6 +26,7 @@ export function useRouteBuilderActions() {
   const user = useAuthStore((s) => s.user);
   const { data: routes = [] } = useRoutes();
   const selectedRoute = routes.find((r) => r.id === selectedRouteId);
+  const { t } = useTranslation('routes');
 
   const optimizeMut = useOptimizeRoute();
   const reorderMut = useReorderVisits();
@@ -59,12 +58,12 @@ export function useRouteBuilderActions() {
             }),
           ),
         );
-        toast.success(customerIds.length === 1 ? 'Stop added' : `${customerIds.length} stops added`);
+        toast.success(t('toasts.stopsAdded', { count: customerIds.length }));
       } catch (err) {
-        toast.error(errMsg(err, 'Failed to add stop'));
+        toast.error(errMsg(err, t('toasts.addFailed')));
       }
     },
-    [selectedRouteId, selectedDriverId, user, selectedRoute, localVisits.length, addVisitMut],
+    [selectedRouteId, selectedDriverId, user, selectedRoute, localVisits.length, addVisitMut, t],
   );
 
   const optimize = useCallback(async () => {
@@ -74,13 +73,13 @@ export function useRouteBuilderActions() {
       const result = await optimizeMut.mutateAsync(selectedRouteId);
       store.setLastOptimizedAt(result.optimizedAt);
       store.markClean();
-      toast.success('Route optimized');
+      toast.success(t('toasts.optimized'));
     } catch (err) {
-      toast.error(errMsg(err, 'Optimization failed'));
+      toast.error(errMsg(err, t('toasts.optimizeFailed')));
     } finally {
       store.setIsOptimizing(false);
     }
-  }, [selectedRouteId, optimizeMut, store]);
+  }, [selectedRouteId, optimizeMut, store, t]);
 
   const saveOrder = useCallback(async () => {
     if (!selectedRouteId || !isDirty) return;
@@ -90,11 +89,11 @@ export function useRouteBuilderActions() {
         visits: localVisits.map((v) => ({ visitId: v.id, sequenceNumber: v.sequenceNumber })),
       });
       store.markClean();
-      toast.success('Order saved');
+      toast.success(t('toasts.orderSaved'));
     } catch (err) {
-      toast.error(errMsg(err, 'Failed to save order'));
+      toast.error(errMsg(err, t('toasts.saveFailed')));
     }
-  }, [selectedRouteId, isDirty, localVisits, reorderMut, store]);
+  }, [selectedRouteId, isDirty, localVisits, reorderMut, store, t]);
 
   const deleteVisit = useCallback(
     async (visitId: string) => {
@@ -102,12 +101,12 @@ export function useRouteBuilderActions() {
       store.removeVisitLocally(visitId);
       try {
         await deleteVisitMut.mutateAsync({ visitId, routeId: selectedRouteId });
-        toast.success('Stop removed');
+        toast.success(t('toasts.stopRemoved'));
       } catch (err) {
-        toast.error(errMsg(err, 'Failed to remove stop'));
+        toast.error(errMsg(err, t('toasts.removeFailed')));
       }
     },
-    [selectedRouteId, deleteVisitMut, store],
+    [selectedRouteId, deleteVisitMut, store, t],
   );
 
   const createRoute = useCallback(
@@ -116,12 +115,12 @@ export function useRouteBuilderActions() {
       try {
         const route = await createRouteMut.mutateAsync({ tenantId: user.tenantId, driverId, scheduledDate });
         store.setSelectedRoute(route.id, route.driverId);
-        toast.success('Route created');
+        toast.success(t('toasts.routeCreated'));
       } catch (err) {
-        toast.error(errMsg(err, 'Failed to create route'));
+        toast.error(errMsg(err, t('toasts.createFailed')));
       }
     },
-    [user, createRouteMut, store],
+    [user, createRouteMut, store, t],
   );
 
   return {

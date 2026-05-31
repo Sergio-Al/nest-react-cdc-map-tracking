@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, X, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import type { ViewWithCount } from './useDatasetFilters';
 function NewViewButton({ onSave }: { onSave: (name: string) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const { t } = useTranslation('common');
   const save = () => {
     if (!name.trim()) return;
     onSave(name.trim());
@@ -21,17 +23,17 @@ function NewViewButton({ onSave }: { onSave: (name: string) => void }) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className="ml-auto px-2 py-1.5 text-[11px] text-mc-text-dim hover:text-foreground">
-          + New view
+          {t('filters.newView')}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-60 space-y-2 p-2.5">
-        <div className="text-[11px] font-medium text-mc-text-muted">Save current filters as a view</div>
+        <div className="text-[11px] font-medium text-mc-text-muted">{t('filters.saveViewTitle')}</div>
         <Input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()}
-          placeholder="View name"
+          placeholder={t('filters.viewNamePlaceholder')}
           className="h-8 text-xs"
         />
         <button
@@ -40,7 +42,7 @@ function NewViewButton({ onSave }: { onSave: (name: string) => void }) {
           disabled={!name.trim()}
           className="inline-flex h-8 w-full items-center justify-center rounded-md bg-mc-accent text-xs font-medium text-mc-accent-fg hover:bg-mc-accent-strong disabled:opacity-50"
         >
-          Save view
+          {t('filters.saveView')}
         </button>
       </PopoverContent>
     </Popover>
@@ -74,6 +76,7 @@ export function FilterBar<T>({
   isMock,
 }: Props<T>) {
   const byId = new Map(fields.map((f) => [f.id, f]));
+  const { t, i18n } = useTranslation('common');
 
   const addFilter = (f: ActiveFilter) => onChange([...filters, f]);
   const replaceFilter = (f: ActiveFilter) => onChange(filters.map((x) => (x.id === f.id ? f : x)));
@@ -98,14 +101,14 @@ export function FilterBar<T>({
                 {v.star && <Star className="h-3 w-3 fill-mc-accent text-mc-accent" />}
                 {v.name}
                 <span className={cn('font-mono text-[10px]', active ? 'text-mc-accent' : 'text-mc-text-dim')}>
-                  {v.count.toLocaleString()}
+                  {v.count.toLocaleString(i18n.language)}
                 </span>
               </button>
               {!v.builtin && (
                 <button
                   type="button"
                   onClick={() => onDeleteView(v.id)}
-                  title="Delete view"
+                  title={t('filters.deleteView')}
                   className="-ml-1 grid h-4 w-4 place-items-center rounded text-mc-text-dim opacity-0 hover:bg-mc-surface hover:text-foreground group-hover:opacity-100"
                 >
                   <X className="h-2.5 w-2.5" />
@@ -152,13 +155,13 @@ export function FilterBar<T>({
             className="inline-flex h-[26px] items-center gap-1.5 rounded-md border border-dashed border-mc-border-strong bg-mc-elev px-2 text-[11.5px] font-medium text-mc-text-dim hover:border-mc-accent-border hover:text-foreground"
           >
             <Plus className="h-3 w-3" />
-            Add filter
+            {t('filters.addFilter')}
           </button>
         </FilterBuilder>
 
         {isMock && (
           <span className="ml-2 rounded bg-mc-surface px-2 py-0.5 font-mono text-[10px] text-mc-text-dim">
-            demo data
+            {t('filters.demoData')}
           </span>
         )}
       </div>

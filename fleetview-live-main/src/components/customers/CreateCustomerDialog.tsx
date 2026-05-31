@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Building2, Phone, Mail, MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { LocationPickerMap } from '@/components/ui/location-picker-map';
 import {
@@ -19,12 +20,7 @@ interface CreateCustomerDialogProps {
   isLoading?: boolean;
 }
 
-const TYPES = [
-  { id: 'retail', label: 'Retail' },
-  { id: 'wholesale', label: 'Wholesale' },
-  { id: 'distributor', label: 'Distributor' },
-  { id: 'other', label: 'Other' },
-];
+const TYPE_IDS = ['retail', 'wholesale', 'distributor', 'other'] as const;
 
 export function CreateCustomerDialog({
   open,
@@ -41,6 +37,9 @@ export function CreateCustomerDialog({
   const [lng, setLng] = useState<number | null>(null);
   const [geofenceRadius, setGeofenceRadius] = useState(100);
   const [customerType, setCustomerType] = useState('retail');
+  const { t } = useTranslation('customers');
+
+  const types = TYPE_IDS.map((id) => ({ id, label: t(`dialog.types.${id}`) }));
 
   const reset = () => {
     setName('');
@@ -79,48 +78,48 @@ export function CreateCustomerDialog({
       }}
     >
       <DialogContent className="max-w-[520px] gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">New Customer</DialogTitle>
-        <DenseDialogHeader icon={<Building2 className="h-3.5 w-3.5" />} title="New Customer" />
+        <DialogTitle className="sr-only">{t('dialog.title')}</DialogTitle>
+        <DenseDialogHeader icon={<Building2 className="h-3.5 w-3.5" />} title={t('dialog.title')} />
 
         <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
-          <Field label="Name" required>
+          <Field label={t('dialog.name')} required>
             <DenseInput
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Customer or business name"
+              placeholder={t('dialog.namePlaceholder')}
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Phone">
+            <Field label={t('dialog.phone')}>
               <DenseInput
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+591 …"
+                placeholder={t('dialog.phonePlaceholder')}
                 icon={<Phone className="h-3.5 w-3.5 text-mc-text-dim" />}
               />
             </Field>
-            <Field label="Email">
+            <Field label={t('dialog.email')}>
               <DenseInput
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="contact@example.com"
+                placeholder={t('dialog.emailPlaceholder')}
                 icon={<Mail className="h-3.5 w-3.5 text-mc-text-dim" />}
               />
             </Field>
           </div>
 
-          <Field label="Address">
+          <Field label={t('dialog.address')}>
             <DenseInput
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Street address"
+              placeholder={t('dialog.addressPlaceholder')}
               icon={<MapPin className="h-3.5 w-3.5 text-mc-text-dim" />}
             />
           </Field>
 
-          <Field label="Location · click on the map to place the pin">
+          <Field label={t('dialog.location')}>
             <LocationPickerMap
               lat={lat}
               lng={lng}
@@ -135,13 +134,13 @@ export function CreateCustomerDialog({
               <span>
                 {lat != null && lng != null
                   ? `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-                  : 'no pin yet'}
+                  : t('dialog.noPinYet')}
               </span>
-              <span>geofence {geofenceRadius} m</span>
+              <span>{t('dialog.geofenceLabel', { value: geofenceRadius })}</span>
             </div>
           </Field>
 
-          <Field label="Geofence radius">
+          <Field label={t('dialog.geofenceField')}>
             <div className="flex items-center gap-3">
               <input
                 type="range"
@@ -158,15 +157,15 @@ export function CreateCustomerDialog({
             </div>
           </Field>
 
-          <Field label="Customer type">
-            <ChipGroup value={customerType} onChange={setCustomerType} options={TYPES} />
+          <Field label={t('dialog.customerType')}>
+            <ChipGroup value={customerType} onChange={setCustomerType} options={types} />
           </Field>
         </div>
 
         <DialogFormFooter
           onCancel={() => onOpenChange(false)}
           onSubmit={handleSubmit}
-          submitLabel="Create"
+          submitLabel={t('dialog.create')}
           submitIcon={<Plus className="h-[13px] w-[13px]" />}
           canSubmit={!!name.trim()}
           isLoading={isLoading}

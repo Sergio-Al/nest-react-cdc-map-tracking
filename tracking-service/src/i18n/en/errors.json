@@ -1,0 +1,57 @@
+{
+  "generic": "An unexpected error occurred",
+  "internalServerError": "Internal server error",
+  "validation": "Please review the submitted data",
+  "auth": {
+    "invalidCredentials": "Invalid credentials",
+    "userInactive": "Account is inactive",
+    "invalidApiKey": "Invalid or missing API key",
+    "invalidRefreshToken": "Invalid refresh token",
+    "userNotFoundOrInactive": "User not found or inactive",
+    "userNotFound": "User not found",
+    "userAlreadyExists": "User with this email already exists in this tenant",
+    "insufficientPermissions": "Insufficient permissions",
+    "tokenInvalid": "Invalid session token"
+  },
+  "history": {
+    "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",
+    "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates"
+  },
+  "routes": {
+    "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",
+    "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates",
+    "notFound": "Route {{id}} not found",
+    "noVisits": "Route has no visits",
+    "noVisitsToOptimize": "Route has no visits to optimize",
+    "noPendingVisits": "No pending visits to optimize",
+    "visitNotInRoute": "Visit {{visitId}} does not belong to route {{routeId}}",
+    "customerHasNoCoords": "Customer {{customerId}} not found or has no coordinates"
+  },
+  "visits": {
+    "notFound": "Visit {{id}} not found",
+    "cannotDeleteInStatus": "Cannot delete visit in '{{status}}' status",
+    "cannotAccessOtherDriver": "Cannot access other drivers visits",
+    "cannotUpdateOtherDriver": "Cannot update visits for other drivers"
+  },
+  "vehicles": {
+    "plateExists": "Vehicle with plate {{plate}} already exists",
+    "notFound": "Vehicle {{id}} not found"
+  },
+  "drivers": {
+    "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",
+    "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates"
+  },
+  "osrm": {
+    "matricesFailed": "Failed to get routing data from OSRM. Is the OSRM service running?",
+    "geometryFailed": "Failed to get route geometry from OSRM."
+  },
+  "orTools": {
+    "solverFailed": "Failed to optimize route. Is the OR-Tools solver service running?"
+  },
+  "common": {
+    "notFound": "Resource not found",
+    "forbidden": "You don't have permission for this action",
+    "conflict": "Resource already exists",
+    "badRequest": "Invalid request"
+  }
+}

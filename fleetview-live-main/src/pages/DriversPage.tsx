@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { useDrivers, useCreateDriver, useInitialPositions } from '@/hooks/api/useDrivers';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocket } from '@/hooks/useSocket';
@@ -31,6 +32,7 @@ export default function DriversPage() {
   const { isConnected } = useSocket();
   const { data: drivers = [], isLoading } = useDrivers();
   const createDriver = useCreateDriver();
+  const { t } = useTranslation('drivers');
 
   // Seed `useMapStore.positions` from REST so the detail panel mini-map has data
   // even before any WebSocket tick arrives. Live updates still flow via the
@@ -49,9 +51,9 @@ export default function DriversPage() {
   const handleCreate = async (dto: CreateDriverDto) => {
     try {
       await createDriver.mutateAsync(dto);
-      toast.success(`Driver "${dto.name}" created`);
+      toast.success(t('toasts.created', { name: dto.name }));
     } catch {
-      toast.error('Failed to create driver');
+      toast.error(t('toasts.createFailed'));
     }
   };
 
@@ -65,10 +67,10 @@ export default function DriversPage() {
           </div>
           <div>
             <div className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">
-              Drivers
+              {t('page.title')}
             </div>
             <div className="mt-0.5 text-xs text-mc-text-muted">
-              Manage your fleet drivers · {drivers.length} total
+              {t('page.subtitle', { count: drivers.length })}
             </div>
           </div>
           {isManager && (
@@ -79,7 +81,7 @@ export default function DriversPage() {
                 className="flex h-8 items-center gap-[6px] rounded-mc bg-mc-accent px-3 text-[12.5px] font-medium text-white hover:bg-mc-accent-strong"
               >
                 <Plus className="h-[13px] w-[13px]" />
-                <span>New Driver</span>
+                <span>{t('page.newDriver')}</span>
               </button>
             </div>
           )}
@@ -101,15 +103,15 @@ export default function DriversPage() {
       <div className="flex min-h-0 flex-1">
         <TableShell
           headers={[
-            { label: 'Driver' },
-            { label: 'Status' },
-            { label: 'Vehicle' },
-            { label: 'Phone' },
-            { label: 'Device ID' },
+            { label: t('table.driver') },
+            { label: t('table.status') },
+            { label: t('table.vehicle') },
+            { label: t('table.phone') },
+            { label: t('table.deviceId') },
           ]}
           count={ds.filtered.length}
           isLoading={isLoading}
-          emptyMessage="No drivers match these filters."
+          emptyMessage={t('table.empty')}
         >
           {ds.filtered.map((d) => {
             const isSelected = d.id === selectedId;
@@ -133,12 +135,12 @@ export default function DriversPage() {
                 <Td>
                   <span
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-[7px] py-[1px] font-mono text-[10.5px] font-semibold capitalize',
+                      'inline-flex items-center gap-1 rounded-full px-[7px] py-[1px] font-mono text-[10.5px] font-semibold',
                       STATUS_STYLES[d.status] ?? STATUS_STYLES.offline,
                     )}
                   >
                     <span className="h-[5px] w-[5px] rounded-full bg-current" />
-                    {d.status}
+                    {t(`status.${d.status}`, { defaultValue: d.status })}
                   </span>
                 </Td>
                 <Td muted>

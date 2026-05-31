@@ -1,0 +1,8 @@
+{
+  "generic": "An unexpected error occurred",
+  "network": "Could not reach the server",
+  "unauthorized": "Session expired. Please sign in again.",
+  "forbidden": "You don't have permission for this action",
+  "notFound": "Resource not found",
+  "validation": "Please review the submitted data"
+}

@@ -1,0 +1,82 @@
+{
+  "page": {
+    "title": "Vehicles",
+    "subtitle": "Manage your fleet vehicles · {{count}} total",
+    "newVehicle": "New Vehicle"
+  },
+  "status": {
+    "active": "active",
+    "maintenance": "maintenance",
+    "inactive": "inactive"
+  },
+  "table": {
+    "plate": "Plate",
+    "type": "Type",
+    "brandModel": "Brand / Model",
+    "year": "Year",
+    "capacity": "Capacity",
+    "status": "Status",
+    "driver": "Driver",
+    "empty": "No vehicles match these filters."
+  },
+  "dialog": {
+    "createTitle": "New Vehicle",
+    "editTitle": "Edit Vehicle",
+    "plate": "Plate",
+    "type": "Type",
+    "brand": "Brand",
+    "model": "Model",
+    "year": "Year",
+    "color": "Color",
+    "capacityKg": "Capacity (kg)",
+    "statusLabel": "Status",
+    "notes": "Notes",
+    "notesPlaceholder": "Additional notes…",
+    "colorPlaceholder": "White",
+    "create": "Create",
+    "save": "Save changes",
+    "cancel": "Cancel",
+    "types": {
+      "van": "Van",
+      "truck": "Truck",
+      "motorcycle": "Moto",
+      "car": "Car"
+    },
+    "statuses": {
+      "active": "Active",
+      "maintenance": "Maintenance",
+      "inactive": "Inactive"
+    }
+  },
+  "toasts": {
+    "created": "Vehicle \"{{plate}}\" created",
+    "createFailed": "Failed to create vehicle",
+    "updated": "Vehicle updated",
+    "updateFailed": "Failed to update vehicle"
+  },
+  "detail": {
+    "empty": {
+      "title": "No vehicle selected",
+      "subtitle": "Pick a vehicle from the list to see its details and assigned driver."
+    },
+    "actions": {
+      "edit": "Edit"
+    },
+    "sections": {
+      "specs": "Vehicle",
+      "notes": "Notes",
+      "assignedDriver": "Assigned driver",
+      "noDriver": "No driver assigned",
+      "goToDrivers": "go to drivers →",
+      "noPhone": "no phone"
+    },
+    "specs": {
+      "type": "Type",
+      "brand": "Brand",
+      "model": "Model",
+      "year": "Year",
+      "color": "Color",
+      "capacity": "Capacity"
+    }
+  }
+}

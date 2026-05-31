@@ -1,0 +1,71 @@
+{
+  "page": {
+    "title": "Drivers",
+    "subtitle": "Manage your fleet drivers · {{count}} total",
+    "newDriver": "New Driver"
+  },
+  "status": {
+    "online": "online",
+    "break": "break",
+    "offline": "offline"
+  },
+  "table": {
+    "driver": "Driver",
+    "status": "Status",
+    "vehicle": "Vehicle",
+    "phone": "Phone",
+    "deviceId": "Device ID",
+    "empty": "No drivers match these filters."
+  },
+  "dialog": {
+    "title": "New Driver",
+    "name": "Name",
+    "namePlaceholder": "Full name",
+    "phone": "Phone",
+    "phonePlaceholder": "+591 …",
+    "vehiclePlate": "Vehicle plate",
+    "deviceId": "Device ID",
+    "vehicleType": "Vehicle type",
+    "create": "Create",
+    "cancel": "Cancel",
+    "types": {
+      "van": "Van",
+      "truck": "Truck",
+      "motorcycle": "Moto",
+      "car": "Car"
+    }
+  },
+  "toasts": {
+    "created": "Driver \"{{name}}\" created",
+    "createFailed": "Failed to create driver"
+  },
+  "detail": {
+    "empty": {
+      "title": "No driver selected",
+      "subtitle": "Pick a driver from the list to see contact, assigned vehicle and last-known position."
+    },
+    "tabs": {
+      "overview": "Overview",
+      "vehicle": "Vehicle"
+    },
+    "subtitle": {
+      "noVehicle": "no vehicle",
+      "noDevice": "no device"
+    },
+    "actions": {
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "notAvailable": "Backend endpoint not yet available"
+    },
+    "sections": {
+      "lastPosition": "Last-known position",
+      "noPosition": "No recent position",
+      "contact": "Contact",
+      "phone": "Phone",
+      "deviceId": "Device ID",
+      "assignedVehicle": "Assigned vehicle",
+      "noVehicle": "No vehicle assigned",
+      "goToVehicles": "go to vehicles →"
+    }
+  }
+}

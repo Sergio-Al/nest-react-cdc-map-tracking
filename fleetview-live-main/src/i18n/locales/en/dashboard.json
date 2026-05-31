@@ -1,0 +1,121 @@
+{
+  "city": "La Paz, Bolivia",
+  "footer": {
+    "hints": {
+      "navigate": "navigate",
+      "openDriver": "open driver",
+      "focus": "focus on map",
+      "newRoute": "new route",
+      "commands": "commands",
+      "shortcuts": "all shortcuts"
+    },
+    "connected": "Connected · {{city}}",
+    "reconnecting": "Reconnecting…"
+  },
+  "mapControls": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "recenter": "Recenter on fleet",
+    "follow": "Follow selected driver",
+    "layers": "Layers"
+  },
+  "workspace": {
+    "openInbox": "Open fleet inbox",
+    "fleet": "Fleet",
+    "liveOps": "Live operations",
+    "quickSearch": "Quick search…",
+    "filters": "Filters",
+    "newRoute": "New route",
+    "nowTracking": "Now tracking"
+  },
+  "stats": {
+    "active": "Active",
+    "avgSpeed": "Avg speed",
+    "visits": "Visits",
+    "distance": "Distance",
+    "onTime": "On-time",
+    "units": {
+      "today": "today",
+      "km": "km",
+      "kmh": "km/h"
+    }
+  },
+  "inbox": {
+    "fleet": "Fleet",
+    "filter": "Filter",
+    "addDriver": "Add driver",
+    "searchPlaceholder": "Search drivers, plates…",
+    "filters": {
+      "all": "All",
+      "moving": "Moving",
+      "idle": "Idle"
+    },
+    "sort": {
+      "speed": "Speed",
+      "last_seen": "Last seen",
+      "name": "Name"
+    },
+    "noResults": "No drivers found",
+    "stopsProgress": "{{routeName}} · {{progress}}/{{total}} stops",
+    "lastSeen": "Last seen {{age}}",
+    "noSignal": "No recent signal",
+    "idleBadge": "idle"
+  },
+  "panel": {
+    "status": {
+      "moving": "En route",
+      "idle": "Idle",
+      "offline": "Offline"
+    },
+    "kv": {
+      "speed": "Speed",
+      "distance": "Distance",
+      "lastPing": "Last ping",
+      "visits": "Visits"
+    },
+    "tabs": {
+      "activity": "Activity",
+      "stops": "Stops",
+      "vehicle": "Vehicle",
+      "notes": "Notes"
+    },
+    "buttons": {
+      "track": "Track",
+      "call": "Call",
+      "route": "Route"
+    },
+    "sections": {
+      "speedLast": "Speed · last 60 min",
+      "activity": "Activity",
+      "routePrefix": "Route"
+    },
+    "vehicle": {
+      "fuel": "Fuel",
+      "makeModel": "Make / model",
+      "year": "Year",
+      "plate": "Plate",
+      "odometer": "Odometer",
+      "lastService": "Last service"
+    },
+    "notes": {
+      "placeholder": "Add a note for this driver…",
+      "localOnly": "Notes are local-only until the backend is wired."
+    },
+    "empty": {
+      "title": "No driver selected",
+      "body": "Select a driver from the inbox to see live details, route stops, and activity."
+    },
+    "noPhone": "No phone number on file for this driver."
+  },
+  "map": {
+    "popup": {
+      "speed": "Speed",
+      "status": "Status",
+      "nextStop": "Next stop",
+      "distance": "Distance",
+      "eta": "ETA",
+      "etaMinutes": "{{minutes}} min",
+      "updated": "Updated {{relative}}"
+    }
+  }
+}

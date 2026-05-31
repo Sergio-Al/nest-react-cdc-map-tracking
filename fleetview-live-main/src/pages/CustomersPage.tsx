@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, Building2, Clock, Phone, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { useCustomers, useCreateCustomer } from '@/hooks/api/useRouteBuilder';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocket } from '@/hooks/useSocket';
@@ -9,7 +10,7 @@ import { CustomerDetailPanel } from '@/components/customers/CustomerDetailPanel'
 import { Footer } from '@/components/dashboard/Footer';
 import { FilterBar, useDatasetFilters } from '@/components/filters';
 import { TableShell, Td } from '@/components/ui/table-shell';
-import { getCustomerMeta, CATEGORY_META, lastVisitLabel } from '@/lib/mock/customerMeta';
+import { getCustomerMeta, CATEGORY_META } from '@/lib/mock/customerMeta';
 import {
   CUSTOMER_DIRECTORY_FIELDS,
   CUSTOMER_DIRECTORY_VIEWS,
@@ -27,6 +28,13 @@ export default function CustomersPage() {
   const { isConnected } = useSocket();
   const { data: customers = [], isLoading } = useCustomers();
   const createCustomer = useCreateCustomer();
+  const { t } = useTranslation('customers');
+
+  const lastVisitLabel = (days: number): string => {
+    if (days <= 0) return t('lastVisitLabel.today');
+    if (days >= 7) return t('lastVisitLabel.weeks', { count: Math.round(days / 7) });
+    return t('lastVisitLabel.days', { count: days });
+  };
 
   const isManager = user?.role === 'admin' || user?.role === 'dispatcher';
 
@@ -65,11 +73,11 @@ export default function CustomersPage() {
       setTimeout(() => {
         setPendingNames((prev) => prev.filter((n) => n !== dto.name));
       }, 5000);
-      toast.success(`Customer "${dto.name}" queued — will appear shortly via CDC sync`, {
+      toast.success(t('toasts.queued', { name: dto.name }), {
         duration: 5000,
       });
     } catch {
-      toast.error('Failed to create customer');
+      toast.error(t('toasts.createFailed'));
     }
   };
 
@@ -83,10 +91,10 @@ export default function CustomersPage() {
           </div>
           <div>
             <div className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">
-              Customers
+              {t('page.title')}
             </div>
             <div className="mt-0.5 text-xs text-mc-text-muted">
-              Manage your customer directory · {customers.length} total
+              {t('page.subtitle', { count: customers.length })}
             </div>
           </div>
           {isManager && (
@@ -97,7 +105,7 @@ export default function CustomersPage() {
                 className="flex h-8 items-center gap-[6px] rounded-mc bg-mc-accent px-3 text-[12.5px] font-medium text-white hover:bg-mc-accent-strong"
               >
                 <Plus className="h-[13px] w-[13px]" />
-                <span>New Customer</span>
+                <span>{t('page.newCustomer')}</span>
               </button>
             </div>
           )}
@@ -108,10 +116,11 @@ export default function CustomersPage() {
       {pendingNames.length > 0 && (
         <div className="flex items-center gap-2 border-b border-[oklch(0.78_0.14_80/0.25)] bg-[oklch(0.78_0.14_80/0.10)] px-6 py-2 text-[11.5px] text-[oklch(0.5_0.14_80)] dark:text-[oklch(0.85_0.16_80)]">
           <Clock className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            <strong>{pendingNames.join(', ')}</strong> — syncing via CDC, will appear in a few
-            seconds.
-          </span>
+          <span
+            dangerouslySetInnerHTML={{
+              __html: t('banner.syncing', { names: pendingNames.join(', ') }),
+            }}
+          />
         </div>
       )}
 
@@ -133,17 +142,17 @@ export default function CustomersPage() {
       <div className="flex min-h-0 flex-1">
         <TableShell
           headers={[
-            { label: 'Customer' },
-            { label: 'Category' },
-            { label: 'Type' },
-            { label: 'Contact' },
-            { label: 'Geofence', num: true },
-            { label: 'Last visit' },
-            { label: 'Status' },
+            { label: t('table.customer') },
+            { label: t('table.category') },
+            { label: t('table.type') },
+            { label: t('table.contact') },
+            { label: t('table.geofence'), num: true },
+            { label: t('table.lastVisit') },
+            { label: t('table.status') },
           ]}
           count={ds.filtered.length}
           isLoading={isLoading}
-          emptyMessage="No customers match these filters."
+          emptyMessage={t('table.empty')}
         >
           {ds.filtered.map((c) => {
             const cat = CATEGORY_META[c.category];
@@ -176,19 +185,19 @@ export default function CustomersPage() {
                     }}
                   >
                     <CatIcon className="h-3 w-3" />
-                    {cat.label}
+                    {t(`categories.${c.category}`, { defaultValue: cat.label })}
                   </span>
                 </Td>
                 <Td>
                   <span
                     className={cn(
-                      'inline-flex rounded px-1.5 py-px font-mono text-[10.5px] capitalize',
+                      'inline-flex rounded px-1.5 py-px font-mono text-[10.5px]',
                       isPremium
                         ? 'bg-mc-accent-soft text-mc-accent'
                         : 'bg-mc-surface text-mc-text-muted',
                     )}
                   >
-                    {c.customerType}
+                    {t(`customerType.${c.customerType}`, { defaultValue: c.customerType })}
                   </span>
                 </Td>
                 <Td>
@@ -224,7 +233,7 @@ export default function CustomersPage() {
                     )}
                   >
                     <span className="h-[5px] w-[5px] rounded-full bg-current" />
-                    {c.active ? 'active' : 'inactive'}
+                    {t(`status.${c.active ? 'active' : 'inactive'}`)}
                   </span>
                 </Td>
               </tr>

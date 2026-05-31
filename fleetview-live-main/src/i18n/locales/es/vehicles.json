@@ -1,0 +1,82 @@
+{
+  "page": {
+    "title": "Vehículos",
+    "subtitle": "Gestiona los vehículos de la flota · {{count}} en total",
+    "newVehicle": "Nuevo vehículo"
+  },
+  "status": {
+    "active": "activo",
+    "maintenance": "mantenimiento",
+    "inactive": "inactivo"
+  },
+  "table": {
+    "plate": "Placa",
+    "type": "Tipo",
+    "brandModel": "Marca / Modelo",
+    "year": "Año",
+    "capacity": "Capacidad",
+    "status": "Estado",
+    "driver": "Conductor",
+    "empty": "Ningún vehículo coincide con estos filtros."
+  },
+  "dialog": {
+    "createTitle": "Nuevo vehículo",
+    "editTitle": "Editar vehículo",
+    "plate": "Placa",
+    "type": "Tipo",
+    "brand": "Marca",
+    "model": "Modelo",
+    "year": "Año",
+    "color": "Color",
+    "capacityKg": "Capacidad (kg)",
+    "statusLabel": "Estado",
+    "notes": "Notas",
+    "notesPlaceholder": "Notas adicionales…",
+    "colorPlaceholder": "Blanco",
+    "create": "Crear",
+    "save": "Guardar cambios",
+    "cancel": "Cancelar",
+    "types": {
+      "van": "Furgoneta",
+      "truck": "Camión",
+      "motorcycle": "Moto",
+      "car": "Auto"
+    },
+    "statuses": {
+      "active": "Activo",
+      "maintenance": "Mantenimiento",
+      "inactive": "Inactivo"
+    }
+  },
+  "toasts": {
+    "created": "Vehículo \"{{plate}}\" creado",
+    "createFailed": "No se pudo crear el vehículo",
+    "updated": "Vehículo actualizado",
+    "updateFailed": "No se pudo actualizar el vehículo"
+  },
+  "detail": {
+    "empty": {
+      "title": "Ningún vehículo seleccionado",
+      "subtitle": "Elige un vehículo de la lista para ver sus detalles y conductor asignado."
+    },
+    "actions": {
+      "edit": "Editar"
+    },
+    "sections": {
+      "specs": "Vehículo",
+      "notes": "Notas",
+      "assignedDriver": "Conductor asignado",
+      "noDriver": "Sin conductor asignado",
+      "goToDrivers": "ir a conductores →",
+      "noPhone": "sin teléfono"
+    },
+    "specs": {
+      "type": "Tipo",
+      "brand": "Marca",
+      "model": "Modelo",
+      "year": "Año",
+      "color": "Color",
+      "capacity": "Capacidad"
+    }
+  }
+}

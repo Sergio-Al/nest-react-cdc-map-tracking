@@ -10,6 +10,7 @@ import {
   Share2,
   ChevronDown,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { usePlaybackStore, type PlaybackSpeed } from '@/stores/playback.store';
 import { getMockPlaybackSegs, getPlaybackTicks } from '@/lib/mock/historyMock';
 import { format } from 'date-fns';
@@ -33,6 +34,7 @@ function SpeedSelector({
   onSelect: (s: PlaybackSpeed) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation('history');
 
   return (
     <div className="relative">
@@ -41,7 +43,7 @@ function SpeedSelector({
         onClick={() => setOpen((v) => !v)}
         className="flex h-[26px] items-center gap-1 rounded-[6px] border border-border bg-mc-elev px-2 font-mono text-[11.5px] text-muted-foreground"
       >
-        <span className="text-[10.5px]">speed</span>
+        <span className="text-[10.5px]">{t('playback.speed')}</span>
         <span className="font-semibold text-foreground">{speed}×</span>
         <ChevronDown className="h-[11px] w-[11px] text-mc-text-dim" />
       </button>
@@ -112,6 +114,7 @@ export function RouteHistoryPlaybackBar() {
     goToEnd,
     pause,
   } = usePlaybackStore();
+  const { t } = useTranslation('history');
 
   // Auto-advance timer — ported from PlaybackControls.tsx
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -163,13 +166,13 @@ export function RouteHistoryPlaybackBar() {
     >
       {/* Left: transport controls + time */}
       <div className="flex items-center gap-1">
-        <PbBtn title="Restart" onClick={goToStart} disabled={currentIndex === 0}>
+        <PbBtn title={t('playback.restart')} onClick={goToStart} disabled={currentIndex === 0}>
           <Rewind className="h-[14px] w-[14px]" />
         </PbBtn>
-        <PbBtn title="Step back" onClick={stepBackward} disabled={currentIndex === 0}>
+        <PbBtn title={t('playback.stepBack')} onClick={stepBackward} disabled={currentIndex === 0}>
           <SkipBack className="h-[14px] w-[14px]" />
         </PbBtn>
-        <PbBtn title={isPlaying ? 'Pause' : 'Play'} onClick={togglePlayback} isPlay>
+        <PbBtn title={isPlaying ? t('playback.pause') : t('playback.play')} onClick={togglePlayback} isPlay>
           {isPlaying ? (
             <Pause className="h-[13px] w-[13px]" />
           ) : (
@@ -177,14 +180,14 @@ export function RouteHistoryPlaybackBar() {
           )}
         </PbBtn>
         <PbBtn
-          title="Step forward"
+          title={t('playback.stepForward')}
           onClick={stepForward}
           disabled={currentIndex >= positions.length - 1}
         >
           <SkipForward className="h-[14px] w-[14px]" />
         </PbBtn>
         <PbBtn
-          title="Skip to end"
+          title={t('playback.skipToEnd')}
           onClick={goToEnd}
           disabled={currentIndex >= positions.length - 1}
         >
@@ -247,10 +250,10 @@ export function RouteHistoryPlaybackBar() {
       {/* Right: speed + action buttons */}
       <div className="flex items-center gap-[6px]">
         <SpeedSelector speed={speed} onSelect={setSpeed} />
-        <PbBtn title="Export GPX">
+        <PbBtn title={t('playback.exportGpx')}>
           <Download className="h-[14px] w-[14px]" />
         </PbBtn>
-        <PbBtn title="Share">
+        <PbBtn title={t('playback.share')}>
           <Share2 className="h-[14px] w-[14px]" />
         </PbBtn>
       </div>

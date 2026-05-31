@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,9 +20,24 @@ import CustomersPage from "./pages/CustomersPage";
 
 const queryClient = new QueryClient();
 
+const HtmlLangSync = () => {
+  const { i18n } = useTranslation();
+  useEffect(() => {
+    const apply = (lng: string) => {
+      const base = (lng ?? "es").split("-")[0];
+      document.documentElement.lang = base;
+    };
+    apply(i18n.language);
+    i18n.on("languageChanged", apply);
+    return () => i18n.off("languageChanged", apply);
+  }, [i18n]);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <HtmlLangSync />
       <TooltipProvider>
         <Toaster />
         <Sonner />

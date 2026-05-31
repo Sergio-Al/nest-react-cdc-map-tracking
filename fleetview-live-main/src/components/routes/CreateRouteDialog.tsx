@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ export function CreateRouteDialog({
   const [scheduledDate, setScheduledDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
+  const { t } = useTranslation('routes');
 
   const handleSubmit = () => {
     if (!driverId || !scheduledDate) return;
@@ -50,15 +52,15 @@ export function CreateRouteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Create Route</DialogTitle>
+          <DialogTitle>{t('createDialog.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Driver</Label>
+            <Label>{t('createDialog.driver')}</Label>
             <Select value={driverId} onValueChange={setDriverId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a driver" />
+                <SelectValue placeholder={t('createDialog.driverPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {drivers.map((d) => (
@@ -71,7 +73,7 @@ export function CreateRouteDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Scheduled Date</Label>
+            <Label>{t('createDialog.scheduledDate')}</Label>
             <Input
               type="date"
               value={scheduledDate}
@@ -82,11 +84,11 @@ export function CreateRouteDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('createDialog.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!driverId || !scheduledDate || isLoading}>
             <Plus className="w-4 h-4 mr-1" />
-            Create
+            {t('createDialog.create')}
           </Button>
         </DialogFooter>
       </DialogContent>

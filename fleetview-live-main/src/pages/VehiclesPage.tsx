@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, Car, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import {
   useVehicles,
   useCreateVehicle,
@@ -35,6 +36,7 @@ export default function VehiclesPage() {
   const { data: drivers = [] } = useDrivers();
   const createVehicle = useCreateVehicle();
   const updateVehicle = useUpdateVehicle();
+  const { t } = useTranslation('vehicles');
 
   const isManager = user?.role === 'admin' || user?.role === 'dispatcher';
 
@@ -59,18 +61,18 @@ export default function VehiclesPage() {
   const handleCreate = async (dto: CreateVehicleDto) => {
     try {
       await createVehicle.mutateAsync(dto);
-      toast.success(`Vehicle "${dto.plate}" created`);
+      toast.success(t('toasts.created', { plate: dto.plate }));
     } catch {
-      toast.error('Failed to create vehicle');
+      toast.error(t('toasts.createFailed'));
     }
   };
 
   const handleUpdate = async (id: string, dto: UpdateVehicleDto) => {
     try {
       await updateVehicle.mutateAsync({ id, dto });
-      toast.success('Vehicle updated');
+      toast.success(t('toasts.updated'));
     } catch {
-      toast.error('Failed to update vehicle');
+      toast.error(t('toasts.updateFailed'));
     }
   };
 
@@ -84,10 +86,10 @@ export default function VehiclesPage() {
           </div>
           <div>
             <div className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">
-              Vehicles
+              {t('page.title')}
             </div>
             <div className="mt-0.5 text-xs text-mc-text-muted">
-              Manage your fleet vehicles · {vehicles.length} total
+              {t('page.subtitle', { count: vehicles.length })}
             </div>
           </div>
           {isManager && (
@@ -98,7 +100,7 @@ export default function VehiclesPage() {
                 className="flex h-8 items-center gap-[6px] rounded-mc bg-mc-accent px-3 text-[12.5px] font-medium text-white hover:bg-mc-accent-strong"
               >
                 <Plus className="h-[13px] w-[13px]" />
-                <span>New Vehicle</span>
+                <span>{t('page.newVehicle')}</span>
               </button>
             </div>
           )}
@@ -120,17 +122,17 @@ export default function VehiclesPage() {
       <div className="flex min-h-0 flex-1">
         <TableShell
           headers={[
-            { label: 'Plate' },
-            { label: 'Type' },
-            { label: 'Brand / Model' },
-            { label: 'Year', num: true },
-            { label: 'Capacity', num: true },
-            { label: 'Status' },
-            { label: 'Driver' },
+            { label: t('table.plate') },
+            { label: t('table.type') },
+            { label: t('table.brandModel') },
+            { label: t('table.year'), num: true },
+            { label: t('table.capacity'), num: true },
+            { label: t('table.status') },
+            { label: t('table.driver') },
           ]}
           count={ds.filtered.length}
           isLoading={isLoading}
-          emptyMessage="No vehicles match these filters."
+          emptyMessage={t('table.empty')}
         >
           {ds.filtered.map((v) => {
             const isSelected = v.id === selectedId;
@@ -156,7 +158,7 @@ export default function VehiclesPage() {
                 <Td>
                   <span
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-[7px] py-[1px] font-mono text-[10.5px] font-semibold capitalize',
+                      'inline-flex items-center gap-1 rounded-full px-[7px] py-[1px] font-mono text-[10.5px] font-semibold',
                       v.status === 'active'
                         ? 'bg-[oklch(0.72_0.16_150/0.16)] text-[oklch(0.45_0.16_150)] dark:text-[oklch(0.85_0.18_150)]'
                         : isMaintenance
@@ -165,7 +167,7 @@ export default function VehiclesPage() {
                     )}
                   >
                     {isMaintenance && <Wrench className="h-2.5 w-2.5" />}
-                    {v.status}
+                    {t(`status.${v.status}`, { defaultValue: v.status })}
                   </span>
                 </Td>
                 <Td muted>{v.driverName || '—'}</Td>

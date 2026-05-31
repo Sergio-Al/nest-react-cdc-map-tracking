@@ -1,5 +1,6 @@
 import { AlertTriangle, TrendingUp, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import type { ReportInsight, InsightTone } from '@/lib/mock/reportsMock';
 
@@ -15,11 +16,22 @@ const ICON_BOX: Record<InsightTone, string> = {
   info: 'bg-mc-accent-soft border-mc-accent-border text-mc-accent',
 };
 
+const INSIGHT_TITLES: Record<string, string> = {
+  'On-time dropped': 'ontimeDropped',
+  'Visits up +12.4% vs last period': 'visitsUp',
+  'Roberto Mamani has been offline 3 days.': 'driverOffline',
+};
+
 export function Insights({ insights }: { insights: ReportInsight[] }) {
+  const { t } = useTranslation('reports');
   return (
     <div className="flex flex-col gap-2">
       {insights.map((ins, i) => {
         const Icon = ICONS[ins.tone];
+        const key = INSIGHT_TITLES[ins.title];
+        const title = key ? t(`overview.insights.items.${key}.title`) : ins.title;
+        const body = key ? t(`overview.insights.items.${key}.body`) : ins.body;
+        const cta = key ? t(`overview.insights.items.${key}.cta`) : ins.cta;
         return (
           <div
             key={i}
@@ -34,15 +46,15 @@ export function Insights({ insights }: { insights: ReportInsight[] }) {
               <Icon className="h-[13px] w-[13px]" />
             </div>
             <div className="min-w-0 text-xs leading-relaxed text-foreground">
-              <strong className="font-semibold">{ins.title}</strong>{' '}
+              <strong className="font-semibold">{title}</strong>{' '}
               {ins.num && <span className="font-mono font-semibold">{ins.num}</span>}{' '}
-              <span className="text-mc-text-muted">{ins.body}</span>
+              <span className="text-mc-text-muted">{body}</span>
             </div>
             <button
               type="button"
               className="self-center whitespace-nowrap px-1 text-[11px] font-semibold text-mc-accent hover:underline"
             >
-              {ins.cta} →
+              {cta} →
             </button>
           </div>
         );

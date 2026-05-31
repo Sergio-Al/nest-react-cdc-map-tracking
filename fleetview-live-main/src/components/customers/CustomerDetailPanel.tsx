@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Pencil, PowerOff, Phone, Mail, MapPin, Calendar, Clock } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { DirectoryDetailPanel, type DirectoryDetailTab } from '@/components/ui/directory-detail-panel';
 import { LocationPickerMap } from '@/components/ui/location-picker-map';
 import { useVisitCompletions } from '@/hooks/api/useHistory';
 import { useDrivers } from '@/hooks/api/useDrivers';
-import { CATEGORY_META, lastVisitLabel } from '@/lib/mock/customerMeta';
+import { CATEGORY_META } from '@/lib/mock/customerMeta';
+import { useDateLocale } from '@/i18n/useDateLocale';
 import { cn } from '@/lib/utils';
 import type { CustomerDirectoryRow } from '@/components/reports/reportFilters';
 
@@ -18,6 +20,14 @@ interface Props {
 
 export function CustomerDetailPanel({ customer, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const { t } = useTranslation('customers');
+  const dateLocale = useDateLocale();
+
+  const lastVisitLabel = (days: number): string => {
+    if (days <= 0) return t('lastVisitLabel.today');
+    if (days >= 7) return t('lastVisitLabel.weeks', { count: Math.round(days / 7) });
+    return t('lastVisitLabel.days', { count: days });
+  };
 
   // Last-30-days range, hard-coded — intentionally not coupled to useReportsStore.
   const range = useMemo(() => {
@@ -39,8 +49,8 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
     return (
       <DirectoryDetailPanel
         isEmpty
-        emptyTitle="No customer selected"
-        emptySubtitle="Pick a customer from the list to see contact info, geofence and recent visits."
+        emptyTitle={t('detail.empty.title')}
+        emptySubtitle={t('detail.empty.subtitle')}
       />
     );
   }
@@ -48,10 +58,11 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
   const cat = CATEGORY_META[customer.category];
   const CatIcon = cat.icon;
   const isPremium = customer.customerType === 'premium';
+  const categoryLabel = t(`categories.${customer.category}`, { defaultValue: cat.label });
 
   const tabs: DirectoryDetailTab[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'visits', label: 'Visits', count: visits.length },
+    { id: 'overview', label: t('detail.tabs.overview') },
+    { id: 'visits', label: t('detail.tabs.visits'), count: visits.length },
   ];
 
   return (
@@ -69,7 +80,7 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
         </span>
       }
       title={customer.name}
-      subtitle={`${cat.label} · ${customer.address ?? 'No address'}`}
+      subtitle={`${categoryLabel} · ${customer.address ?? t('detail.subtitle.noAddress')}`}
       status={
         <span
           className={cn(
@@ -83,29 +94,28 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
             className="inline-block h-[5px] w-[5px] rounded-full"
             style={{ background: customer.active ? 'var(--mc-status-moving)' : 'var(--mc-text-dim)' }}
           />
-          {customer.active ? 'Active' : 'Inactive'}
+          {t(`detail.statusBadge.${customer.active ? 'active' : 'inactive'}`)}
         </span>
       }
       actions={
-        // Edit / Deactivate hooks (PATCH /customers/:id, DELETE) don't exist yet — disabled with tooltip.
         <>
           <button
             type="button"
             disabled
-            title="Backend endpoint not yet available"
+            title={t('detail.actions.notAvailable')}
             className="flex h-8 cursor-not-allowed items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim"
           >
             <Pencil className="h-[13px] w-[13px]" />
-            <span>Edit</span>
+            <span>{t('detail.actions.edit')}</span>
           </button>
           <button
             type="button"
             disabled
-            title="Backend endpoint not yet available"
+            title={t('detail.actions.notAvailable')}
             className="flex h-8 cursor-not-allowed items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim"
           >
             <PowerOff className="h-[13px] w-[13px]" />
-            <span>{customer.active ? 'Deactivate' : 'Activate'}</span>
+            <span>{t(`detail.actions.${customer.active ? 'deactivate' : 'activate'}`)}</span>
           </button>
         </>
       }
@@ -118,7 +128,7 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
           {/* Map preview */}
           <div className="border-b border-border px-4 py-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-              Location
+              {t('detail.sections.location')}
             </div>
             {customer.latitude != null && customer.longitude != null ? (
               <LocationPickerMap
@@ -131,7 +141,7 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
               <div className="grid h-[180px] place-items-center rounded-[8px] border border-dashed border-border bg-mc-surface text-[11.5px] text-mc-text-muted">
                 <span className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
-                  No coordinates
+                  {t('detail.sections.noCoordinates')}
                 </span>
               </div>
             )}
@@ -140,7 +150,7 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
                 <span>
                   {customer.latitude.toFixed(4)}, {customer.longitude.toFixed(4)}
                 </span>
-                <span>geofence {customer.geofenceRadiusMeters} m</span>
+                <span>{t('detail.sections.geofence', { value: customer.geofenceRadiusMeters })}</span>
               </div>
             )}
           </div>
@@ -148,7 +158,7 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
           {/* Contact */}
           <div className="border-b border-border px-4 py-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-              Contact
+              {t('detail.sections.contact')}
             </div>
             <div className="flex flex-col gap-2 text-[12px]">
               <ContactRow icon={<Phone className="h-3.5 w-3.5" />} value={customer.phone} />
@@ -160,27 +170,27 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
           {/* Meta */}
           <div className="px-4 py-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-              Activity {' '}
+              {t('detail.sections.activity')}{' '}
               <span className="ml-1 font-mono text-[9.5px] font-normal normal-case tracking-normal text-mc-text-dim">
-                derived
+                {t('detail.sections.derived')}
               </span>
             </div>
             <div className="overflow-hidden rounded-[8px] border border-border bg-mc-elev">
               <MetaRow
-                label="Type"
+                label={t('detail.sections.type')}
                 value={
                   <span
                     className={cn(
-                      'inline-flex rounded px-1.5 py-px font-mono text-[10.5px] capitalize',
+                      'inline-flex rounded px-1.5 py-px font-mono text-[10.5px]',
                       isPremium ? 'bg-mc-accent-soft text-mc-accent' : 'bg-mc-surface text-mc-text-muted',
                     )}
                   >
-                    {customer.customerType}
+                    {t(`customerType.${customer.customerType}`, { defaultValue: customer.customerType })}
                   </span>
                 }
               />
               <MetaRow
-                label="Last visit"
+                label={t('detail.sections.lastVisit')}
                 value={
                   <span className="inline-flex items-center gap-1 font-mono text-[11.5px] text-foreground">
                     <Clock className="h-3 w-3 text-mc-text-dim" />
@@ -189,10 +199,10 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
                 }
               />
               <MetaRow
-                label="Monthly visits"
+                label={t('detail.sections.monthlyVisits')}
                 value={
                   <span className="font-mono text-[11.5px] text-foreground">
-                    {customer.monthlyFrequency}/mo
+                    {t('detail.sections.monthlyValue', { count: customer.monthlyFrequency })}
                   </span>
                 }
                 last
@@ -205,12 +215,12 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
       {activeTab === 'visits' && (
         <div className="flex flex-col gap-2 px-4 py-3">
           <div className="text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Last 30 days
+            {t('detail.sections.last30Days')}
           </div>
           {visits.length === 0 ? (
             <div className="grid place-items-center gap-2 rounded-[8px] border border-dashed border-border bg-mc-surface px-4 py-6 text-center text-[11.5px] text-mc-text-muted">
               <Calendar className="h-4 w-4 text-mc-text-dim" />
-              No visits recorded in the last 30 days.
+              {t('detail.sections.noVisits')}
             </div>
           ) : (
             <div className="overflow-hidden rounded-[8px] border border-border bg-mc-elev">
@@ -227,13 +237,13 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
                       {driverName.get(v.driverId) ?? v.driverId.slice(0, 8)}
                     </div>
                     <div className="mt-px font-mono text-[10.5px] text-mc-text-dim">
-                      {format(new Date(v.time), 'd MMM HH:mm')} ·{' '}
+                      {format(new Date(v.time), 'd MMM HH:mm', { locale: dateLocale })} ·{' '}
                       <span className="capitalize">{v.visitType}</span>
                     </div>
                   </div>
                   <span
                     className={cn(
-                      'rounded px-1.5 py-px font-mono text-[10px] capitalize',
+                      'rounded px-1.5 py-px font-mono text-[10px]',
                       v.status === 'completed'
                         ? 'bg-[oklch(0.72_0.16_150/0.16)] text-[oklch(0.55_0.16_150)] dark:text-[oklch(0.85_0.18_150)]'
                         : v.status === 'failed'
@@ -241,7 +251,7 @@ export function CustomerDetailPanel({ customer, onClose }: Props) {
                           : 'bg-mc-surface text-mc-text-muted',
                     )}
                   >
-                    {v.status}
+                    {t(`detail.visitStatus.${v.status}`, { defaultValue: v.status })}
                   </span>
                 </div>
               ))}
@@ -291,4 +301,3 @@ function MetaRow({
     </div>
   );
 }
-

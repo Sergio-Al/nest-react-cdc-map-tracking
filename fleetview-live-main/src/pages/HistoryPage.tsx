@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePlaybackStore } from '@/stores/playback.store';
 import { useDriverHistory } from '@/hooks/api/useHistory';
 import { useDrivers } from '@/hooks/api/useDrivers';
@@ -29,6 +30,7 @@ export default function HistoryPage() {
 
   const { isConnected } = useSocket();
   const { data: drivers = [] } = useDrivers();
+  const { t } = useTranslation('history');
 
   // Fetch real driver history when all params are set
   const { data: driverHistory } = useDriverHistory(selectedDriverId, dateFrom, dateTo);
@@ -87,7 +89,7 @@ export default function HistoryPage() {
           <div className="flex h-9 shrink-0 items-center gap-1 border-b border-r border-border bg-background px-2">
             <button
               type="button"
-              title="Filter form"
+              title={t('page.filterTab')}
               onClick={() => setLeftPanel('filter')}
               className={cn(
                 'flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors',
@@ -100,7 +102,7 @@ export default function HistoryPage() {
             </button>
             <button
               type="button"
-              title="Trips list"
+              title={t('page.tripsTab')}
               onClick={() => setLeftPanel('trips')}
               className={cn(
                 'flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors',

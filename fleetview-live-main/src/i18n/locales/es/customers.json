@@ -1,0 +1,113 @@
+{
+  "page": {
+    "title": "Clientes",
+    "subtitle": "Gestiona el directorio de clientes · {{count}} en total",
+    "newCustomer": "Nuevo cliente"
+  },
+  "banner": {
+    "syncing": "<strong>{{names}}</strong> — sincronizando vía CDC, aparecerá en unos segundos."
+  },
+  "status": {
+    "active": "activo",
+    "inactive": "inactivo"
+  },
+  "table": {
+    "customer": "Cliente",
+    "category": "Categoría",
+    "type": "Tipo",
+    "contact": "Contacto",
+    "geofence": "Geocerca",
+    "lastVisit": "Última visita",
+    "status": "Estado",
+    "empty": "Ningún cliente coincide con estos filtros."
+  },
+  "dialog": {
+    "title": "Nuevo cliente",
+    "name": "Nombre",
+    "namePlaceholder": "Nombre del cliente o negocio",
+    "phone": "Teléfono",
+    "phonePlaceholder": "+591 …",
+    "email": "Correo",
+    "emailPlaceholder": "contacto@ejemplo.com",
+    "address": "Dirección",
+    "addressPlaceholder": "Dirección postal",
+    "location": "Ubicación · haz clic en el mapa para colocar el pin",
+    "noPinYet": "sin pin",
+    "geofenceLabel": "geocerca {{value}} m",
+    "geofenceField": "Radio de la geocerca",
+    "customerType": "Tipo de cliente",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "types": {
+      "retail": "Comercio",
+      "wholesale": "Mayorista",
+      "distributor": "Distribuidor",
+      "other": "Otro"
+    }
+  },
+  "categories": {
+    "restaurants": "Restaurantes",
+    "retail": "Comercio",
+    "healthcare": "Salud",
+    "industrial": "Industrial"
+  },
+  "customerType": {
+    "premium": "premium",
+    "standard": "estándar",
+    "retail": "comercio",
+    "wholesale": "mayorista",
+    "distributor": "distribuidor",
+    "other": "otro"
+  },
+  "toasts": {
+    "queued": "Cliente \"{{name}}\" en cola — aparecerá en breve vía sincronización CDC",
+    "createFailed": "No se pudo crear el cliente"
+  },
+  "detail": {
+    "empty": {
+      "title": "Ningún cliente seleccionado",
+      "subtitle": "Elige un cliente de la lista para ver contacto, geocerca y visitas recientes."
+    },
+    "tabs": {
+      "overview": "Resumen",
+      "visits": "Visitas"
+    },
+    "subtitle": {
+      "noAddress": "Sin dirección"
+    },
+    "statusBadge": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "actions": {
+      "edit": "Editar",
+      "deactivate": "Desactivar",
+      "activate": "Activar",
+      "notAvailable": "Endpoint del backend aún no disponible"
+    },
+    "sections": {
+      "location": "Ubicación",
+      "noCoordinates": "Sin coordenadas",
+      "geofence": "geocerca {{value}} m",
+      "contact": "Contacto",
+      "activity": "Actividad",
+      "derived": "derivada",
+      "type": "Tipo",
+      "lastVisit": "Última visita",
+      "monthlyVisits": "Visitas mensuales",
+      "monthlyValue": "{{count}}/mes",
+      "last30Days": "Últimos 30 días",
+      "noVisits": "Sin visitas registradas en los últimos 30 días."
+    },
+    "visitStatus": {
+      "completed": "completada",
+      "failed": "fallida",
+      "skipped": "omitida"
+    }
+  },
+  "lastVisitLabel": {
+    "today": "hoy",
+    "days": "{{count}}d",
+    "weeks": "{{count}}sem"
+  }
+}

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   TableBody,
@@ -20,6 +21,8 @@ function getLagColor(lag: number): string {
 }
 
 export function OffsetLagTable({ offsetLags }: Props) {
+  const { t, i18n } = useTranslation('monitoring');
+
   // Group by topic
   const topicGroups = offsetLags.reduce((acc, offset) => {
     if (!acc[offset.topic]) {
@@ -32,17 +35,17 @@ export function OffsetLagTable({ offsetLags }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Kafka Offset Lag</CardTitle>
+        <CardTitle>{t('offsetLag.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Topic</TableHead>
-              <TableHead className="text-center">Partition</TableHead>
-              <TableHead className="text-right">Latest</TableHead>
-              <TableHead className="text-right">Committed</TableHead>
-              <TableHead className="text-right">Lag</TableHead>
+              <TableHead>{t('offsetLag.topic')}</TableHead>
+              <TableHead className="text-center">{t('offsetLag.partition')}</TableHead>
+              <TableHead className="text-right">{t('offsetLag.latest')}</TableHead>
+              <TableHead className="text-right">{t('offsetLag.committed')}</TableHead>
+              <TableHead className="text-right">{t('offsetLag.lag')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -60,27 +63,27 @@ export function OffsetLagTable({ offsetLags }: Props) {
                     )}
                     <TableCell className="text-center">{offset.partition}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
-                      {Number(offset.latestOffset).toLocaleString()}
+                      {Number(offset.latestOffset).toLocaleString(i18n.language)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">
-                      {Number(offset.committedOffset).toLocaleString()}
+                      {Number(offset.committedOffset).toLocaleString(i18n.language)}
                     </TableCell>
                     <TableCell className={`text-right font-medium ${getLagColor(offset.lag)}`}>
-                      {offset.lag.toLocaleString()}
+                      {offset.lag.toLocaleString(i18n.language)}
                     </TableCell>
                   </TableRow>
                 ))}
                 {/* Total row for this topic */}
                 <TableRow className="bg-muted/50">
                   <TableCell colSpan={4} className="text-right font-medium">
-                    Total for {topic}:
+                    {t('offsetLag.totalFor', { topic })}
                   </TableCell>
                   <TableCell
                     className={`text-right font-bold ${getLagColor(
                       offsets.reduce((sum, o) => sum + o.lag, 0)
                     )}`}
                   >
-                    {offsets.reduce((sum, o) => sum + o.lag, 0).toLocaleString()}
+                    {offsets.reduce((sum, o) => sum + o.lag, 0).toLocaleString(i18n.language)}
                   </TableCell>
                 </TableRow>
               </>
@@ -88,7 +91,7 @@ export function OffsetLagTable({ offsetLags }: Props) {
             {offsetLags.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No offset lag data available
+                  {t('offsetLag.empty')}
                 </TableCell>
               </TableRow>
             )}

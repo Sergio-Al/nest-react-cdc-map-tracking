@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { DivIcon, LatLngExpression } from 'leaflet';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
 import 'leaflet/dist/leaflet.css';
 import { useMapStore } from '@/stores/map.store';
+import { useDateLocale } from '@/i18n/useDateLocale';
 import { MapControls } from './MapControls';
 import { getDriverStatus, speedKmh, statusColorVar } from '@/lib/driverStatus';
 import { formatDistanceToNow } from 'date-fns';
@@ -47,6 +49,8 @@ export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapPro
   const positionsArray = Object.values(positions);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const { t } = useTranslation('dashboard');
+  const dateLocale = useDateLocale();
 
   const defaultCenter: LatLngExpression = [-16.5, -68.1];
   const defaultZoom = 12;
@@ -118,36 +122,42 @@ export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapPro
                   <h3 className="mb-1 text-sm font-bold">{position.driverName}</h3>
                   <div className="space-y-1 text-xs">
                     <p>
-                      <span className="font-medium">Speed:</span> {speedKmh(position.speed)} km/h
+                      <span className="font-medium">{t('map.popup.speed')}:</span> {speedKmh(position.speed)} {t('stats.units.kmh')}
                     </p>
                     <p>
-                      <span className="font-medium">Status:</span>{' '}
+                      <span className="font-medium">{t('map.popup.status')}:</span>{' '}
                       <span
                         className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
                         style={{ background: statusColorVar(status) }}
                       />
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {t(`panel.status.${status}`)}
                     </p>
                     {position.nextCustomerName && (
                       <>
                         <p>
-                          <span className="font-medium">Next Stop:</span> {position.nextCustomerName}
+                          <span className="font-medium">{t('map.popup.nextStop')}:</span> {position.nextCustomerName}
                         </p>
                         {position.distanceToNextM != null && (
                           <p>
-                            <span className="font-medium">Distance:</span>{' '}
-                            {(position.distanceToNextM / 1000).toFixed(2)} km
+                            <span className="font-medium">{t('map.popup.distance')}:</span>{' '}
+                            {(position.distanceToNextM / 1000).toFixed(2)} {t('stats.units.km')}
                           </p>
                         )}
                         {position.etaToNextSec != null && (
                           <p>
-                            <span className="font-medium">ETA:</span> {Math.round(position.etaToNextSec / 60)} min
+                            <span className="font-medium">{t('map.popup.eta')}:</span>{' '}
+                            {t('map.popup.etaMinutes', { minutes: Math.round(position.etaToNextSec / 60) })}
                           </p>
                         )}
                       </>
                     )}
                     <p className="mt-2 text-[10px] text-muted-foreground">
-                      Updated {formatDistanceToNow(new Date(position.time), { addSuffix: true })}
+                      {t('map.popup.updated', {
+                        relative: formatDistanceToNow(new Date(position.time), {
+                          addSuffix: true,
+                          locale: dateLocale,
+                        }),
+                      })}
                     </p>
                   </div>
                 </div>

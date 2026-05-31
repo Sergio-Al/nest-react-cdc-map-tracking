@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import { DivIcon, LatLngExpression, LatLngBounds } from 'leaflet';
 import * as L from 'leaflet';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
 import { ZoomIn, ZoomOut, Locate, Navigation, Layers } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import type { PlannedVisit } from '@/types/visit.types';
@@ -91,6 +92,7 @@ function CtrlButton({
 function RouteMapControls({ fit }: { fit: LatLngExpression[] }) {
   const map = useMap();
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation('routes');
 
   useEffect(() => {
     if (!ref.current) return;
@@ -108,30 +110,38 @@ function RouteMapControls({ fit }: { fit: LatLngExpression[] }) {
   return (
     <div ref={ref} className="absolute right-3.5 top-3.5 z-[1000] flex flex-col gap-1.5">
       <div className={cn(cell, 'flex flex-col')}>
-        <CtrlButton label="Zoom in" onClick={() => map.zoomIn()}><ZoomIn className="h-4 w-4" /></CtrlButton>
+        <CtrlButton label={t('map.controls.zoomIn')} onClick={() => map.zoomIn()}><ZoomIn className="h-4 w-4" /></CtrlButton>
         <div className="h-px bg-border" />
-        <CtrlButton label="Zoom out" onClick={() => map.zoomOut()}><ZoomOut className="h-4 w-4" /></CtrlButton>
+        <CtrlButton label={t('map.controls.zoomOut')} onClick={() => map.zoomOut()}><ZoomOut className="h-4 w-4" /></CtrlButton>
       </div>
-      <div className={cell}><CtrlButton label="Fit route" onClick={recenter}><Locate className="h-4 w-4" /></CtrlButton></div>
-      <div className={cell}><CtrlButton label="Recenter" onClick={recenter}><Navigation className="h-4 w-4" /></CtrlButton></div>
-      <div className={cell}><CtrlButton label="Layers"><Layers className="h-4 w-4" /></CtrlButton></div>
+      <div className={cell}><CtrlButton label={t('map.controls.fitRoute')} onClick={recenter}><Locate className="h-4 w-4" /></CtrlButton></div>
+      <div className={cell}><CtrlButton label={t('map.controls.recenter')} onClick={recenter}><Navigation className="h-4 w-4" /></CtrlButton></div>
+      <div className={cell}><CtrlButton label={t('map.controls.layers')}><Layers className="h-4 w-4" /></CtrlButton></div>
     </div>
   );
 }
 
 function ZeroState({ onOpenPalette }: { onOpenPalette: () => void }) {
+  const { t } = useTranslation('routes');
   const rows: { label: React.ReactNode; keys: string[] }[] = [
-    { label: 'Open the palette', keys: ['⌘', 'K'] },
-    { label: 'Click any pin on the map', keys: ['Click'] },
-    { label: <><span className="font-semibold text-foreground">Optimize</span> when you have 3+ stops</>, keys: ['⌘', 'O'] },
+    { label: t('map.zeroState.rows.openPalette'), keys: ['⌘', 'K'] },
+    { label: t('map.zeroState.rows.clickPin'), keys: [t('map.zeroState.rows.clickKey')] },
+    {
+      label: (
+        <>
+          <span className="font-semibold text-foreground">{t('sidebar.actions.optimize')}</span>{' '}
+          {t('map.zeroState.rows.optimizeHint')}
+        </>
+      ),
+      keys: ['⌘', 'O'],
+    },
   ];
   return (
     <div className="pointer-events-none absolute inset-0 z-[1100] flex items-center justify-center">
       <div className="pointer-events-auto w-[380px] max-w-[80%] rounded-mc-lg border border-mc-border-strong bg-mc-elev/95 p-5 shadow-mc-float backdrop-blur">
-        <h3 className="text-[15px] font-semibold text-foreground">Start building the route</h3>
+        <h3 className="text-[15px] font-semibold text-foreground">{t('map.zeroState.title')}</h3>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-mc-text-muted">
-          Click a customer pin on the map, search via the command palette, or pick from a list of
-          frequent stops to begin.
+          {t('map.zeroState.body')}
         </p>
         <div className="mt-4 space-y-px overflow-hidden rounded-mc border border-border">
           {rows.map((r, i) => (
@@ -170,6 +180,7 @@ export function RouteBuilderMap({
 }: RouteBuilderMapProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const { t, i18n } = useTranslation('routes');
 
   const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const visitCustomerIds = useMemo(() => new Set(visits.map((v) => v.customerId)), [visits]);
@@ -243,7 +254,7 @@ export function RouteBuilderMap({
                   onClick={() => onQuickAdd(c.id)}
                   className="mt-2 w-full rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground"
                 >
-                  + Add stop
+                  {t('map.addStop')}
                 </button>
               </div>
             </Popup>
@@ -270,8 +281,8 @@ export function RouteBuilderMap({
           <Marker position={depotPosition} icon={depotIcon}>
             <Popup>
               <div className="min-w-[140px] p-1">
-                <h3 className="text-sm font-bold">Depot</h3>
-                <p className="mt-0.5 text-xs text-gray-500">Start &amp; end of route</p>
+                <h3 className="text-sm font-bold">{t('map.depot.title')}</h3>
+                <p className="mt-0.5 text-xs text-gray-500">{t('map.depot.subtitle')}</p>
               </div>
             </Popup>
           </Marker>
@@ -284,9 +295,15 @@ export function RouteBuilderMap({
               <div className="min-w-[180px] p-1">
                 <h3 className="text-sm font-bold">#{idx + 1} {vp.customer.name}</h3>
                 {vp.customer.address && <p className="mt-0.5 text-xs text-gray-500">{vp.customer.address}</p>}
-                <p className="mt-1 text-xs"><span className="font-medium">Status:</span> {vp.visit.status.replace('_', ' ')}</p>
+                <p className="mt-1 text-xs">
+                  <span className="font-medium">{t('map.popup.status')}:</span>{' '}
+                  {t(`map.popup.statusValues.${vp.visit.status}`, { defaultValue: vp.visit.status.replace('_', ' ') })}
+                </p>
                 {vp.visit.estimatedArrivalTime && (
-                  <p className="text-xs"><span className="font-medium">ETA:</span> {new Date(vp.visit.estimatedArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs">
+                    <span className="font-medium">{t('map.popup.eta')}:</span>{' '}
+                    {new Date(vp.visit.estimatedArrivalTime).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 )}
               </div>
             </Popup>

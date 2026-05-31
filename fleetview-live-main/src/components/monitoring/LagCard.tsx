@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LagSparkline } from './LagSparkline';
@@ -7,17 +8,9 @@ interface Props {
   metrics: TableMetrics;
 }
 
-function formatTimestamp(ts: number | null): string {
-  if (!ts) return 'Never';
-  const seconds = Math.floor((Date.now() - ts) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  return `${Math.floor(seconds / 3600)}h ago`;
-}
+function formatLag(lagMs: number | null): { text: string; color: string; key?: 'na' } {
+  if (lagMs === null) return { text: '', color: 'text-muted-foreground', key: 'na' };
 
-function formatLag(lagMs: number | null): { text: string; color: string } {
-  if (lagMs === null) return { text: 'N/A', color: 'text-muted-foreground' };
-  
   if (lagMs < 1000) {
     return { text: `${lagMs}ms`, color: 'text-green-600' };
   } else if (lagMs < 5000) {
@@ -29,25 +22,37 @@ function formatLag(lagMs: number | null): { text: string; color: string } {
   }
 }
 
-function getOpBadge(op: string | null): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
-  if (!op) return { label: 'N/A', variant: 'outline' };
+function opBadgeVariant(op: string | null): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (!op) return 'outline';
   switch (op) {
-    case 'c':
-      return { label: 'CREATE', variant: 'default' };
-    case 'u':
-      return { label: 'UPDATE', variant: 'secondary' };
-    case 'd':
-      return { label: 'DELETE', variant: 'destructive' };
-    case 'r':
-      return { label: 'READ', variant: 'outline' };
-    default:
-      return { label: op.toUpperCase(), variant: 'outline' };
+    case 'c': return 'default';
+    case 'u': return 'secondary';
+    case 'd': return 'destructive';
+    case 'r': return 'outline';
+    default: return 'outline';
   }
 }
 
 export function LagCard({ metrics }: Props) {
+  const { t, i18n } = useTranslation('monitoring');
+
+  const formatTimestamp = (ts: number | null): string => {
+    if (!ts) return t('lagCard.never');
+    const seconds = Math.floor((Date.now() - ts) / 1000);
+    if (seconds < 60) return t('lagCard.secondsAgo', { count: seconds });
+    if (seconds < 3600) return t('lagCard.minutesAgo', { count: Math.floor(seconds / 60) });
+    return t('lagCard.hoursAgo', { count: Math.floor(seconds / 3600) });
+  };
+
+  const opLabel = (op: string | null): string => {
+    if (!op) return t('lagCard.na');
+    const key = `lagCard.ops.${op}`;
+    return t(key, { defaultValue: op.toUpperCase() });
+  };
+
   const lag = formatLag(metrics.lastEndToEndLagMs);
-  const opBadge = getOpBadge(metrics.lastOp);
+  const lagText = lag.key === 'na' ? t('lagCard.na') : lag.text;
+  const opVariant = opBadgeVariant(metrics.lastOp);
 
   return (
     <Card>
@@ -59,7 +64,7 @@ export function LagCard({ metrics }: Props) {
           </div>
           {metrics.errorsCount > 0 && (
             <Badge variant="destructive" className="text-xs">
-              {metrics.errorsCount} errors
+              {t('lagCard.errors', { count: metrics.errorsCount })}
             </Badge>
           )}
         </div>
@@ -67,27 +72,27 @@ export function LagCard({ metrics }: Props) {
       <CardContent className="space-y-3">
         {/* Current Lag */}
         <div>
-          <div className={`text-2xl font-bold ${lag.color}`}>{lag.text}</div>
-          <div className="text-xs text-muted-foreground">End-to-end lag</div>
+          <div className={`text-2xl font-bold ${lag.color}`}>{lagText}</div>
+          <div className="text-xs text-muted-foreground">{t('lagCard.endToEndLag')}</div>
         </div>
 
         {/* Events Counter */}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Events processed:</span>
-          <span className="font-medium">{metrics.eventsProcessed.toLocaleString()}</span>
+          <span className="text-muted-foreground">{t('lagCard.eventsProcessed')}</span>
+          <span className="font-medium">{metrics.eventsProcessed.toLocaleString(i18n.language)}</span>
         </div>
 
         {/* Last Operation */}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Last operation:</span>
-          <Badge variant={opBadge.variant} className="text-xs">
-            {opBadge.label}
+          <span className="text-muted-foreground">{t('lagCard.lastOperation')}</span>
+          <Badge variant={opVariant} className="text-xs">
+            {opLabel(metrics.lastOp)}
           </Badge>
         </div>
 
         {/* Last Event Time */}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Last event:</span>
+          <span className="text-muted-foreground">{t('lagCard.lastEvent')}</span>
           <span className="font-medium">{formatTimestamp(metrics.lastProcessedAt)}</span>
         </div>
 
@@ -99,7 +104,7 @@ export function LagCard({ metrics }: Props) {
         {/* Last Error */}
         {metrics.lastError && (
           <div className="pt-2 border-t">
-            <div className="text-xs text-red-600 font-medium">Last Error:</div>
+            <div className="text-xs text-red-600 font-medium">{t('lagCard.lastError')}</div>
             <div className="text-xs text-muted-foreground truncate mt-1" title={metrics.lastError}>
               {metrics.lastError}
             </div>

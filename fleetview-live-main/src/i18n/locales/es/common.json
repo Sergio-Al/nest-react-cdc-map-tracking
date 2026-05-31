@@ -1,0 +1,60 @@
+{
+  "filters": {
+    "addFilter": "Añadir filtro",
+    "newView": "+ Nueva vista",
+    "saveViewTitle": "Guardar filtros actuales como vista",
+    "viewNamePlaceholder": "Nombre de la vista",
+    "saveView": "Guardar vista",
+    "deleteView": "Eliminar vista",
+    "demoData": "datos de demo",
+    "search": "Buscar…",
+    "noOptions": "Sin opciones",
+    "value": "valor",
+    "and": "y",
+    "cancel": "Cancelar",
+    "update": "Actualizar",
+    "operators": {
+      "any_of": "es alguno de",
+      "not_any_of": "no es",
+      "lt": "<",
+      "lte": "≤",
+      "eq": "=",
+      "gte": "≥",
+      "gt": ">",
+      "between": "entre"
+    }
+  },
+  "actions": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "create": "Crear",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "search": "Buscar"
+  },
+  "language": {
+    "label": "Idioma",
+    "es": "Español",
+    "en": "English"
+  },
+  "theme": {
+    "label": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "states": {
+    "empty": "Sin resultados",
+    "error": "Ocurrió un error",
+    "loading": "Cargando…"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "La ruta solicitada no existe.",
+    "back": "Volver al inicio"
+  }
+}

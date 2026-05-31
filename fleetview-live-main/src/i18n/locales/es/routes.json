@@ -1,0 +1,161 @@
+{
+  "page": {
+    "fleet": "Flota",
+    "routes": "Rutas",
+    "builder": "Editor",
+    "findCustomer": "Buscar cliente para añadir…",
+    "filters": "Filtros"
+  },
+  "sidebar": {
+    "title": "Editor de rutas",
+    "subtitle": "Selecciona una ruta para editar",
+    "new": "Nueva",
+    "back": "Volver a rutas",
+    "unknownDriver": "Conductor desconocido",
+    "depot": "Depósito",
+    "depotStart": "salida {{time}}",
+    "depotReturn": "regreso",
+    "depotReturnEta": "regreso · ETA {{eta}}",
+    "depotTagOrigin": "origen",
+    "depotTagEnd": "fin",
+    "addStop": "Añadir parada",
+    "actions": {
+      "optimize": "Optimizar",
+      "save": "Guardar",
+      "stop": "Parada"
+    },
+    "stats": {
+      "distance": "Distancia",
+      "duration": "Duración",
+      "stops": "Paradas"
+    },
+    "status": {
+      "draft": "borrador",
+      "planned": "planificada",
+      "in_progress": "en progreso",
+      "completed": "completada",
+      "cancelled": "cancelada"
+    }
+  },
+  "selector": {
+    "empty": "Aún no hay rutas. Crea una para comenzar.",
+    "stops": "{{count}} paradas",
+    "statusBadge": {
+      "planned": "Planificada",
+      "in_progress": "En progreso",
+      "completed": "Completada",
+      "cancelled": "Cancelada"
+    }
+  },
+  "createDialog": {
+    "title": "Crear ruta",
+    "driver": "Conductor",
+    "driverPlaceholder": "Selecciona un conductor",
+    "scheduledDate": "Fecha programada",
+    "cancel": "Cancelar",
+    "create": "Crear"
+  },
+  "visitCard": {
+    "customerFallback": "Cliente #{{id}}",
+    "remove": "Quitar parada",
+    "noStops": {
+      "title": "Aún sin paradas",
+      "body": "Añade una parada para empezar a construir la ruta"
+    }
+  },
+  "map": {
+    "controls": {
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitRoute": "Ajustar a la ruta",
+      "recenter": "Centrar",
+      "layers": "Capas"
+    },
+    "depot": {
+      "title": "Depósito",
+      "subtitle": "Inicio y fin de la ruta"
+    },
+    "addStop": "+ Añadir parada",
+    "popup": {
+      "status": "Estado",
+      "eta": "ETA",
+      "statusValues": {
+        "pending": "pendiente",
+        "in_progress": "en progreso",
+        "completed": "completada",
+        "cancelled": "cancelada",
+        "skipped": "omitida"
+      }
+    },
+    "zeroState": {
+      "title": "Empieza a construir la ruta",
+      "body": "Haz clic en un pin de cliente, busca con la paleta de comandos o elige de la lista de paradas frecuentes para comenzar.",
+      "rows": {
+        "openPalette": "Abrir la paleta",
+        "clickPin": "Haz clic en cualquier pin del mapa",
+        "optimizeHint": "Optimizar cuando tengas 3+ paradas",
+        "clickKey": "Clic"
+      }
+    }
+  },
+  "toasts": {
+    "stopAdded": "Parada añadida",
+    "stopsAdded_one": "{{count}} parada añadida",
+    "stopsAdded_other": "{{count}} paradas añadidas",
+    "addFailed": "No se pudo añadir la parada",
+    "optimized": "Ruta optimizada",
+    "optimizeFailed": "No se pudo optimizar la ruta",
+    "orderSaved": "Orden guardado",
+    "saveFailed": "No se pudo guardar el orden",
+    "stopRemoved": "Parada eliminada",
+    "removeFailed": "No se pudo eliminar la parada",
+    "routeCreated": "Ruta creada",
+    "createFailed": "No se pudo crear la ruta"
+  },
+  "palette": {
+    "searchPlaceholder": "Busca clientes por nombre o dirección…",
+    "chips": {
+      "all": "Todos",
+      "recent": "Recientes",
+      "frequent": "Frecuentes",
+      "near": "Cerca de la ruta"
+    },
+    "categories": {
+      "restaurants": "Restaurantes",
+      "retail": "Comercio",
+      "healthcare": "Salud",
+      "industrial": "Industrial"
+    },
+    "noResults": "Ningún cliente coincide.",
+    "sections": {
+      "matching": "Coincidencias",
+      "suggested": "Sugeridos cerca de la ruta"
+    },
+    "urgency": {
+      "urgent": "Urgente",
+      "priority": "Prioridad"
+    },
+    "lastVisit": "última visita {{label}}",
+    "lastVisitLabel": {
+      "today": "hoy",
+      "days": "{{count}}d",
+      "weeks": "{{count}}sem"
+    },
+    "monthlyFrequency": "{{count}}× /mes",
+    "window": {
+      "anytime": "Cualquier hora",
+      "morning": "Mañana",
+      "afternoon": "Tarde",
+      "evening": "Noche"
+    },
+    "windowLabel": "Ventana",
+    "footer": {
+      "navigate": "navegar",
+      "addCount": "añadir",
+      "addCountN": "añadir {{count}}",
+      "addAndNew": "añadir y nuevo",
+      "selectAll": "seleccionar todos",
+      "customers": "{{count}} clientes"
+    }
+  }
+}

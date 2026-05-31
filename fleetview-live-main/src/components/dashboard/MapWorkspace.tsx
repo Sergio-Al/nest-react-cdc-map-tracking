@@ -1,5 +1,6 @@
 import { Search, SlidersHorizontal, Plus, PanelLeftOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { Driver } from "@/types/driver.types";
 import type { EnrichedPosition } from "@/types/position.types";
 import { TrackingMap } from "./TrackingMap";
@@ -10,8 +11,6 @@ import { useDashboardStore } from "@/stores/dashboard.store";
 import { Button } from "@/components/ui/button";
 
 type DriverWithPosition = Driver & { position?: EnrichedPosition };
-
-const CITY = "La Paz, Bolivia";
 
 function initials(name: string): string {
   return name.split(" ").map((n) => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -26,22 +25,23 @@ function WorkspaceHead({
   onNewRoute: () => void;
   onOpenInbox: () => void;
 }) {
+  const { t } = useTranslation("dashboard");
   return (
     <div className="flex h-11 shrink-0 items-center gap-2.5 border-b border-border px-3.5">
       <button
         type="button"
-        aria-label="Open fleet inbox"
+        aria-label={t("workspace.openInbox")}
         onClick={onOpenInbox}
         className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground lg:hidden"
       >
         <PanelLeftOpen className="h-4 w-4" />
       </button>
       <nav className="flex items-center gap-1.5 text-[13px]">
-        <span className="text-muted-foreground">Fleet</span>
+        <span className="text-muted-foreground">{t("workspace.fleet")}</span>
         <span className="text-mc-text-dim">/</span>
-        <span className="font-medium">Live operations</span>
+        <span className="font-medium">{t("workspace.liveOps")}</span>
       </nav>
-      <span className="font-mono text-[11.5px] text-muted-foreground">· {CITY}</span>
+      <span className="font-mono text-[11.5px] text-muted-foreground">· {t("city")}</span>
 
       <div className="ml-auto flex items-center gap-2">
         <button
@@ -50,16 +50,16 @@ function WorkspaceHead({
           className="hidden h-7 w-[260px] items-center gap-2 rounded-[7px] border border-border bg-background px-2.5 text-xs text-muted-foreground transition-colors hover:border-mc-border-strong lg:flex"
         >
           <Search className="h-3.5 w-3.5" />
-          <span className="flex-1 text-left">Quick search…</span>
+          <span className="flex-1 text-left">{t("workspace.quickSearch")}</span>
           <kbd className="rounded border border-border bg-mc-elev px-1.5 font-mono text-[10.5px]">⌘K</kbd>
         </button>
         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          {t("workspace.filters")}
         </Button>
         <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={onNewRoute}>
           <Plus className="h-3.5 w-3.5" />
-          New route
+          {t("workspace.newRoute")}
         </Button>
       </div>
     </div>
@@ -67,6 +67,7 @@ function WorkspaceHead({
 }
 
 function NowTrackingChip({ driver }: { driver?: DriverWithPosition }) {
+  const { t } = useTranslation("dashboard");
   if (!driver) return null;
   const color = statusColorVar(getDriverStatus(driver.position));
 
@@ -80,7 +81,7 @@ function NowTrackingChip({ driver }: { driver?: DriverWithPosition }) {
           {initials(driver.name)}
         </span>
         <span className="h-1.5 w-1.5 rounded-full animate-livepulse" style={{ background: color }} />
-        <span className="text-[11px] text-muted-foreground">Now tracking</span>
+        <span className="text-[11px] text-muted-foreground">{t("workspace.nowTracking")}</span>
         <span className="text-[12px] font-medium">{driver.name}</span>
         {driver.vehiclePlate && (
           <span className="font-mono text-[11px] text-mc-text-dim">· {driver.vehiclePlate}</span>
@@ -91,12 +92,13 @@ function NowTrackingChip({ driver }: { driver?: DriverWithPosition }) {
 }
 
 function MiniStatsCard({ stats }: { stats: FleetStats }) {
+  const { t } = useTranslation("dashboard");
   const cells: { label: string; value: string | number; unit?: string }[] = [
-    { label: "Active", value: `${stats.activeMoving}/${stats.activeTotal}` },
-    { label: "Avg speed", value: stats.avgSpeedKmh, unit: "km/h" },
-    { label: "Visits", value: stats.visitsToday, unit: "today" },
-    { label: "Distance", value: stats.distanceKm, unit: "km" },
-    { label: "On-time", value: `${stats.onTimePct}%` },
+    { label: t("stats.active"), value: `${stats.activeMoving}/${stats.activeTotal}` },
+    { label: t("stats.avgSpeed"), value: stats.avgSpeedKmh, unit: t("stats.units.kmh") },
+    { label: t("stats.visits"), value: stats.visitsToday, unit: t("stats.units.today") },
+    { label: t("stats.distance"), value: stats.distanceKm, unit: t("stats.units.km") },
+    { label: t("stats.onTime"), value: `${stats.onTimePct}%` },
   ];
 
   return (

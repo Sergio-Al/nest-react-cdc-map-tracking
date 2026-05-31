@@ -1,0 +1,8 @@
+{
+  "generic": "Ocurrió un error inesperado",
+  "network": "No se pudo conectar con el servidor",
+  "unauthorized": "Sesión expirada. Inicia sesión nuevamente.",
+  "forbidden": "No tienes permiso para esta acción",
+  "notFound": "Recurso no encontrado",
+  "validation": "Revisa los datos ingresados"
+}

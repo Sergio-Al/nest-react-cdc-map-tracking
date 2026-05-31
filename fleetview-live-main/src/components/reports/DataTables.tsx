@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { exportToCsv } from '@/lib/utils';
 import { useReportsStore } from '@/stores/reports.store';
@@ -12,6 +13,7 @@ import { initialsOf } from '@/hooks/api/useReports';
 import { useRegisterExporter } from '@/hooks/useReportExporter';
 import { FilterBar, useDatasetFilters } from '@/components/filters';
 import { TableShell, Td } from '@/components/ui/table-shell';
+import { useDateLocale } from '@/i18n/useDateLocale';
 import {
   VISIT_FIELDS,
   VISIT_VIEWS,
@@ -37,12 +39,6 @@ function Tag({ status, label }: { status: StatusKind; label: string }) {
   );
 }
 
-function fmtDateTime(value: string): string {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('es-BO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
 const VISIT_STATUS: Record<string, StatusKind> = {
   completed: 'completed',
   failed: 'missed',
@@ -56,6 +52,19 @@ export function VisitsTab() {
   const { data: visits = [], isLoading } = useVisitCompletions(from, to);
   const { data: drivers = [] } = useDrivers();
   const { data: customers = [] } = useCustomers();
+  const { t, i18n } = useTranslation('reports');
+  const dateLocale = useDateLocale();
+
+  const fmtDateTime = (value: string): string => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleString(i18n.language, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   const driverName = useMemo(() => new Map(drivers.map((d) => [d.id, d.name])), [drivers]);
   const custName = useMemo(() => new Map(customers.map((c) => [c.id, c.name])), [customers]);
@@ -74,24 +83,26 @@ export function VisitsTab() {
 
   const onExport = useCallback(() => {
     if (ds.filtered.length === 0) {
-      toast.info('No visits to export');
+      toast.info(t('exportToasts.noVisits'));
       return;
     }
     exportToCsv(
       ds.filtered.map((v) => ({
-        'Fecha/Hora': v.time,
-        Conductor: v.driverName,
-        Cliente: v.customerName,
-        Tipo: v.visitType,
-        Estado: v.status,
-        'Duración (s)': v.durationSec ?? '',
-        Puntual: v.onTime ? 'Sí' : 'No',
+        [t('csvHeaders.dateTime')]: v.time,
+        [t('csvHeaders.driver')]: v.driverName,
+        [t('csvHeaders.customer')]: v.customerName,
+        [t('csvHeaders.type')]: v.visitType,
+        [t('csvHeaders.status')]: v.status,
+        [t('csvHeaders.durationSec')]: v.durationSec ?? '',
+        [t('csvHeaders.onTime')]: v.onTime ? t('csvHeaders.yes') : t('csvHeaders.no'),
       })),
-      'visitas',
+      t('csvHeaders.visitas'),
     );
-    toast.success(`Exported ${ds.filtered.length} visits`);
-  }, [ds.filtered]);
+    toast.success(t('exportToasts.exportedVisits', { count: ds.filtered.length }));
+  }, [ds.filtered, t]);
   useRegisterExporter(onExport);
+
+  void dateLocale;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -108,17 +119,17 @@ export function VisitsTab() {
       />
       <TableShell
         headers={[
-          { label: 'Date / Time' },
-          { label: 'Driver' },
-          { label: 'Customer' },
-          { label: 'Type' },
-          { label: 'Status' },
-          { label: 'Duration', num: true },
-          { label: 'On-time' },
+          { label: t('tables.visits.dateTime') },
+          { label: t('tables.visits.driver') },
+          { label: t('tables.visits.customer') },
+          { label: t('tables.visits.type') },
+          { label: t('tables.visits.status') },
+          { label: t('tables.visits.duration'), num: true },
+          { label: t('tables.visits.onTime') },
         ]}
         count={ds.filtered.length}
         isLoading={isLoading}
-        emptyMessage="No visits match these filters."
+        emptyMessage={t('tables.visits.empty')}
         onExport={onExport}
       >
         {ds.filtered.map((v, i) => (
@@ -135,7 +146,11 @@ export function VisitsTab() {
           <Td>{v.customerName}</Td>
           <Td muted><span className="capitalize">{v.visitType}</span></Td>
           <Td><Tag status={VISIT_STATUS[v.status] ?? 'planned'} label={v.status} /></Td>
-          <Td num>{v.durationSec != null ? `${Math.round(v.durationSec / 60)} min` : '—'}</Td>
+          <Td num>
+            {v.durationSec != null
+              ? t('tables.visits.minutes', { minutes: Math.round(v.durationSec / 60) })
+              : '—'}
+          </Td>
           <Td>
             {v.onTime ? (
               <span className="text-[oklch(0.55_0.16_150)] dark:text-[oklch(0.78_0.16_150)]">✓</span>
@@ -155,6 +170,7 @@ export function VehiclesTab() {
   const { data: vehicles = [], isLoading } = useVehicles();
   const { data: drivers = [] } = useDrivers();
   const driverName = useMemo(() => new Map(drivers.map((d) => [d.id, d.name])), [drivers]);
+  const { t } = useTranslation('reports');
 
   const rows = useMemo<VehicleRow[]>(
     () =>
@@ -169,24 +185,24 @@ export function VehiclesTab() {
 
   const onExport = useCallback(() => {
     if (ds.filtered.length === 0) {
-      toast.info('No vehicles to export');
+      toast.info(t('exportToasts.noVehicles'));
       return;
     }
     exportToCsv(
       ds.filtered.map((v) => ({
-        Placa: v.plate,
-        Tipo: v.type,
-        Marca: v.brand ?? '',
-        Modelo: v.model ?? '',
-        Año: v.year ?? '',
-        'Capacidad (kg)': v.capacityKg ?? '',
-        Estado: v.status,
-        Conductor: v.driverName,
+        [t('csvHeaders.plate')]: v.plate,
+        [t('csvHeaders.type')]: v.type,
+        [t('csvHeaders.brand')]: v.brand ?? '',
+        [t('csvHeaders.model')]: v.model ?? '',
+        [t('csvHeaders.year')]: v.year ?? '',
+        [t('csvHeaders.capacityKg')]: v.capacityKg ?? '',
+        [t('csvHeaders.status')]: v.status,
+        [t('csvHeaders.driver')]: v.driverName,
       })),
-      'vehiculos',
+      t('csvHeaders.vehiculos'),
     );
-    toast.success(`Exported ${ds.filtered.length} vehicles`);
-  }, [ds.filtered]);
+    toast.success(t('exportToasts.exportedVehicles', { count: ds.filtered.length }));
+  }, [ds.filtered, t]);
   useRegisterExporter(onExport);
 
   return (
@@ -204,17 +220,17 @@ export function VehiclesTab() {
       />
       <TableShell
         headers={[
-          { label: 'Plate' },
-          { label: 'Type' },
-          { label: 'Brand / Model' },
-          { label: 'Year', num: true },
-          { label: 'Capacity', num: true },
-          { label: 'Status' },
-          { label: 'Driver' },
+          { label: t('tables.vehicles.plate') },
+          { label: t('tables.vehicles.type') },
+          { label: t('tables.vehicles.brandModel') },
+          { label: t('tables.vehicles.year'), num: true },
+          { label: t('tables.vehicles.capacity'), num: true },
+          { label: t('tables.vehicles.status') },
+          { label: t('tables.vehicles.driver') },
         ]}
         count={ds.filtered.length}
         isLoading={isLoading}
-        emptyMessage="No vehicles match these filters."
+        emptyMessage={t('tables.vehicles.empty')}
         onExport={onExport}
       >
         {ds.filtered.map((v) => (
@@ -224,7 +240,12 @@ export function VehiclesTab() {
           <Td>{[v.brand, v.model].filter(Boolean).join(' ') || '—'}</Td>
           <Td num>{v.year ?? '—'}</Td>
           <Td num>{v.capacityKg != null ? `${v.capacityKg} kg` : '—'}</Td>
-          <Td><Tag status={v.status === 'active' ? 'completed' : 'cancelled'} label={v.status} /></Td>
+          <Td>
+            <Tag
+              status={v.status === 'active' ? 'completed' : 'cancelled'}
+              label={t(`tables.vehicles.${v.status === 'active' ? 'active' : 'inactive'}`)}
+            />
+          </Td>
           <Td muted>{v.driverName || '—'}</Td>
         </tr>
         ))}
@@ -236,27 +257,28 @@ export function VehiclesTab() {
 // ─── Customers ─────────────────────────────────────────────
 export function CustomersTab() {
   const { data: customers = [], isLoading } = useCustomers();
+  const { t } = useTranslation('reports');
 
   const ds = useDatasetFilters('customers', customers, CUSTOMER_FIELDS, CUSTOMER_VIEWS);
 
   const onExport = useCallback(() => {
     if (ds.filtered.length === 0) {
-      toast.info('No customers to export');
+      toast.info(t('exportToasts.noCustomers'));
       return;
     }
     exportToCsv(
       ds.filtered.map((c) => ({
-        Nombre: c.name,
-        Tipo: c.customerType,
-        Teléfono: c.phone ?? '',
-        Dirección: c.address ?? '',
-        'Geocerca (m)': c.geofenceRadiusMeters,
-        Activo: c.active ? 'Sí' : 'No',
+        [t('csvHeaders.name')]: c.name,
+        [t('csvHeaders.type')]: c.customerType,
+        [t('csvHeaders.phone')]: c.phone ?? '',
+        [t('csvHeaders.address')]: c.address ?? '',
+        [t('csvHeaders.geofenceM')]: c.geofenceRadiusMeters,
+        [t('csvHeaders.active')]: c.active ? t('csvHeaders.yes') : t('csvHeaders.no'),
       })),
-      'clientes',
+      t('csvHeaders.clientes'),
     );
-    toast.success(`Exported ${ds.filtered.length} customers`);
-  }, [ds.filtered]);
+    toast.success(t('exportToasts.exportedCustomers', { count: ds.filtered.length }));
+  }, [ds.filtered, t]);
   useRegisterExporter(onExport);
 
   return (
@@ -274,16 +296,16 @@ export function CustomersTab() {
       />
       <TableShell
         headers={[
-          { label: 'Customer' },
-          { label: 'Type' },
-          { label: 'Phone' },
-          { label: 'Address' },
-          { label: 'Geofence', num: true },
-          { label: 'Status' },
+          { label: t('tables.customers.customer') },
+          { label: t('tables.customers.type') },
+          { label: t('tables.customers.phone') },
+          { label: t('tables.customers.address') },
+          { label: t('tables.customers.geofence'), num: true },
+          { label: t('tables.customers.status') },
         ]}
         count={ds.filtered.length}
         isLoading={isLoading}
-        emptyMessage="No customers match these filters."
+        emptyMessage={t('tables.customers.empty')}
         onExport={onExport}
       >
         {ds.filtered.map((c) => (
@@ -293,7 +315,12 @@ export function CustomersTab() {
           <Td muted><span className="font-mono text-[11.5px]">{c.phone ?? '—'}</span></Td>
           <Td muted><span className="truncate">{c.address ?? '—'}</span></Td>
           <Td num>{c.geofenceRadiusMeters} m</Td>
-          <Td><Tag status={c.active ? 'completed' : 'cancelled'} label={c.active ? 'active' : 'inactive'} /></Td>
+          <Td>
+            <Tag
+              status={c.active ? 'completed' : 'cancelled'}
+              label={t(`tables.customers.${c.active ? 'active' : 'inactive'}`)}
+            />
+          </Td>
         </tr>
         ))}
       </TableShell>

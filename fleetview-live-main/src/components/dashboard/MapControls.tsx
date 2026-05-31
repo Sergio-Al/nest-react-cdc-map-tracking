@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import * as L from "leaflet";
 import { ZoomIn, ZoomOut, Locate, Navigation, Layers } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useMapStore } from "@/stores/map.store";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export function MapControls() {
   const positions = useMapStore((s) => s.positions);
   const following = useMapStore((s) => s.followDriver);
   const toggleFollow = useMapStore((s) => s.toggleFollowDriver);
+  const { t } = useTranslation("dashboard");
 
   // Don't let clicks/scrolls on the controls pan or zoom the map underneath.
   useEffect(() => {
@@ -65,29 +67,29 @@ export function MapControls() {
   return (
     <div ref={ref} className="absolute right-3.5 top-3.5 z-[1000] flex flex-col gap-1.5">
       <div className={cn(cellBox, "flex flex-col")}>
-        <CtrlButton label="Zoom in" onClick={() => map.zoomIn()}>
+        <CtrlButton label={t("mapControls.zoomIn")} onClick={() => map.zoomIn()}>
           <ZoomIn className="h-4 w-4" />
         </CtrlButton>
         <div className="h-px bg-border" />
-        <CtrlButton label="Zoom out" onClick={() => map.zoomOut()}>
+        <CtrlButton label={t("mapControls.zoomOut")} onClick={() => map.zoomOut()}>
           <ZoomOut className="h-4 w-4" />
         </CtrlButton>
       </div>
 
       <div className={cellBox}>
-        <CtrlButton label="Recenter on fleet" onClick={recenter}>
+        <CtrlButton label={t("mapControls.recenter")} onClick={recenter}>
           <Locate className="h-4 w-4" />
         </CtrlButton>
       </div>
 
       <div className={cn(cellBox, following && "border-mc-accent-border")}>
-        <CtrlButton label="Follow selected driver" active={following} onClick={toggleFollow}>
+        <CtrlButton label={t("mapControls.follow")} active={following} onClick={toggleFollow}>
           <Navigation className="h-4 w-4" />
         </CtrlButton>
       </div>
 
       <div className={cellBox}>
-        <CtrlButton label="Layers">
+        <CtrlButton label={t("mapControls.layers")}>
           <Layers className="h-4 w-4" />
         </CtrlButton>
       </div>

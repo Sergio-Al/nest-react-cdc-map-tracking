@@ -1,4 +1,5 @@
 import { ChevronDown, GitCompareArrows } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,6 @@ import {
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import {
   useReportsStore,
-  COMPARE_LABELS,
   type CompareMode,
 } from '@/stores/reports.store';
 
@@ -20,9 +20,10 @@ export function DateRangeControl() {
 
 export function CompareControl() {
   const { compare, setCompare } = useReportsStore();
+  const { t } = useTranslation('reports');
   return (
     <div className="ml-1 inline-flex items-center gap-1.5 border-l border-border pl-3 text-xs text-mc-text-muted">
-      <span>Compare</span>
+      <span>{t('compare.label')}</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -30,7 +31,7 @@ export function CompareControl() {
             className="inline-flex items-center gap-1 rounded bg-mc-surface px-1.5 py-1 font-mono text-[10.5px] text-mc-text-muted transition-colors hover:text-foreground"
           >
             <GitCompareArrows className="h-3 w-3 text-mc-text-dim" />
-            {COMPARE_LABELS[compare]}
+            {t(`compare.${compare}`)}
             <ChevronDown className="h-3 w-3 text-mc-text-dim" />
           </button>
         </DropdownMenuTrigger>
@@ -40,13 +41,13 @@ export function CompareControl() {
             onValueChange={(v) => setCompare(v as CompareMode)}
           >
             <DropdownMenuRadioItem value="previous_period" className="text-xs">
-              Previous period
+              {t('compare.items.previous_period')}
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="previous_year" className="text-xs">
-              Previous year
+              {t('compare.items.previous_year')}
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="none" className="text-xs">
-              No comparison
+              {t('compare.items.none')}
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>

@@ -1,0 +1,33 @@
+{
+  "live": "En vivo",
+  "history": "Historial",
+  "routes": "Rutas",
+  "drivers": "Conductores",
+  "vehicles": "Vehículos",
+  "customers": "Clientes",
+  "monitoring": "Monitoreo",
+  "reports": "Reportes",
+  "notifications": "Notificaciones",
+  "userMenu": {
+    "account": "Mi cuenta",
+    "tenant": "Tenant",
+    "logout": "Cerrar sesión",
+    "loggedOut": "Sesión cerrada",
+    "logoutFailed": "No se pudo cerrar sesión"
+  },
+  "palette": {
+    "placeholder": "Busca conductores o escribe un comando…",
+    "empty": "Sin resultados",
+    "groups": {
+      "drivers": "Conductores",
+      "actions": "Acciones",
+      "navigate": "Navegar"
+    },
+    "actions": {
+      "createRoute": "Crear nueva ruta",
+      "focusDriver": "Centrar a {{name}} en el mapa",
+      "switchToLight": "Cambiar a tema claro",
+      "switchToDark": "Cambiar a tema oscuro"
+    }
+  }
+}

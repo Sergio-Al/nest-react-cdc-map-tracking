@@ -1,0 +1,121 @@
+{
+  "city": "La Paz, Bolivia",
+  "footer": {
+    "hints": {
+      "navigate": "navegar",
+      "openDriver": "abrir conductor",
+      "focus": "centrar en el mapa",
+      "newRoute": "nueva ruta",
+      "commands": "comandos",
+      "shortcuts": "todos los atajos"
+    },
+    "connected": "Conectado · {{city}}",
+    "reconnecting": "Reconectando…"
+  },
+  "mapControls": {
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "recenter": "Centrar en la flota",
+    "follow": "Seguir al conductor seleccionado",
+    "layers": "Capas"
+  },
+  "workspace": {
+    "openInbox": "Abrir bandeja de flota",
+    "fleet": "Flota",
+    "liveOps": "Operaciones en vivo",
+    "quickSearch": "Búsqueda rápida…",
+    "filters": "Filtros",
+    "newRoute": "Nueva ruta",
+    "nowTracking": "Siguiendo ahora"
+  },
+  "stats": {
+    "active": "Activos",
+    "avgSpeed": "Vel. prom.",
+    "visits": "Visitas",
+    "distance": "Distancia",
+    "onTime": "A tiempo",
+    "units": {
+      "today": "hoy",
+      "km": "km",
+      "kmh": "km/h"
+    }
+  },
+  "inbox": {
+    "fleet": "Flota",
+    "filter": "Filtrar",
+    "addDriver": "Añadir conductor",
+    "searchPlaceholder": "Buscar conductores, placas…",
+    "filters": {
+      "all": "Todos",
+      "moving": "En movimiento",
+      "idle": "Inactivos"
+    },
+    "sort": {
+      "speed": "Velocidad",
+      "last_seen": "Última señal",
+      "name": "Nombre"
+    },
+    "noResults": "No se encontraron conductores",
+    "stopsProgress": "{{routeName}} · {{progress}}/{{total}} paradas",
+    "lastSeen": "Última señal {{age}}",
+    "noSignal": "Sin señal reciente",
+    "idleBadge": "inactivo"
+  },
+  "panel": {
+    "status": {
+      "moving": "En ruta",
+      "idle": "Inactivo",
+      "offline": "Desconectado"
+    },
+    "kv": {
+      "speed": "Velocidad",
+      "distance": "Distancia",
+      "lastPing": "Última señal",
+      "visits": "Visitas"
+    },
+    "tabs": {
+      "activity": "Actividad",
+      "stops": "Paradas",
+      "vehicle": "Vehículo",
+      "notes": "Notas"
+    },
+    "buttons": {
+      "track": "Seguir",
+      "call": "Llamar",
+      "route": "Ruta"
+    },
+    "sections": {
+      "speedLast": "Velocidad · últimos 60 min",
+      "activity": "Actividad",
+      "routePrefix": "Ruta"
+    },
+    "vehicle": {
+      "fuel": "Combustible",
+      "makeModel": "Marca / modelo",
+      "year": "Año",
+      "plate": "Placa",
+      "odometer": "Odómetro",
+      "lastService": "Último servicio"
+    },
+    "notes": {
+      "placeholder": "Añade una nota para este conductor…",
+      "localOnly": "Las notas son locales hasta que el backend esté listo."
+    },
+    "empty": {
+      "title": "Ningún conductor seleccionado",
+      "body": "Selecciona un conductor de la bandeja para ver detalles en vivo, paradas y actividad."
+    },
+    "noPhone": "No hay número de teléfono registrado para este conductor."
+  },
+  "map": {
+    "popup": {
+      "speed": "Velocidad",
+      "status": "Estado",
+      "nextStop": "Próxima parada",
+      "distance": "Distancia",
+      "eta": "ETA",
+      "etaMinutes": "{{minutes}} min",
+      "updated": "Actualizado {{relative}}"
+    }
+  }
+}

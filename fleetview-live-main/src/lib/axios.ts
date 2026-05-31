@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import i18n from '@/i18n';
 import { env } from '@/config/env';
 
 const api = axios.create({
@@ -26,7 +27,7 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token + Accept-Language
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const authData = localStorage.getItem('auth-storage');
@@ -40,6 +41,8 @@ api.interceptors.request.use(
         console.error('Failed to parse auth data:', error);
       }
     }
+    const lang = (i18n.language ?? 'es').split('-')[0];
+    config.headers['Accept-Language'] = lang;
     return config;
   },
   (error) => Promise.reject(error)

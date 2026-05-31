@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, MapPin, Clock, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { haversineKm } from '@/lib/geo';
 import {
   getCustomerMeta,
-  lastVisitLabel,
   CATEGORY_META,
   WINDOW_RANGES,
 } from '@/lib/mock/customerMeta';
@@ -37,11 +37,11 @@ interface Candidate {
 
 const SUGGEST_LIMIT = 5;
 
-const WINDOW_OPTIONS: { key: VisitWindow; label: string; hint?: string }[] = [
-  { key: 'anytime', label: 'Anytime' },
-  { key: 'morning', label: 'Morning', hint: '08-12' },
-  { key: 'afternoon', label: 'Afternoon', hint: '12-17' },
-  { key: 'evening', label: 'Evening', hint: '17-21' },
+const WINDOW_OPTIONS: { key: VisitWindow; hint?: string }[] = [
+  { key: 'anytime' },
+  { key: 'morning', hint: '08-12' },
+  { key: 'afternoon', hint: '12-17' },
+  { key: 'evening', hint: '17-21' },
 ];
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
@@ -94,6 +94,13 @@ export function AddStopPalette({
   const [start, setStart] = useState('08:00');
   const [end, setEnd] = useState('12:00');
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t, i18n } = useTranslation('routes');
+
+  const lastVisitLabel = (days: number): string => {
+    if (days <= 0) return t('palette.lastVisitLabel.today');
+    if (days >= 7) return t('palette.lastVisitLabel.weeks', { count: Math.round(days / 7) });
+    return t('palette.lastVisitLabel.days', { count: days });
+  };
 
   // Reset state each time the palette opens.
   useEffect(() => {
@@ -310,20 +317,20 @@ export function AddStopPalette({
             </span>
             {meta.urgency === 'urgent' && (
               <span className="shrink-0 rounded-[4px] bg-status-offline/15 px-1.5 py-px font-mono text-[9px] font-semibold uppercase tracking-[0.05em] text-status-offline">
-                Urgent
+                {t('palette.urgency.urgent')}
               </span>
             )}
             {meta.urgency === 'priority' && (
               <span className="shrink-0 rounded-[4px] bg-mc-accent-soft px-1.5 py-px font-mono text-[9px] font-semibold uppercase tracking-[0.05em] text-mc-accent">
-                Priority
+                {t('palette.urgency.priority')}
               </span>
             )}
           </span>
           <span className="mt-0.5 block truncate text-[11.5px] text-mc-text-dim">
             {customer.address ?? '—'}
             {z && <span className="text-mc-text-muted"> · {z}</span>}
-            <span> · last visit {lastVisitLabel(meta.lastVisitDays)}</span>
-            <span> · {meta.monthlyFrequency}× /mo</span>
+            <span> · {t('palette.lastVisit', { label: lastVisitLabel(meta.lastVisitDays) })}</span>
+            <span> · {t('palette.monthlyFrequency', { count: meta.monthlyFrequency })}</span>
           </span>
         </span>
 
@@ -336,7 +343,7 @@ export function AddStopPalette({
           {flatIndex < 9 ? (
             <Kbd>⌘{flatIndex + 1}</Kbd>
           ) : (
-            <span className="text-[10.5px] capitalize text-mc-text-dim">{meta.preferredWindow}</span>
+            <span className="text-[10.5px] capitalize text-mc-text-dim">{t(`palette.window.${meta.preferredWindow}`)}</span>
           )}
         </span>
       </button>
@@ -344,13 +351,13 @@ export function AddStopPalette({
   };
 
   const CHIPS: { key: ChipKey; label: string; count: number; pin?: boolean }[] = [
-    { key: 'all', label: 'All', count: counts.all },
-    { key: 'recent', label: 'Recent', count: counts.recent },
-    { key: 'frequent', label: 'Frequent', count: counts.frequent },
-    { key: 'near', label: 'Near route', count: counts.near, pin: true },
+    { key: 'all', label: t('palette.chips.all'), count: counts.all },
+    { key: 'recent', label: t('palette.chips.recent'), count: counts.recent },
+    { key: 'frequent', label: t('palette.chips.frequent'), count: counts.frequent },
+    { key: 'near', label: t('palette.chips.near'), count: counts.near, pin: true },
     ...(Object.keys(CATEGORY_META) as CustomerCategory[]).map((cat) => ({
       key: cat,
-      label: CATEGORY_META[cat].label,
+      label: t(`palette.categories.${cat}`, { defaultValue: CATEGORY_META[cat].label }),
       count: counts.byCat[cat] ?? 0,
     })),
   ];
@@ -369,7 +376,7 @@ export function AddStopPalette({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search customers by name or address…"
+            placeholder={t('palette.searchPlaceholder')}
             className="flex-1 bg-transparent text-[14px] text-foreground placeholder:text-mc-text-dim focus:outline-none"
           />
           {query && (
@@ -414,14 +421,14 @@ export function AddStopPalette({
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
           {rows.length === 0 ? (
             <div className="px-4 py-10 text-center text-[12.5px] text-mc-text-dim">
-              No customers match.
+              {t('palette.noResults')}
             </div>
           ) : (
             <>
               {matching.length > 0 && (
                 <>
                   <div className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-                    Matching <span className="font-mono">{matching.length}</span>
+                    {t('palette.sections.matching')} <span className="font-mono">{matching.length}</span>
                   </div>
                   {matching.map((c, i) => renderRow(c, i))}
                 </>
@@ -429,7 +436,7 @@ export function AddStopPalette({
               {suggested.length > 0 && (
                 <>
                   <div className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-                    Suggested near this route <span className="font-mono">{suggested.length}</span>
+                    {t('palette.sections.suggested')} <span className="font-mono">{suggested.length}</span>
                   </div>
                   {suggested.map((c, i) => renderRow(c, matching.length + i))}
                 </>
@@ -441,7 +448,7 @@ export function AddStopPalette({
         {/* Window selector */}
         <div className="flex items-center gap-2.5 border-t border-border px-4 py-2.5">
           <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            <Clock className="h-3 w-3" /> Window
+            <Clock className="h-3 w-3" /> {t('palette.windowLabel')}
           </span>
           <div className="flex items-center gap-1">
             {WINDOW_OPTIONS.map((w) => (
@@ -456,7 +463,7 @@ export function AddStopPalette({
                     : 'border-border text-muted-foreground hover:bg-mc-surface hover:text-foreground',
                 )}
               >
-                {w.label}
+                {t(`palette.window.${w.key}`)}
                 {w.hint && <span className="font-mono text-[9.5px] text-mc-text-dim">{w.hint}</span>}
               </button>
             ))}
@@ -470,14 +477,14 @@ export function AddStopPalette({
 
         {/* Footer hints */}
         <div className="flex items-center gap-3.5 border-t border-border bg-mc-surface px-4 py-2 text-[10.5px] text-mc-text-dim">
-          <span className="flex items-center gap-1"><Kbd>↑</Kbd><Kbd>↓</Kbd> navigate</span>
+          <span className="flex items-center gap-1"><Kbd>↑</Kbd><Kbd>↓</Kbd> {t('palette.footer.navigate')}</span>
           <span className="flex items-center gap-1">
-            <Kbd>↵</Kbd> add{selected.size > 0 ? ` ${selected.size}` : ''}
+            <Kbd>↵</Kbd> {selected.size > 0 ? t('palette.footer.addCountN', { count: selected.size }) : t('palette.footer.addCount')}
           </span>
-          <span className="flex items-center gap-1"><Kbd>⇧</Kbd><Kbd>↵</Kbd> add &amp; new</span>
-          <span className="flex items-center gap-1"><Kbd>⌘</Kbd><Kbd>A</Kbd> select all</span>
+          <span className="flex items-center gap-1"><Kbd>⇧</Kbd><Kbd>↵</Kbd> {t('palette.footer.addAndNew')}</span>
+          <span className="flex items-center gap-1"><Kbd>⌘</Kbd><Kbd>A</Kbd> {t('palette.footer.selectAll')}</span>
           {isLoading && <Loader2 className="h-3 w-3 animate-spin text-mc-accent" />}
-          <span className="ml-auto font-mono">{candidates.length.toLocaleString()} customers</span>
+          <span className="ml-auto font-mono">{t('palette.footer.customers', { count: candidates.length.toLocaleString(i18n.language) })}</span>
         </div>
       </div>
     </div>,

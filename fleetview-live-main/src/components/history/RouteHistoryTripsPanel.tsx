@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import { History, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { usePlaybackStore } from '@/stores/playback.store';
 import { useDrivers } from '@/hooks/api/useDrivers';
 import { getMockTrips } from '@/lib/mock/historyMock';
@@ -31,6 +32,7 @@ export function RouteHistoryTripsPanel({ onTripSelect }: RouteHistoryTripsPanelP
   const [window, setWindow] = useState<Window>('7d');
   const [driverOpen, setDriverOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<number | null>(1);
+  const { t } = useTranslation('history');
 
   const driver: Driver | undefined = drivers.find((d) => d.id === selectedDriverId);
   const trips = getMockTrips(selectedDriverId ?? 'mock');
@@ -48,9 +50,9 @@ export function RouteHistoryTripsPanel({ onTripSelect }: RouteHistoryTripsPanelP
           <History className="h-[14px] w-[14px]" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold tracking-[-0.005em]">Route History</div>
+          <div className="text-[13px] font-semibold tracking-[-0.005em]">{t('filter.title')}</div>
           <div className="mt-px text-[11px] text-muted-foreground">
-            {driver ? `${driver.name} · last ${window}` : 'Select a driver'}
+            {driver ? t('trips.driverWindow', { name: driver.name, window }) : t('trips.selectDriverHint')}
           </div>
         </div>
       </div>
@@ -60,7 +62,7 @@ export function RouteHistoryTripsPanel({ onTripSelect }: RouteHistoryTripsPanelP
         {/* Driver select */}
         <div>
           <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Driver
+            {t('trips.driver')}
           </div>
           <div className="relative">
             <button
@@ -78,7 +80,7 @@ export function RouteHistoryTripsPanel({ onTripSelect }: RouteHistoryTripsPanelP
                 </>
               ) : (
                 <>
-                  <span className="flex-1 text-left text-mc-text-dim">Select a driver…</span>
+                  <span className="flex-1 text-left text-mc-text-dim">{t('trips.selectDriver')}</span>
                   <ChevronDown className="ml-auto h-[13px] w-[13px] text-mc-text-dim" />
                 </>
               )}
@@ -112,7 +114,7 @@ export function RouteHistoryTripsPanel({ onTripSelect }: RouteHistoryTripsPanelP
         {/* Window presets */}
         <div>
           <div className="mb-[6px] text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
-            Window
+            {t('trips.window')}
           </div>
           <div className="grid grid-cols-4 gap-[6px]">
             {(['1d', '3d', '7d', '30d'] as Window[]).map((w) => (
@@ -137,7 +139,7 @@ export function RouteHistoryTripsPanel({ onTripSelect }: RouteHistoryTripsPanelP
       {/* Trips list */}
       <div className="flex flex-1 flex-col overflow-hidden border-t border-border">
         <div className="flex items-center gap-2 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-mc-text-dim">
-          <span>Trips</span>
+          <span>{t('trips.trips')}</span>
           <span className="ml-auto rounded-full border border-border bg-mc-surface px-[6px] py-px font-mono text-[10.5px] normal-case tracking-normal text-muted-foreground">
             {trips.length}
           </span>
@@ -158,13 +160,13 @@ export function RouteHistoryTripsPanel({ onTripSelect }: RouteHistoryTripsPanelP
                 <span className="text-[12px] font-semibold">{tr.date}</span>
                 <span className="font-mono text-[10.5px] text-mc-text-dim">{tr.day}</span>
                 <span className="ml-auto font-mono text-[10.5px] text-muted-foreground">
-                  {tr.km.toFixed(1)} km · {tr.hrs}
+                  {t('trips.kmHours', { km: tr.km.toFixed(1), hours: tr.hrs })}
                 </span>
               </div>
               <div className="mb-2 flex items-center gap-[6px] text-[11.5px] text-muted-foreground">
-                <span className="max-w-[100px] truncate">Depot · Achumani</span>
+                <span className="max-w-[100px] truncate">{t('trips.depotAchumani')}</span>
                 <span className="shrink-0 font-mono text-mc-text-dim">→</span>
-                <span>{tr.stops} stops</span>
+                <span>{t('trips.stopsCount', { count: tr.stops })}</span>
                 <span className="ml-auto font-mono text-[10.5px] text-mc-text-dim">
                   07:30 – 14:55
                 </span>

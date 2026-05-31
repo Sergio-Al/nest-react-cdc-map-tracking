@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { RouteBuilderSidebar } from '@/components/routes/RouteBuilderSidebar';
 import { RouteBuilderMap } from '@/components/routes/RouteBuilderMap';
@@ -11,8 +12,6 @@ import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
 import { useCustomers, useRouteGeometry } from '@/hooks/api/useRouteBuilder';
 import { useSocket } from '@/hooks/useSocket';
 
-const CITY = 'La Paz, Bolivia';
-
 function BuilderHead({
   hasRoute,
   onBackToRoutes,
@@ -23,24 +22,26 @@ function BuilderHead({
   onOpenPalette: () => void;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation('routes');
+  const { t: tDashboard } = useTranslation('dashboard');
   return (
     <div className="flex h-11 shrink-0 items-center gap-2.5 border-b border-border px-3.5">
       <nav className="flex items-center gap-1.5 text-[13px]">
         <button className="text-muted-foreground hover:text-foreground" onClick={() => navigate('/')}>
-          Fleet
+          {t('page.fleet')}
         </button>
         <span className="text-mc-text-dim">/</span>
         <button className="text-muted-foreground hover:text-foreground" onClick={onBackToRoutes}>
-          Routes
+          {t('page.routes')}
         </button>
         {hasRoute && (
           <>
             <span className="text-mc-text-dim">/</span>
-            <span className="font-medium">Builder</span>
+            <span className="font-medium">{t('page.builder')}</span>
           </>
         )}
       </nav>
-      <span className="font-mono text-[11.5px] text-muted-foreground">· {CITY}</span>
+      <span className="font-mono text-[11.5px] text-muted-foreground">· {tDashboard('city')}</span>
 
       <div className="ml-auto flex items-center gap-2">
         <button
@@ -50,12 +51,12 @@ function BuilderHead({
           className="hidden h-7 w-[260px] items-center gap-2 rounded-[7px] border border-border bg-background px-2.5 text-xs text-muted-foreground transition-colors hover:border-mc-border-strong disabled:opacity-50 lg:flex"
         >
           <Search className="h-3.5 w-3.5" />
-          <span className="flex-1 text-left">Find customer to add…</span>
+          <span className="flex-1 text-left">{t('page.findCustomer')}</span>
           <kbd className="rounded border border-border bg-mc-elev px-1.5 font-mono text-[10.5px]">⌘K</kbd>
         </button>
         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          {t('page.filters')}
         </Button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { Truck, Bell, LogOut } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Tooltip,
   TooltipContent,
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/auth.store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { cn } from "@/lib/utils";
 import { navItems, canSee, isActiveRoute } from "./nav";
 import type { NavItem } from "./nav";
@@ -40,13 +42,15 @@ function RailButton({
   active: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation("nav");
+  const label = t(item.labelKey);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
           onClick={onClick}
-          aria-label={item.label}
+          aria-label={label}
           aria-current={active ? "page" : undefined}
           className={cn(
             "relative flex h-9 w-9 items-center justify-center rounded-[7px] transition-colors",
@@ -61,7 +65,7 @@ function RailButton({
           <item.icon className="h-4 w-4" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right">{item.label}</TooltipContent>
+      <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
   );
 }
@@ -70,6 +74,7 @@ export function IconRail() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user, logout } = useAuthStore();
+  const { t } = useTranslation("nav");
 
   const primary = navItems.filter((i) => i.group === "primary" && canSee(i, user?.role));
   const secondary = navItems.filter((i) => i.group === "secondary" && canSee(i, user?.role));
@@ -77,10 +82,10 @@ export function IconRail() {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success("Logged out successfully");
+      toast.success(t("userMenu.loggedOut"));
       navigate("/login");
     } catch {
-      toast.error("Logout failed");
+      toast.error(t("userMenu.logoutFailed"));
     }
   };
 
@@ -119,41 +124,42 @@ export function IconRail() {
           <TooltipTrigger asChild>
             <button
               type="button"
-              aria-label="Notifications"
+              aria-label={t("notifications")}
               className="relative flex h-9 w-9 items-center justify-center rounded-[7px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <Bell className="h-4 w-4" />
               <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-mc-accent ring-2 ring-background" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">Notifications</TooltipContent>
+          <TooltipContent side="right">{t("notifications")}</TooltipContent>
         </Tooltip>
 
+        <LanguageToggle />
         <ThemeToggle />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label="Account menu"
+              aria-label={t("userMenu.account")}
               className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-mc-accent-soft font-mono text-[11px] font-bold text-mc-accent"
             >
               {initials(user?.name)}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="end" className="w-56">
-            <DropdownMenuLabel>{user?.name || "My Account"}</DropdownMenuLabel>
+            <DropdownMenuLabel>{user?.name || t("userMenu.account")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled>
               <span className="text-xs text-muted-foreground">{user?.email}</span>
             </DropdownMenuItem>
             <DropdownMenuItem disabled>
-              <span className="text-xs text-muted-foreground">Tenant: {user?.tenantId}</span>
+              <span className="text-xs text-muted-foreground">{t("userMenu.tenant")}: {user?.tenantId}</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Logout</span>
+              <span>{t("userMenu.logout")}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

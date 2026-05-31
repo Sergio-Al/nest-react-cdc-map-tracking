@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pencil } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   Field,
@@ -19,18 +20,8 @@ interface EditVehicleDialogProps {
   isLoading?: boolean;
 }
 
-const TYPES = [
-  { id: 'van', label: 'Van' },
-  { id: 'truck', label: 'Truck' },
-  { id: 'motorcycle', label: 'Moto' },
-  { id: 'car', label: 'Car' },
-];
-
-const STATUSES = [
-  { id: 'active', label: 'Active' },
-  { id: 'maintenance', label: 'Maintenance' },
-  { id: 'inactive', label: 'Inactive' },
-];
+const TYPE_IDS = ['van', 'truck', 'motorcycle', 'car'] as const;
+const STATUS_IDS = ['active', 'maintenance', 'inactive'] as const;
 
 export function EditVehicleDialog({
   open,
@@ -48,6 +39,10 @@ export function EditVehicleDialog({
   const [capacityKg, setCapacityKg] = useState('');
   const [status, setStatus] = useState('active');
   const [notes, setNotes] = useState('');
+  const { t } = useTranslation('vehicles');
+
+  const types = TYPE_IDS.map((id) => ({ id, label: t(`dialog.types.${id}`) }));
+  const statuses = STATUS_IDS.map((id) => ({ id, label: t(`dialog.statuses.${id}`) }));
 
   useEffect(() => {
     if (vehicle) {
@@ -82,11 +77,11 @@ export function EditVehicleDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[480px] gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">Edit Vehicle</DialogTitle>
-        <DenseDialogHeader icon={<Pencil className="h-3.5 w-3.5" />} title="Edit Vehicle" />
+        <DialogTitle className="sr-only">{t('dialog.editTitle')}</DialogTitle>
+        <DenseDialogHeader icon={<Pencil className="h-3.5 w-3.5" />} title={t('dialog.editTitle')} />
 
         <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
-          <Field label="Plate" required>
+          <Field label={t('dialog.plate')} required>
             <DenseInput
               value={plate}
               onChange={(e) => setPlate(e.target.value.toUpperCase())}
@@ -95,31 +90,31 @@ export function EditVehicleDialog({
           </Field>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Type">
-              <ChipGroup value={type} onChange={setType} options={TYPES} />
+            <Field label={t('dialog.type')}>
+              <ChipGroup value={type} onChange={setType} options={types} />
             </Field>
-            <Field label="Status">
-              <ChipGroup value={status} onChange={setStatus} options={STATUSES} />
+            <Field label={t('dialog.statusLabel')}>
+              <ChipGroup value={status} onChange={setStatus} options={statuses} />
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Brand">
+            <Field label={t('dialog.brand')}>
               <DenseInput value={brand} onChange={(e) => setBrand(e.target.value)} />
             </Field>
-            <Field label="Model">
+            <Field label={t('dialog.model')}>
               <DenseInput value={model} onChange={(e) => setModel(e.target.value)} />
             </Field>
           </div>
 
           <div className="grid grid-cols-3 gap-2.5">
-            <Field label="Year">
+            <Field label={t('dialog.year')}>
               <DenseInput type="number" value={year} onChange={(e) => setYear(e.target.value)} />
             </Field>
-            <Field label="Color">
+            <Field label={t('dialog.color')}>
               <DenseInput value={color} onChange={(e) => setColor(e.target.value)} />
             </Field>
-            <Field label="Capacity (kg)">
+            <Field label={t('dialog.capacityKg')}>
               <DenseInput
                 type="number"
                 value={capacityKg}
@@ -128,7 +123,7 @@ export function EditVehicleDialog({
             </Field>
           </div>
 
-          <Field label="Notes">
+          <Field label={t('dialog.notes')}>
             <DenseInput value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
         </div>
@@ -136,7 +131,7 @@ export function EditVehicleDialog({
         <DialogFormFooter
           onCancel={() => onOpenChange(false)}
           onSubmit={handleSubmit}
-          submitLabel="Save changes"
+          submitLabel={t('dialog.save')}
           canSubmit={!!plate.trim()}
           isLoading={isLoading}
         />

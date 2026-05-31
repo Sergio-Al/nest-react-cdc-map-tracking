@@ -20,6 +20,7 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 import { DlqModule } from './modules/dlq/dlq.module';
 import { HistoryModule } from './modules/history/history.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { AppI18nModule } from './i18n/app-i18n.module';
 
 
 @Module({
@@ -29,6 +30,9 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
       isGlobal: true,
       load: [configuration],
     }),
+
+    // ── Internationalization (Accept-Language → es/en) ─
+    AppI18nModule,
 
     // ── Scheduled Tasks ────────────────────────────────
     ScheduleModule.forRoot(),

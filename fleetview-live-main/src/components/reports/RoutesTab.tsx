@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { exportToCsv } from '@/lib/utils';
 import { RoutesTable } from './RoutesTable';
@@ -70,6 +71,7 @@ function sortRows(rows: RouteReportRow[], sort: SortState): RouteReportRow[] {
 export function RoutesTab() {
   const { from, to } = useReportsStore();
   const { rows, isLoading, isMock } = useRouteReport(from, to);
+  const { t, i18n } = useTranslation('reports');
 
   const ds = useDatasetFilters('routes', rows, ROUTE_FIELDS, ROUTE_VIEWS);
   const [sort, setSort] = useState<SortState>({ col: 'date', dir: 'desc' });
@@ -120,24 +122,24 @@ export function RoutesTab() {
 
   const doExport = useCallback(() => {
     if (sorted.length === 0) {
-      toast.info('No routes to export');
+      toast.info(t('exportToasts.noRoutes'));
       return;
     }
     exportToCsv(
       sorted.map((r) => ({
-        Fecha: r.dateLabel,
-        Conductor: r.driverName,
-        Vehículo: r.plate,
-        Estado: r.status,
-        Paradas: r.stopsLabel,
-        'Distancia (km)': r.distanceKm?.toFixed(1) ?? '',
-        Duración: r.durationLabel,
-        'Puntualidad %': r.onTimePct,
+        [t('csvHeaders.date')]: r.dateLabel,
+        [t('csvHeaders.driver')]: r.driverName,
+        [t('csvHeaders.vehicle')]: r.plate,
+        [t('csvHeaders.status')]: r.status,
+        [t('csvHeaders.stops')]: r.stopsLabel,
+        [t('csvHeaders.distanceKm')]: r.distanceKm?.toFixed(1) ?? '',
+        [t('csvHeaders.duration')]: r.durationLabel,
+        [t('csvHeaders.ontimePct')]: r.onTimePct,
       })),
-      'rutas',
+      t('csvHeaders.rutas'),
     );
-    toast.success(`Exported ${sorted.length} routes`);
-  }, [sorted]);
+    toast.success(t('exportToasts.exportedRoutes', { count: sorted.length }));
+  }, [sorted, t]);
   useRegisterExporter(doExport);
 
   const dense = drillId ? 'dense' : density;
@@ -161,8 +163,15 @@ export function RoutesTab() {
 
       {/* Table actions */}
       <div className="flex items-center gap-1.5 border-b border-border px-6 py-2 text-xs text-mc-text-muted">
-        Showing <span className="font-mono font-semibold text-foreground">{pageRows.length}</span> of{' '}
-        <span className="font-mono font-semibold text-foreground">{sorted.length}</span> routes
+        <span
+          dangerouslySetInnerHTML={{
+            __html: t('table.showingOfRoutes', {
+              shown: `<span class="font-mono font-semibold text-foreground">${pageRows.length}</span>`,
+              total: `<span class="font-mono font-semibold text-foreground">${sorted.length}</span>`,
+              interpolation: { escapeValue: false },
+            }),
+          }}
+        />
         <div className="ml-auto flex items-center gap-1.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -171,7 +180,7 @@ export function RoutesTab() {
                 className="inline-flex h-[26px] items-center gap-1.5 rounded-md border border-border bg-mc-elev px-2 text-[11.5px] font-medium text-foreground hover:border-mc-border-strong"
               >
                 <Columns3 className="h-3 w-3" />
-                Columns
+                {t('table.columns')}
                 <span className="font-mono text-[10px] text-mc-text-dim">
                   {visibleCols.size}/{ROUTE_COLUMNS.length}
                 </span>
@@ -179,7 +188,7 @@ export function RoutesTab() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuLabel className="text-[11px] font-normal text-mc-text-dim">
-                Toggle columns
+                {t('table.toggleColumns')}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {ROUTE_COLUMNS.map((c) => (
@@ -191,7 +200,7 @@ export function RoutesTab() {
                   onSelect={(e) => e.preventDefault()}
                   onCheckedChange={() => !c.locked && toggleCol(c.id)}
                 >
-                  {c.label}
+                  {t(`columns.${c.id}`)}
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
@@ -200,7 +209,7 @@ export function RoutesTab() {
             <button
               type="button"
               onClick={() => setDensity('cozy')}
-              title="Cozy"
+              title={t('table.density.cozy')}
               className={cn(
                 'grid h-[22px] w-[26px] place-items-center rounded-[4px]',
                 density === 'cozy' ? 'bg-mc-elev text-foreground shadow-sm' : 'text-mc-text-dim hover:text-foreground',
@@ -211,7 +220,7 @@ export function RoutesTab() {
             <button
               type="button"
               onClick={() => setDensity('dense')}
-              title="Dense"
+              title={t('table.density.dense')}
               className={cn(
                 'grid h-[22px] w-[26px] place-items-center rounded-[4px]',
                 density === 'dense' ? 'bg-mc-elev text-foreground shadow-sm' : 'text-mc-text-dim hover:text-foreground',
@@ -226,7 +235,7 @@ export function RoutesTab() {
             className="inline-flex h-[26px] items-center gap-1.5 rounded-md border border-border bg-mc-elev px-2 text-[11.5px] font-medium text-foreground hover:border-mc-border-strong"
           >
             <Download className="h-3 w-3" />
-            Export {sorted.length} rows
+            {t('table.exportRows', { count: sorted.length })}
           </button>
         </div>
       </div>
@@ -240,10 +249,10 @@ export function RoutesTab() {
                 <Inbox className="h-[22px] w-[22px]" />
               </div>
               <div className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
-                No routes match these filters
+                {t('table.empty.title')}
               </div>
               <div className="max-w-[360px] text-xs leading-relaxed text-mc-text-muted">
-                Try widening the date range, removing a filter, or picking a different saved view.
+                {t('table.empty.body')}
               </div>
               <div className="mt-1 flex gap-1.5">
                 <button
@@ -251,14 +260,14 @@ export function RoutesTab() {
                   onClick={clearFilters}
                   className="inline-flex h-7 items-center rounded-[7px] border border-border bg-mc-elev px-3 text-[11.5px] font-medium text-foreground hover:border-mc-border-strong"
                 >
-                  Clear filters
+                  {t('table.empty.clear')}
                 </button>
                 <button
                   type="button"
                   onClick={clearFilters}
                   className="inline-flex h-7 items-center rounded-[7px] bg-mc-accent px-3 text-[11.5px] font-medium text-mc-accent-fg hover:bg-mc-accent-strong"
                 >
-                  Reset view
+                  {t('table.empty.reset')}
                 </button>
               </div>
             </div>
@@ -286,19 +295,23 @@ export function RoutesTab() {
             {/* Footer */}
             <div className="flex items-center gap-2 border-t border-border px-6 py-2.5 text-xs text-mc-text-muted">
               <span>
-                <span className="font-mono font-semibold text-foreground">{selectedIds.size}</span> selected · 1.10
-                MB
+                <span className="font-mono font-semibold text-foreground">
+                  {selectedIds.size.toLocaleString(i18n.language)}
+                </span>{' '}
+                · 1.10 MB
               </span>
               <div className="ml-auto flex items-center gap-1.5">
-                <span className="text-[11px] text-mc-text-dim">Rows per page</span>
+                <span className="text-[11px] text-mc-text-dim">{t('table.rowsPerPage')}</span>
                 <span className="inline-flex h-[26px] items-center gap-1 rounded-md border border-border bg-mc-elev px-2 font-mono text-[11.5px]">
                   {PAGE_SIZE}
                   <ChevronDown className="h-3 w-3 text-mc-text-dim" />
                 </span>
                 <span className="ml-2">
-                  {sorted.length === 0 ? 0 : safePage * PAGE_SIZE + 1}–
-                  {Math.min((safePage + 1) * PAGE_SIZE, sorted.length)} of{' '}
-                  <span className="font-mono font-semibold text-foreground">{sorted.length}</span>
+                  {t('table.pageRangeOf', {
+                    from: sorted.length === 0 ? 0 : safePage * PAGE_SIZE + 1,
+                    to: Math.min((safePage + 1) * PAGE_SIZE, sorted.length),
+                    total: sorted.length,
+                  })}
                 </span>
                 <div className="ml-2 inline-flex overflow-hidden rounded-md border border-border bg-mc-elev font-mono text-[11.5px]">
                   <button

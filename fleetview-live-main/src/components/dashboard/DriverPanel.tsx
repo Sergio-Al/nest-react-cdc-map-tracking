@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Navigation, Phone, Route as RouteIcon, Check, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { Driver } from "@/types/driver.types";
 import type { EnrichedPosition } from "@/types/position.types";
 import { getDriverStatus, speedKmh, formatAge, statusColorVar } from "@/lib/driverStatus";
-import type { DriverStatus } from "@/lib/driverStatus";
 import {
   useDriverEvents,
   useDriverCurrentRoute,
@@ -21,12 +21,6 @@ import { cn } from "@/lib/utils";
 
 type DriverWithPosition = Driver & { position?: EnrichedPosition };
 type Tab = "activity" | "stops" | "vehicle" | "notes";
-
-const STATUS_LABEL: Record<DriverStatus, string> = {
-  moving: "En route",
-  idle: "Idle",
-  offline: "Offline",
-};
 
 function initials(name: string): string {
   return name.split(" ").map((n) => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -47,12 +41,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function KVGrid({ driver, route }: { driver: DriverWithPosition; route: CurrentRoute | null }) {
+  const { t } = useTranslation("dashboard");
   const distance = route ? route.summary.progress * 4 + 6 : 0;
   const items = [
-    { label: "Speed", value: speedKmh(driver.position?.speed), unit: "km/h" },
-    { label: "Distance", value: distance.toFixed(1), unit: "km" },
-    { label: "Last ping", value: formatAge(driver.position?.time), unit: "" },
-    { label: "Visits", value: route ? `${route.summary.progress}/${route.summary.total}` : "—", unit: "" },
+    { label: t("panel.kv.speed"), value: speedKmh(driver.position?.speed), unit: t("stats.units.kmh") },
+    { label: t("panel.kv.distance"), value: distance.toFixed(1), unit: t("stats.units.km") },
+    { label: t("panel.kv.lastPing"), value: formatAge(driver.position?.time), unit: "" },
+    { label: t("panel.kv.visits"), value: route ? `${route.summary.progress}/${route.summary.total}` : "—", unit: "" },
   ];
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -112,11 +107,12 @@ function StopDot({ state }: { state: MockStop["state"] }) {
 }
 
 function StopsSection({ route }: { route: CurrentRoute }) {
+  const { t } = useTranslation("dashboard");
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-[11.5px]">
         <span className="text-muted-foreground">
-          Route · <span className="text-foreground">{route.summary.routeName}</span>
+          {t("panel.sections.routePrefix")} · <span className="text-foreground">{route.summary.routeName}</span>
         </span>
         <span className="font-mono text-mc-text-dim">
           {route.summary.progress}/{route.summary.total}
@@ -187,18 +183,19 @@ function ActivitySection({ events }: { events: MockEvent[] }) {
 }
 
 function VehicleSection({ vehicle, plate }: { vehicle: MockVehicle; plate: string | null }) {
+  const { t, i18n } = useTranslation("dashboard");
   const rows: [string, string][] = [
-    ["Make / model", `${vehicle.make} ${vehicle.model}`],
-    ["Year", String(vehicle.year)],
-    ["Plate", plate ?? "—"],
-    ["Odometer", `${vehicle.odometerKm.toLocaleString()} km`],
-    ["Last service", vehicle.lastService],
+    [t("panel.vehicle.makeModel"), `${vehicle.make} ${vehicle.model}`],
+    [t("panel.vehicle.year"), String(vehicle.year)],
+    [t("panel.vehicle.plate"), plate ?? "—"],
+    [t("panel.vehicle.odometer"), `${vehicle.odometerKm.toLocaleString(i18n.language)} ${t("stats.units.km")}`],
+    [t("panel.vehicle.lastService"), vehicle.lastService],
   ];
   return (
     <div className="space-y-3">
       <div>
         <div className="mb-1 flex items-center justify-between text-[11.5px]">
-          <span className="text-muted-foreground">Fuel</span>
+          <span className="text-muted-foreground">{t("panel.vehicle.fuel")}</span>
           <span className="font-mono text-mc-text-dim">{vehicle.fuelPct}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-pill bg-mc-surface-hi">
@@ -219,32 +216,29 @@ function VehicleSection({ vehicle, plate }: { vehicle: MockVehicle; plate: strin
 
 function NotesSection() {
   const [notes, setNotes] = useState("");
+  const { t } = useTranslation("dashboard");
   return (
     <div className="space-y-2">
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        placeholder="Add a note for this driver…"
+        placeholder={t("panel.notes.placeholder")}
         className="h-32 w-full resize-none rounded-[6px] border border-border bg-mc-surface p-2.5 text-[12.5px] outline-none placeholder:text-mc-text-dim focus:border-mc-accent-border"
       />
-      <p className="text-[10.5px] text-mc-text-dim">Notes are local-only until the backend is wired.</p>
+      <p className="text-[10.5px] text-mc-text-dim">{t("panel.notes.localOnly")}</p>
     </div>
   );
 }
 
 /* ── Panel ────────────────────────────────────────────────── */
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "activity", label: "Activity" },
-  { key: "stops", label: "Stops" },
-  { key: "vehicle", label: "Vehicle" },
-  { key: "notes", label: "Notes" },
-];
+const TAB_KEYS: Tab[] = ["activity", "stops", "vehicle", "notes"];
 
 function PanelContent({ driver }: { driver: DriverWithPosition }) {
   const [tab, setTab] = useState<Tab>("activity");
   const navigate = useNavigate();
   const setFollowDriver = useMapStore((s) => s.setFollowDriver);
+  const { t } = useTranslation("dashboard");
 
   // All detail data fetched up-front (unconditionally) to satisfy the Rules of Hooks.
   const route = useDriverCurrentRoute(driver.id);
@@ -257,7 +251,7 @@ function PanelContent({ driver }: { driver: DriverWithPosition }) {
 
   const call = () => {
     if (driver.phone) window.location.href = `tel:${driver.phone}`;
-    else toast.info("No phone number on file for this driver.");
+    else toast.info(t("panel.noPhone"));
   };
 
   const counts: Partial<Record<Tab, number>> = {
@@ -288,16 +282,16 @@ function PanelContent({ driver }: { driver: DriverWithPosition }) {
             style={{ color, background: `color-mix(in oklch, ${color} 16%, transparent)` }}
           >
             <span className="h-[5px] w-[5px] rounded-full" style={{ background: color }} />
-            {STATUS_LABEL[status]}
+            {t(`panel.status.${status}`)}
           </span>
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-1.5">
           <Button size="sm" className="h-[26px] gap-1 text-[11.5px]" onClick={() => setFollowDriver(true)}>
-            <Navigation className="h-3.5 w-3.5" /> Track
+            <Navigation className="h-3.5 w-3.5" /> {t("panel.buttons.track")}
           </Button>
           <Button variant="outline" size="sm" className="h-[26px] gap-1 text-[11.5px]" onClick={call}>
-            <Phone className="h-3.5 w-3.5" /> Call
+            <Phone className="h-3.5 w-3.5" /> {t("panel.buttons.call")}
           </Button>
           <Button
             variant="outline"
@@ -305,27 +299,27 @@ function PanelContent({ driver }: { driver: DriverWithPosition }) {
             className="h-[26px] gap-1 text-[11.5px]"
             onClick={() => navigate("/routes")}
           >
-            <RouteIcon className="h-3.5 w-3.5" /> Route
+            <RouteIcon className="h-3.5 w-3.5" /> {t("panel.buttons.route")}
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-border px-3">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const count = counts[t.key];
+        {TAB_KEYS.map((tabKey) => {
+          const active = tab === tabKey;
+          const count = counts[tabKey];
           return (
             <button
-              key={t.key}
+              key={tabKey}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => setTab(tabKey)}
               className={cn(
                 "relative flex items-center gap-1.5 px-2.5 py-2.5 text-xs font-medium transition-colors",
                 active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {t.label}
+              {t(`panel.tabs.${tabKey}`)}
               {count != null && (
                 <span
                   className={cn(
@@ -348,11 +342,11 @@ function PanelContent({ driver }: { driver: DriverWithPosition }) {
           <>
             <KVGrid driver={driver} route={route} />
             <div>
-              <SectionLabel>Speed · last 60 min</SectionLabel>
+              <SectionLabel>{t("panel.sections.speedLast")}</SectionLabel>
               <SpeedSparkline data={speed} />
             </div>
             <div>
-              <SectionLabel>Activity</SectionLabel>
+              <SectionLabel>{t("panel.sections.activity")}</SectionLabel>
               <ActivitySection events={events} />
             </div>
           </>
@@ -366,15 +360,14 @@ function PanelContent({ driver }: { driver: DriverWithPosition }) {
 }
 
 function EmptyState() {
+  const { t } = useTranslation("dashboard");
   return (
     <div className="flex h-full w-full flex-col items-center justify-center px-8 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-mc-surface">
         <Users className="h-5 w-5 text-mc-text-dim" />
       </div>
-      <p className="text-sm font-medium">No driver selected</p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Select a driver from the inbox to see live details, route stops, and activity.
-      </p>
+      <p className="text-sm font-medium">{t("panel.empty.title")}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t("panel.empty.body")}</p>
     </div>
   );
 }

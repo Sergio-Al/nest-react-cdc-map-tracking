@@ -19,7 +19,7 @@ export class VehiclesService {
       where: { tenantId: dto.tenantId, plate: dto.plate },
     });
     if (existing) {
-      throw new ConflictException(`Vehicle with plate ${dto.plate} already exists`);
+      throw new ConflictException({ errorCode: 'vehicles.plateExists', args: { plate: dto.plate } });
     }
     const vehicle = this.vehicleRepo.create(dto);
     const saved = await this.vehicleRepo.save(vehicle);
@@ -52,7 +52,7 @@ export class VehiclesService {
 
   async findOne(id: string): Promise<Vehicle> {
     const vehicle = await this.vehicleRepo.findOne({ where: { id } });
-    if (!vehicle) throw new NotFoundException(`Vehicle ${id} not found`);
+    if (!vehicle) throw new NotFoundException({ errorCode: 'vehicles.notFound', args: { id } });
     return vehicle;
   }
 

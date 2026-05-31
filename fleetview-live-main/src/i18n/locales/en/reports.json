@@ -1,0 +1,345 @@
+{
+  "header": {
+    "title": "Reports",
+    "subtitle": "Operational analytics, leaderboards and exports — La Paz fleet"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "routes": "Routes",
+    "visits": "Visits",
+    "drivers": "Drivers",
+    "vehicles": "Vehicles",
+    "customers": "Customers",
+    "fuel": "Fuel",
+    "safety": "Safety"
+  },
+  "presets": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "7d": "7d",
+    "14d": "14d",
+    "30d": "30d",
+    "mtd": "MTD",
+    "qtd": "QTD",
+    "ytd": "YTD"
+  },
+  "grains": {
+    "hour": "hour",
+    "day": "day",
+    "week": "week",
+    "month": "month"
+  },
+  "compare": {
+    "label": "Compare",
+    "previous_period": "previous period",
+    "previous_year": "previous year",
+    "none": "no comparison",
+    "items": {
+      "previous_period": "Previous period",
+      "previous_year": "Previous year",
+      "none": "No comparison"
+    }
+  },
+  "actions": {
+    "share": "Share",
+    "schedule": "Schedule",
+    "export": "Export",
+    "openRoute": "Open route"
+  },
+  "share": {
+    "title": "FleetTrack · Reports",
+    "copied": "Share link copied to clipboard",
+    "failed": "Could not share this view"
+  },
+  "scheduleDialog": {
+    "title": "Schedule report",
+    "subtitle": "Emailed as CSV for the <strong>{{tab}}</strong> view.",
+    "frequency": "Frequency",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "email": "Recipient email",
+    "emailPlaceholder": "ops@fleet.bo",
+    "submit": "Schedule report",
+    "savedCount_one": "{{count}} schedule saved on this device.",
+    "savedCount_other": "{{count}} schedules saved on this device.",
+    "errors": {
+      "invalidEmail": "Enter a valid email address",
+      "saveFailed": "Could not save schedule"
+    },
+    "success": "Scheduled a {{frequency}} {{tab}} report to {{email}}"
+  },
+  "overview": {
+    "kpi": {
+      "visits": "Visits",
+      "distance": "Distance",
+      "ontime": "On-time",
+      "idleTime": "Idle time",
+      "avgSpeed": "Avg speed",
+      "active": "Active"
+    },
+    "kpiUnits": {
+      "completed": "completed",
+      "km": "km",
+      "percent": "%",
+      "hm": "h 22m",
+      "kmh": "km/h",
+      "of9": "/ 9"
+    },
+    "kpiTargets": {
+      "goal1200": "Goal · 1,200",
+      "plus260km": "+260 km vs last",
+      "goal95": "Goal · 95%",
+      "lowerBetter": "Lower is better",
+      "steady": "Steady",
+      "oneOff": "1 vehicle off"
+    },
+    "kpiVsPrev": "vs prev period",
+    "trend": {
+      "title": "Visits & On-time",
+      "sub": "last 14 days",
+      "legend": {
+        "visitsCurrent": "Visits (current)",
+        "visitsPrevYear": "Visits (prev year)",
+        "visitsPrevPeriod": "Visits (prev period)",
+        "ontimePct": "On-time %"
+      },
+      "more": "More",
+      "marker": {
+        "visits": "{{count}} visits",
+        "ontime": "{{pct}}% on-time"
+      }
+    },
+    "leaderboard": {
+      "title": "Top drivers",
+      "sub": "by visits",
+      "filter": "Filter",
+      "open": "Open"
+    },
+    "heatmap": {
+      "title": "Visits by day & hour",
+      "sub": "where the work happens",
+      "days": "MTWTFSS",
+      "tooltip": "{{day}} {{hour}}:00 · {{count}} visits/hour"
+    },
+    "insights": {
+      "title": "Insights",
+      "sub": "auto-detected",
+      "items": {
+        "ontimeDropped": {
+          "title": "On-time dropped",
+          "body": "in the last 3 days. Largest contributor: traffic on Av. 6 de Agosto between 11:30–13:00.",
+          "cta": "View routes"
+        },
+        "visitsUp": {
+          "title": "Visits up +12.4% vs last period",
+          "body": "— exceeding the 1,200 visit goal by 84.",
+          "cta": "Set new goal"
+        },
+        "driverOffline": {
+          "title": "Roberto Mamani has been offline 3 days.",
+          "body": "Vehicle MNO-345 hasn't pinged since 22 May 08:14.",
+          "cta": "Open driver"
+        }
+      }
+    },
+    "serviceLevel": {
+      "title": "Service level",
+      "sub": "by outcome",
+      "rows": {
+        "onTime": "Completed on-time",
+        "lateButCompleted": "Late but completed",
+        "missed": "Missed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "stopDuration": {
+      "title": "Stop duration",
+      "sub": "distribution · minutes"
+    },
+    "byZone": {
+      "title": "By zone",
+      "sub": "distance · km"
+    },
+    "exportedKpis": "Exported overview KPIs"
+  },
+  "table": {
+    "showingOfRoutes": "Showing {{shown}} of {{total}} routes",
+    "columns": "Columns",
+    "toggleColumns": "Toggle columns",
+    "density": {
+      "cozy": "Cozy",
+      "dense": "Dense"
+    },
+    "exportRows": "Export {{count}} rows",
+    "empty": {
+      "title": "No routes match these filters",
+      "body": "Try widening the date range, removing a filter, or picking a different saved view.",
+      "clear": "Clear filters",
+      "reset": "Reset view"
+    },
+    "selected": "{{count}} selected · 1.10 MB",
+    "rowsPerPage": "Rows per page",
+    "pageRangeOf": "{{from}}–{{to}} of {{total}}"
+  },
+  "columns": {
+    "date": "Date",
+    "driver": "Driver",
+    "vehicle": "Vehicle",
+    "status": "Status",
+    "visits": "Visits",
+    "distance": "Distance (km)",
+    "duration": "Duration",
+    "otp": "On-time %"
+  },
+  "routeStatus": {
+    "planned": "planned",
+    "in_progress": "in progress",
+    "completed": "completed",
+    "cancelled": "cancelled",
+    "late": "late",
+    "missed": "missed"
+  },
+  "csvHeaders": {
+    "rutas": "routes",
+    "visitas": "visits",
+    "vehiculos": "vehicles",
+    "clientes": "customers",
+    "metric": "Metric",
+    "value": "Value",
+    "unit": "Unit",
+    "delta": "Delta",
+    "context": "Context",
+    "rank": "Rank",
+    "driver": "Driver",
+    "visits": "Visits",
+    "ontimePct": "On-time %",
+    "distanceKm": "Distance (km)",
+    "date": "Date",
+    "vehicle": "Vehicle",
+    "status": "Status",
+    "stops": "Stops",
+    "duration": "Duration",
+    "dateTime": "Date / Time",
+    "customer": "Customer",
+    "type": "Type",
+    "durationSec": "Duration (s)",
+    "onTime": "On-time",
+    "yes": "Yes",
+    "no": "No",
+    "plate": "Plate",
+    "brand": "Brand",
+    "model": "Model",
+    "year": "Year",
+    "capacityKg": "Capacity (kg)",
+    "name": "Name",
+    "phone": "Phone",
+    "address": "Address",
+    "geofenceM": "Geofence (m)",
+    "active": "Active"
+  },
+  "exportToasts": {
+    "noRoutes": "No routes to export",
+    "noDrivers": "No driver activity to export",
+    "noVisits": "No visits to export",
+    "noVehicles": "No vehicles to export",
+    "noCustomers": "No customers to export",
+    "exportedRoutes_one": "Exported {{count}} route",
+    "exportedRoutes_other": "Exported {{count}} routes",
+    "exportedVisits_one": "Exported {{count}} visit",
+    "exportedVisits_other": "Exported {{count}} visits",
+    "exportedVehicles_one": "Exported {{count}} vehicle",
+    "exportedVehicles_other": "Exported {{count}} vehicles",
+    "exportedCustomers_one": "Exported {{count}} customer",
+    "exportedCustomers_other": "Exported {{count}} customers",
+    "exportedDrivers": "Exported driver leaderboard"
+  },
+  "drilldown": {
+    "breadcrumb": "Routes",
+    "openRoute": "Open route",
+    "gpx": "GPX",
+    "share": "Share",
+    "routeSuffix": "Route",
+    "ontimeSuffix": "{{pct}}% on-time",
+    "stopsSuffix": "{{done}}/{{total}} stops",
+    "stats": {
+      "distance": "Distance",
+      "duration": "Duration",
+      "idle": "Idle",
+      "avgSpeed": "Avg speed",
+      "topSpeed": "Top speed",
+      "speeding": "Speeding"
+    },
+    "units": {
+      "km": "km",
+      "minutes": "m",
+      "kmh": "km/h",
+      "events": "events"
+    },
+    "speedSection": "Speed · last route",
+    "stopsSection": "Stops",
+    "noStops": "No planned stops for this route."
+  },
+  "drivers": {
+    "byVisits": "By visits",
+    "byVisitsSub": "last 14 days",
+    "byOnTime": "By on-time %",
+    "byOnTimeSub": "last 14 days",
+    "byDistance": "By distance",
+    "byDistanceSub": "km driven",
+    "comparison": "Comparison · all drivers",
+    "comparisonSub": "visits per day vs fleet avg",
+    "metricLabel": "Visits",
+    "noActivity": "No driver activity in this range."
+  },
+  "leaderboard": {
+    "noActivity": "No driver activity in this range."
+  },
+  "tables": {
+    "visits": {
+      "dateTime": "Date / Time",
+      "driver": "Driver",
+      "customer": "Customer",
+      "type": "Type",
+      "status": "Status",
+      "duration": "Duration",
+      "onTime": "On-time",
+      "empty": "No visits match these filters.",
+      "minutes": "{{minutes}} min"
+    },
+    "vehicles": {
+      "plate": "Plate",
+      "type": "Type",
+      "brandModel": "Brand / Model",
+      "year": "Year",
+      "capacity": "Capacity",
+      "status": "Status",
+      "driver": "Driver",
+      "empty": "No vehicles match these filters.",
+      "active": "active",
+      "inactive": "inactive"
+    },
+    "customers": {
+      "customer": "Customer",
+      "type": "Type",
+      "phone": "Phone",
+      "address": "Address",
+      "geofence": "Geofence",
+      "status": "Status",
+      "empty": "No customers match these filters.",
+      "active": "active",
+      "inactive": "inactive"
+    }
+  },
+  "comingSoon": {
+    "fuel": {
+      "title": "Fuel reports",
+      "body": "Consumption, cost-per-km and refuel logs will appear here once fuel telemetry is wired into the pipeline."
+    },
+    "safety": {
+      "title": "Safety reports",
+      "body": "Harsh-braking, speeding and idling scorecards will appear here once safety events are captured."
+    },
+    "badge": "coming soon"
+  }
+}

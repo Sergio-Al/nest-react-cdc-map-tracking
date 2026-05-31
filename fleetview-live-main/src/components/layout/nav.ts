@@ -12,7 +12,8 @@ import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
-  label: string;
+  /** i18n key under the `nav` namespace (e.g. "live" → `t("nav:live")`). */
+  labelKey: string;
   icon: LucideIcon;
   /** If set, only these roles see the item. Undefined = everyone. */
   roles?: string[];
@@ -21,17 +22,17 @@ export interface NavItem {
 
 /** Global navigation shared by the icon rail and the ⌘K palette. */
 export const navItems: NavItem[] = [
-  { to: "/", label: "Live", icon: MapPin, group: "primary" },
-  { to: "/history", label: "History", icon: History, group: "primary" },
-  { to: "/routes", label: "Routes", icon: Route, roles: ["admin", "dispatcher"], group: "primary" },
-  { to: "/drivers", label: "Drivers", icon: Users, roles: ["admin", "dispatcher"], group: "primary" },
-  { to: "/vehicles", label: "Vehicles", icon: Truck, roles: ["admin", "dispatcher"], group: "primary" },
-  { to: "/customers", label: "Customers", icon: Building2, roles: ["admin", "dispatcher"], group: "primary" },
-  { to: "/monitoring", label: "Monitoring", icon: Activity, roles: ["admin"], group: "secondary" },
-  { to: "/reports", label: "Reports", icon: FileBarChart, roles: ["admin", "dispatcher"], group: "secondary" },
+  { to: "/", labelKey: "live", icon: MapPin, group: "primary" },
+  { to: "/history", labelKey: "history", icon: History, group: "primary" },
+  { to: "/routes", labelKey: "routes", icon: Route, roles: ["admin", "dispatcher"], group: "primary" },
+  { to: "/drivers", labelKey: "drivers", icon: Users, roles: ["admin", "dispatcher"], group: "primary" },
+  { to: "/vehicles", labelKey: "vehicles", icon: Truck, roles: ["admin", "dispatcher"], group: "primary" },
+  { to: "/customers", labelKey: "customers", icon: Building2, roles: ["admin", "dispatcher"], group: "primary" },
+  { to: "/monitoring", labelKey: "monitoring", icon: Activity, roles: ["admin"], group: "secondary" },
+  { to: "/reports", labelKey: "reports", icon: FileBarChart, roles: ["admin", "dispatcher"], group: "secondary" },
 ];
 
-export const canSee = (item: NavItem, role?: string | null): boolean =>
+export const canSee = (item: Pick<NavItem, "roles">, role?: string | null): boolean =>
   !item.roles || (!!role && item.roles.includes(role));
 
 /** True when `pathname` is the active route for `to` ("/" matches exactly). */

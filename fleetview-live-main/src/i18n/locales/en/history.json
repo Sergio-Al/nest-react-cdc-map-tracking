@@ -1,0 +1,110 @@
+{
+  "page": {
+    "filterTab": "Filter form",
+    "tripsTab": "Trips list"
+  },
+  "filter": {
+    "title": "Route History",
+    "subtitle": "Play back historical positions",
+    "searchBy": "Search by",
+    "byDriver": "Driver",
+    "byVehicle": "Vehicle",
+    "driver": "Driver",
+    "selectDriver": "Select a driver…",
+    "noDrivers": "No drivers",
+    "timeRange": "Time range",
+    "fromTime": "From time",
+    "toTime": "To time",
+    "presets": {
+      "today": "Today",
+      "1d": "1d",
+      "3d": "3d",
+      "7d": "7d"
+    },
+    "showOnMap": "Show on map",
+    "toggles": {
+      "speedPath": "Speed-coloured path",
+      "stopMarkers": "Stop markers",
+      "idleEvents": "Idle events",
+      "speedingEvents": "Speeding events"
+    },
+    "loadHistory": "Load history",
+    "reloadHistory": "Reload history"
+  },
+  "trips": {
+    "selectDriverHint": "Select a driver",
+    "driverWindow": "{{name}} · last {{window}}",
+    "driver": "Driver",
+    "selectDriver": "Select a driver…",
+    "window": "Window",
+    "trips": "Trips",
+    "kmHours": "{{km}} km · {{hours}}",
+    "depotAchumani": "Depot · Achumani",
+    "stopsCount": "{{count}} stops"
+  },
+  "detail": {
+    "empty": {
+      "title": "No trip selected",
+      "body": "Choose a driver and date range, then load history to see route details, segments and events here."
+    },
+    "tripSuffix": "trip #{{id}}",
+    "statusComplete": "Complete",
+    "actions": {
+      "replay": "Replay",
+      "gpx": "GPX",
+      "share": "Share"
+    },
+    "tabs": {
+      "summary": "Summary",
+      "segments": "Segments",
+      "events": "Events",
+      "stops": "Stops"
+    },
+    "summary": {
+      "tripOverview": "Trip overview",
+      "distance": "Distance",
+      "duration": "Duration",
+      "avgSpeed": "Avg speed",
+      "topSpeed": "Top speed",
+      "stops": "Stops",
+      "idleTime": "Idle time",
+      "timeComposition": "Time composition",
+      "moving": "Moving",
+      "stopped": "Stopped",
+      "idle": "Idle",
+      "offline": "Offline",
+      "minSuffix": "{{count}} min",
+      "ofTen": "/ 10",
+      "minUnit": "min",
+      "segmentsHeader": "Segments"
+    },
+    "placeholder": {
+      "events": "Events tab — MOCK placeholder.",
+      "stops": "Stops tab — MOCK placeholder.",
+      "body": "Replace with real endpoint data."
+    }
+  },
+  "map": {
+    "summary": {
+      "distance": "Distance",
+      "duration": "Duration",
+      "stops": "Stops",
+      "avgSpeed": "Avg speed"
+    },
+    "legend": {
+      "title": "Speed",
+      "unit": "km/h"
+    }
+  },
+  "playback": {
+    "restart": "Restart",
+    "stepBack": "Step back",
+    "play": "Play",
+    "pause": "Pause",
+    "stepForward": "Step forward",
+    "skipToEnd": "Skip to end",
+    "speed": "speed",
+    "exportGpx": "Export GPX",
+    "share": "Share"
+  }
+}

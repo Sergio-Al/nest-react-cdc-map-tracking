@@ -13,6 +13,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { useTranslation } from 'react-i18next';
 import { SortableVisitCard } from './SortableVisitCard';
 import type { PlannedVisit } from '@/types/visit.types';
 import type { Customer } from '@/types/customer.types';
@@ -32,6 +33,7 @@ export function SortableVisitList({
   onDeleteVisit,
   disabled,
 }: SortableVisitListProps) {
+  const { t } = useTranslation('routes');
   const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   const sensors = useSensors(
@@ -56,8 +58,8 @@ export function SortableVisitList({
     return (
       <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground p-8 text-center">
         <div>
-          <p className="font-medium">No stops yet</p>
-          <p className="mt-1">Add a stop to begin building the route</p>
+          <p className="font-medium">{t('visitCard.noStops.title')}</p>
+          <p className="mt-1">{t('visitCard.noStops.body')}</p>
         </div>
       </div>
     );

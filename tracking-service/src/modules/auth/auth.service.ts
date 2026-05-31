@@ -27,7 +27,7 @@ export class AuthService {
     });
 
     if (existing) {
-      throw new ConflictException('User with this email already exists in this tenant');
+      throw new ConflictException({ errorCode: 'auth.userAlreadyExists' });
     }
 
     // Hash password
@@ -61,18 +61,18 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({ errorCode: 'auth.invalidCredentials' });
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Account is inactive');
+      throw new UnauthorizedException({ errorCode: 'auth.userInactive' });
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({ errorCode: 'auth.invalidCredentials' });
     }
 
     // Generate token pair
@@ -84,14 +84,14 @@ export class AuthService {
     const userId = await this.redisService.get(`refresh:${refreshToken}`);
 
     if (!userId) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException({ errorCode: 'auth.invalidRefreshToken' });
     }
 
     // Find user
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('User not found or inactive');
+      throw new UnauthorizedException({ errorCode: 'auth.userNotFoundOrInactive' });
     }
 
     // Delete old refresh token
@@ -160,7 +160,7 @@ export class AuthService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException({ errorCode: 'auth.userNotFound' });
     }
 
     const { password, ...result } = user;

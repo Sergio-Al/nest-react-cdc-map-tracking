@@ -1,7 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { I18nValidationPipe, I18nValidationExceptionFilter } from 'nestjs-i18n';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
@@ -13,9 +14,15 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
 
   app.setGlobalPrefix('api');
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  // Filter order matters: I18nValidationExceptionFilter handles
+  // I18nValidationException (thrown by I18nValidationPipe). Anything else
+  // — including business HttpExceptions — falls through to GlobalExceptionFilter.
+  app.useGlobalFilters(
+    new GlobalExceptionFilter(),
+    new I18nValidationExceptionFilter({ detailedErrors: false }),
+  );
   app.useGlobalPipes(
-    new ValidationPipe({
+    new I18nValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,

@@ -1,0 +1,71 @@
+{
+  "page": {
+    "title": "Conductores",
+    "subtitle": "Gestiona los conductores de la flota · {{count}} en total",
+    "newDriver": "Nuevo conductor"
+  },
+  "status": {
+    "online": "en línea",
+    "break": "descanso",
+    "offline": "desconectado"
+  },
+  "table": {
+    "driver": "Conductor",
+    "status": "Estado",
+    "vehicle": "Vehículo",
+    "phone": "Teléfono",
+    "deviceId": "ID de dispositivo",
+    "empty": "Ningún conductor coincide con estos filtros."
+  },
+  "dialog": {
+    "title": "Nuevo conductor",
+    "name": "Nombre",
+    "namePlaceholder": "Nombre completo",
+    "phone": "Teléfono",
+    "phonePlaceholder": "+591 …",
+    "vehiclePlate": "Placa del vehículo",
+    "deviceId": "ID de dispositivo",
+    "vehicleType": "Tipo de vehículo",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "types": {
+      "van": "Furgoneta",
+      "truck": "Camión",
+      "motorcycle": "Moto",
+      "car": "Auto"
+    }
+  },
+  "toasts": {
+    "created": "Conductor \"{{name}}\" creado",
+    "createFailed": "No se pudo crear el conductor"
+  },
+  "detail": {
+    "empty": {
+      "title": "Ningún conductor seleccionado",
+      "subtitle": "Elige un conductor de la lista para ver contacto, vehículo asignado y última posición."
+    },
+    "tabs": {
+      "overview": "Resumen",
+      "vehicle": "Vehículo"
+    },
+    "subtitle": {
+      "noVehicle": "sin vehículo",
+      "noDevice": "sin dispositivo"
+    },
+    "actions": {
+      "edit": "Editar",
+      "deactivate": "Desactivar",
+      "notAvailable": "Endpoint del backend aún no disponible"
+    },
+    "sections": {
+      "lastPosition": "Última posición",
+      "noPosition": "Sin posición reciente",
+      "contact": "Contacto",
+      "phone": "Teléfono",
+      "deviceId": "ID de dispositivo",
+      "assignedVehicle": "Vehículo asignado",
+      "noVehicle": "Sin vehículo asignado",
+      "goToVehicles": "ir a vehículos →"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { GripVertical, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useTranslation } from 'react-i18next';
 import type { PlannedVisit } from '@/types/visit.types';
 import type { Customer } from '@/types/customer.types';
 import { cn } from '@/lib/utils';
@@ -13,17 +14,14 @@ interface SortableVisitCardProps {
   disabled?: boolean;
 }
 
-function windowLabel(start: string | null): string | null {
+/** Returns a translation key under `routes:palette.window.*` for the visit's start hour. */
+function windowKey(start: string | null): 'morning' | 'afternoon' | 'evening' | null {
   if (!start) return null;
   const h = Number(start.slice(0, 2));
   if (Number.isNaN(h)) return null;
-  if (h < 12) return 'Morning';
-  if (h < 17) return 'Afternoon';
-  return 'Evening';
-}
-
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
 }
 
 export function SortableVisitCard({
@@ -37,11 +35,15 @@ export function SortableVisitCard({
     id: visit.id,
     disabled,
   });
+  const { t, i18n } = useTranslation('routes');
 
   const style = { transform: CSS.Transform.toString(transform), transition };
   const isLocked = visit.status !== 'pending';
   const isCompleted = visit.status === 'completed';
-  const win = windowLabel(visit.timeWindowStart);
+  const winKey = windowKey(visit.timeWindowStart);
+  const winLabel = winKey ? t(`palette.window.${winKey}`) : null;
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div
@@ -82,14 +84,14 @@ export function SortableVisitCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-[13px] font-medium text-foreground">
-            {customer?.name ?? `Customer #${visit.customerId}`}
+            {customer?.name ?? t('visitCard.customerFallback', { id: visit.customerId })}
           </span>
         </div>
         <div className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-mc-text-dim">
           <span className="truncate">{customer?.address ?? '—'}</span>
-          {win && visit.timeWindowStart && visit.timeWindowEnd && (
+          {winLabel && visit.timeWindowStart && visit.timeWindowEnd && (
             <span className="shrink-0 text-mc-accent">
-              · {win} · {visit.timeWindowStart.slice(0, 5)}-{visit.timeWindowEnd.slice(0, 5)}
+              · {winLabel} · {visit.timeWindowStart.slice(0, 5)}-{visit.timeWindowEnd.slice(0, 5)}
             </span>
           )}
         </div>
@@ -115,7 +117,7 @@ export function SortableVisitCard({
           type="button"
           onClick={() => onDelete(visit.id)}
           className="shrink-0 rounded p-1 text-mc-text-dim opacity-0 transition-opacity hover:text-status-offline group-hover:opacity-100"
-          aria-label="Remove stop"
+          aria-label={t('visitCard.remove')}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

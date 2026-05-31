@@ -1,0 +1,57 @@
+{
+  "generic": "Ocurrió un error inesperado",
+  "internalServerError": "Error interno del servidor",
+  "validation": "Revisa los datos ingresados",
+  "auth": {
+    "invalidCredentials": "Credenciales inválidas",
+    "userInactive": "La cuenta está inactiva",
+    "invalidApiKey": "API key inválida o faltante",
+    "invalidRefreshToken": "Token de actualización inválido",
+    "userNotFoundOrInactive": "Usuario no encontrado o inactivo",
+    "userNotFound": "Usuario no encontrado",
+    "userAlreadyExists": "Ya existe un usuario con este correo en este tenant",
+    "insufficientPermissions": "Permisos insuficientes",
+    "tokenInvalid": "Token de sesión inválido"
+  },
+  "history": {
+    "fromToRequired": "Los parámetros \"from\" y \"to\" son obligatorios (ISO 8601)",
+    "fromToInvalid": "\"from\" y \"to\" deben ser fechas ISO 8601 válidas"
+  },
+  "routes": {
+    "fromToRequired": "Los parámetros \"from\" y \"to\" son obligatorios (ISO 8601)",
+    "fromToInvalid": "\"from\" y \"to\" deben ser fechas ISO 8601 válidas",
+    "notFound": "Ruta {{id}} no encontrada",
+    "noVisits": "La ruta no tiene paradas",
+    "noVisitsToOptimize": "La ruta no tiene paradas para optimizar",
+    "noPendingVisits": "No hay paradas pendientes para optimizar",
+    "visitNotInRoute": "La parada {{visitId}} no pertenece a la ruta {{routeId}}",
+    "customerHasNoCoords": "El cliente {{customerId}} no se encontró o no tiene coordenadas"
+  },
+  "visits": {
+    "notFound": "Parada {{id}} no encontrada",
+    "cannotDeleteInStatus": "No se puede eliminar una parada en estado '{{status}}'",
+    "cannotAccessOtherDriver": "No puedes acceder a paradas de otros conductores",
+    "cannotUpdateOtherDriver": "No puedes actualizar paradas de otros conductores"
+  },
+  "vehicles": {
+    "plateExists": "Ya existe un vehículo con placa {{plate}}",
+    "notFound": "Vehículo {{id}} no encontrado"
+  },
+  "drivers": {
+    "fromToRequired": "Los parámetros \"from\" y \"to\" son obligatorios (ISO 8601)",
+    "fromToInvalid": "\"from\" y \"to\" deben ser fechas ISO 8601 válidas"
+  },
+  "osrm": {
+    "matricesFailed": "No se pudo obtener la información de ruteo de OSRM. ¿Está corriendo el servicio OSRM?",
+    "geometryFailed": "No se pudo obtener la geometría de la ruta desde OSRM."
+  },
+  "orTools": {
+    "solverFailed": "No se pudo optimizar la ruta. ¿Está corriendo el servicio OR-Tools?"
+  },
+  "common": {
+    "notFound": "Recurso no encontrado",
+    "forbidden": "No tienes permiso para esta acción",
+    "conflict": "El recurso ya existe",
+    "badRequest": "Solicitud inválida"
+  }
+}

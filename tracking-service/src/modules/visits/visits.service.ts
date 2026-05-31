@@ -40,7 +40,7 @@ export class VisitsService {
 
   async findById(id: string): Promise<PlannedVisit> {
     const visit = await this.visitRepo.findOne({ where: { id } });
-    if (!visit) throw new NotFoundException(`Visit ${id} not found`);
+    if (!visit) throw new NotFoundException({ errorCode: 'visits.notFound', args: { id } });
     return visit;
   }
 
@@ -133,7 +133,10 @@ export class VisitsService {
   async delete(id: string): Promise<void> {
     const visit = await this.findById(id);
     if (visit.status !== 'pending') {
-      throw new BadRequestException(`Cannot delete visit in '${visit.status}' status`);
+      throw new BadRequestException({
+        errorCode: 'visits.cannotDeleteInStatus',
+        args: { status: visit.status },
+      });
     }
     await this.visitRepo.remove(visit);
     await this.routesService.decrementTotalStops(visit.routeId);

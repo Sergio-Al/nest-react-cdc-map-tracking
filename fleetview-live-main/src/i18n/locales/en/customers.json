@@ -1,0 +1,113 @@
+{
+  "page": {
+    "title": "Customers",
+    "subtitle": "Manage your customer directory · {{count}} total",
+    "newCustomer": "New Customer"
+  },
+  "banner": {
+    "syncing": "<strong>{{names}}</strong> — syncing via CDC, will appear in a few seconds."
+  },
+  "status": {
+    "active": "active",
+    "inactive": "inactive"
+  },
+  "table": {
+    "customer": "Customer",
+    "category": "Category",
+    "type": "Type",
+    "contact": "Contact",
+    "geofence": "Geofence",
+    "lastVisit": "Last visit",
+    "status": "Status",
+    "empty": "No customers match these filters."
+  },
+  "dialog": {
+    "title": "New Customer",
+    "name": "Name",
+    "namePlaceholder": "Customer or business name",
+    "phone": "Phone",
+    "phonePlaceholder": "+591 …",
+    "email": "Email",
+    "emailPlaceholder": "contact@example.com",
+    "address": "Address",
+    "addressPlaceholder": "Street address",
+    "location": "Location · click on the map to place the pin",
+    "noPinYet": "no pin yet",
+    "geofenceLabel": "geofence {{value}} m",
+    "geofenceField": "Geofence radius",
+    "customerType": "Customer type",
+    "create": "Create",
+    "cancel": "Cancel",
+    "types": {
+      "retail": "Retail",
+      "wholesale": "Wholesale",
+      "distributor": "Distributor",
+      "other": "Other"
+    }
+  },
+  "categories": {
+    "restaurants": "Restaurants",
+    "retail": "Retail",
+    "healthcare": "Healthcare",
+    "industrial": "Industrial"
+  },
+  "customerType": {
+    "premium": "premium",
+    "standard": "standard",
+    "retail": "retail",
+    "wholesale": "wholesale",
+    "distributor": "distributor",
+    "other": "other"
+  },
+  "toasts": {
+    "queued": "Customer \"{{name}}\" queued — will appear shortly via CDC sync",
+    "createFailed": "Failed to create customer"
+  },
+  "detail": {
+    "empty": {
+      "title": "No customer selected",
+      "subtitle": "Pick a customer from the list to see contact info, geofence and recent visits."
+    },
+    "tabs": {
+      "overview": "Overview",
+      "visits": "Visits"
+    },
+    "subtitle": {
+      "noAddress": "No address"
+    },
+    "statusBadge": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "notAvailable": "Backend endpoint not yet available"
+    },
+    "sections": {
+      "location": "Location",
+      "noCoordinates": "No coordinates",
+      "geofence": "geofence {{value}} m",
+      "contact": "Contact",
+      "activity": "Activity",
+      "derived": "derived",
+      "type": "Type",
+      "lastVisit": "Last visit",
+      "monthlyVisits": "Monthly visits",
+      "monthlyValue": "{{count}}/mo",
+      "last30Days": "Last 30 days",
+      "noVisits": "No visits recorded in the last 30 days."
+    },
+    "visitStatus": {
+      "completed": "completed",
+      "failed": "failed",
+      "skipped": "skipped"
+    }
+  },
+  "lastVisitLabel": {
+    "today": "today",
+    "days": "{{count}}d",
+    "weeks": "{{count}}w"
+  }
+}

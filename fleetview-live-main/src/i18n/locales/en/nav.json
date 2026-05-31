@@ -1,0 +1,33 @@
+{
+  "live": "Live",
+  "history": "History",
+  "routes": "Routes",
+  "drivers": "Drivers",
+  "vehicles": "Vehicles",
+  "customers": "Customers",
+  "monitoring": "Monitoring",
+  "reports": "Reports",
+  "notifications": "Notifications",
+  "userMenu": {
+    "account": "My Account",
+    "tenant": "Tenant",
+    "logout": "Log out",
+    "loggedOut": "Logged out",
+    "logoutFailed": "Logout failed"
+  },
+  "palette": {
+    "placeholder": "Search drivers or type a command…",
+    "empty": "No results found.",
+    "groups": {
+      "drivers": "Drivers",
+      "actions": "Actions",
+      "navigate": "Navigate"
+    },
+    "actions": {
+      "createRoute": "Create new route",
+      "focusDriver": "Focus on {{name}} on map",
+      "switchToLight": "Switch to light theme",
+      "switchToDark": "Switch to dark theme"
+    }
+  }
+}

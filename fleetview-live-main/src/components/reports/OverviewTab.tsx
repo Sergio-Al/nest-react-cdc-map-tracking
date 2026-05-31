@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Filter, ExternalLink, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { exportToCsv } from '@/lib/utils';
 import { useRegisterExporter } from '@/hooks/useReportExporter';
 import { ReportCard, ReportCardHead, ReportCardBody, HdrIconButton } from './ReportCard';
@@ -20,6 +21,13 @@ import {
 } from '@/hooks/api/useReports';
 import { useReportsStore } from '@/stores/reports.store';
 
+const SERVICE_LEVEL_KEYS: Record<string, string> = {
+  'Completed on-time': 'onTime',
+  'Late but completed': 'lateButCompleted',
+  'Missed': 'missed',
+  'Cancelled': 'cancelled',
+};
+
 function Legend({ color, label, line }: { color: string; label: string; line?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] text-mc-text-muted">
@@ -34,8 +42,12 @@ function Legend({ color, label, line }: { color: string; label: string; line?: b
 
 export function OverviewTab() {
   const { from, to, compare } = useReportsStore();
+  const { t } = useTranslation('reports');
   const showPrev = compare !== 'none';
-  const prevLabel = compare === 'previous_year' ? 'Visits (prev year)' : 'Visits (prev period)';
+  const prevLegend =
+    compare === 'previous_year'
+      ? t('overview.trend.legend.visitsPrevYear')
+      : t('overview.trend.legend.visitsPrevPeriod');
   const kpis = useReportKpis();
   const insights = useReportInsights();
   const serviceLevel = useServiceLevel();
@@ -46,16 +58,16 @@ export function OverviewTab() {
   const doExport = useCallback(() => {
     exportToCsv(
       kpis.map((k) => ({
-        Metric: k.lbl,
-        Value: k.val,
-        Unit: k.unit,
-        Delta: k.delta,
-        Context: k.target,
+        [t('csvHeaders.metric')]: k.lbl,
+        [t('csvHeaders.value')]: k.val,
+        [t('csvHeaders.unit')]: k.unit,
+        [t('csvHeaders.delta')]: k.delta,
+        [t('csvHeaders.context')]: k.target,
       })),
       'overview-kpis',
     );
-    toast.success('Exported overview KPIs');
-  }, [kpis]);
+    toast.success(t('overview.exportedKpis'));
+  }, [kpis, t]);
   useRegisterExporter(doExport);
 
   const maxStop = Math.max(...stopDuration, 1);
@@ -73,16 +85,16 @@ export function OverviewTab() {
       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[2fr_1fr]">
         <ReportCard>
           <ReportCardHead
-            title="Visits & On-time"
-            sub="last 14 days"
+            title={t('overview.trend.title')}
+            sub={t('overview.trend.sub')}
             actions={
               <>
                 <span className="hidden items-center gap-3 xl:inline-flex">
-                  <Legend color="var(--mc-accent)" label="Visits (current)" />
-                  {showPrev && <Legend color="var(--mc-text-dim)" label={prevLabel} line />}
-                  <Legend color="oklch(0.72 0.16 150)" label="On-time %" />
+                  <Legend color="var(--mc-accent)" label={t('overview.trend.legend.visitsCurrent')} />
+                  {showPrev && <Legend color="var(--mc-text-dim)" label={prevLegend} line />}
+                  <Legend color="oklch(0.72 0.16 150)" label={t('overview.trend.legend.ontimePct')} />
                 </span>
-                <HdrIconButton title="More">
+                <HdrIconButton title={t('overview.trend.more')}>
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </HdrIconButton>
               </>
@@ -95,14 +107,14 @@ export function OverviewTab() {
 
         <ReportCard>
           <ReportCardHead
-            title="Top drivers"
-            sub="by visits"
+            title={t('overview.leaderboard.title')}
+            sub={t('overview.leaderboard.sub')}
             actions={
               <>
-                <HdrIconButton title="Filter">
+                <HdrIconButton title={t('overview.leaderboard.filter')}>
                   <Filter className="h-3.5 w-3.5" />
                 </HdrIconButton>
-                <HdrIconButton title="Open">
+                <HdrIconButton title={t('overview.leaderboard.open')}>
                   <ExternalLink className="h-3.5 w-3.5" />
                 </HdrIconButton>
               </>
@@ -118,8 +130,8 @@ export function OverviewTab() {
       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[2fr_1fr]">
         <ReportCard>
           <ReportCardHead
-            title="Visits by day & hour"
-            sub="where the work happens"
+            title={t('overview.heatmap.title')}
+            sub={t('overview.heatmap.sub')}
             actions={
               <span className="inline-flex items-center gap-1 font-mono text-[10px] text-mc-text-dim">
                 <span>0</span>
@@ -144,7 +156,7 @@ export function OverviewTab() {
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title="Insights" sub="auto-detected" />
+          <ReportCardHead title={t('overview.insights.title')} sub={t('overview.insights.sub')} />
           <ReportCardBody>
             <Insights insights={insights} />
           </ReportCardBody>
@@ -154,28 +166,32 @@ export function OverviewTab() {
       {/* Service level + stop duration + by zone */}
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
         <ReportCard>
-          <ReportCardHead title="Service level" sub="by outcome" />
+          <ReportCardHead title={t('overview.serviceLevel.title')} sub={t('overview.serviceLevel.sub')} />
           <ReportCardBody className="flex flex-col gap-2.5">
-            {serviceLevel.map((r) => (
-              <div key={r.lbl} className="flex items-center gap-2.5">
-                <div className="w-40 text-xs text-mc-text-muted">{r.lbl}</div>
-                <div className="relative h-[5px] flex-1 overflow-hidden rounded-full bg-mc-surface">
-                  <div
-                    className="h-full"
-                    style={{ width: `${r.pct}%`, background: barColor(r.cls) }}
-                  />
+            {serviceLevel.map((r) => {
+              const key = SERVICE_LEVEL_KEYS[r.lbl];
+              const label = key ? t(`overview.serviceLevel.rows.${key}`) : r.lbl;
+              return (
+                <div key={r.lbl} className="flex items-center gap-2.5">
+                  <div className="w-40 text-xs text-mc-text-muted">{label}</div>
+                  <div className="relative h-[5px] flex-1 overflow-hidden rounded-full bg-mc-surface">
+                    <div
+                      className="h-full"
+                      style={{ width: `${r.pct}%`, background: barColor(r.cls) }}
+                    />
+                  </div>
+                  <div className="w-[60px] text-right font-mono text-xs font-semibold text-foreground">
+                    {r.ct}
+                    <span className="ml-1 text-[10px] font-normal text-mc-text-dim">{r.pct}%</span>
+                  </div>
                 </div>
-                <div className="w-[60px] text-right font-mono text-xs font-semibold text-foreground">
-                  {r.ct}
-                  <span className="ml-1 text-[10px] font-normal text-mc-text-dim">{r.pct}%</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </ReportCardBody>
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title="Stop duration" sub="distribution · minutes" />
+          <ReportCardHead title={t('overview.stopDuration.title')} sub={t('overview.stopDuration.sub')} />
           <ReportCardBody className="flex h-[140px] items-end gap-1">
             {stopDuration.map((h, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
@@ -195,7 +211,7 @@ export function OverviewTab() {
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title="By zone" sub="distance · km" />
+          <ReportCardHead title={t('overview.byZone.title')} sub={t('overview.byZone.sub')} />
           <ReportCardBody className="flex flex-col gap-2">
             {byZone.map((r) => (
               <div key={r.lbl} className="flex items-center gap-2">

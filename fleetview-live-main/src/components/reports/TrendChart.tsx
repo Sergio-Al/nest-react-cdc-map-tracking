@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { REPORT_TREND } from '@/lib/mock/reportsMock';
 
 const GREEN = 'oklch(0.72 0.16 150)';
@@ -5,6 +6,7 @@ const GREEN = 'oklch(0.72 0.16 150)';
 /** Dual-axis trend: visits (area + current line + dashed prev period) and on-time %. */
 export function TrendChart({ showPrev = true }: { showPrev?: boolean }) {
   const { days, visits, visitsPrev, otp, marker } = REPORT_TREND;
+  const { t } = useTranslation('reports');
   const W = 760;
   const H = 200;
   const PAD_L = 32;
@@ -140,10 +142,10 @@ export function TrendChart({ showPrev = true }: { showPrev?: boolean }) {
           className="font-mono"
           fontWeight="600"
         >
-          {marker.visits} visits
+          {t('overview.trend.marker.visits', { count: marker.visits })}
         </text>
         <text x="14" y="3" fontSize="9.5" fill={GREEN} className="font-mono">
-          {marker.otp}% on-time
+          {t('overview.trend.marker.ontime', { pct: marker.otp })}
         </text>
       </g>
     </svg>
