@@ -1,21 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Pencil } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Field,
+  DenseInput,
+  ChipGroup,
+  DialogFormFooter,
+  DenseDialogHeader,
+} from '@/components/ui/dense-form';
 import type { Vehicle } from '@/types/vehicle.types';
 import type { UpdateVehicleDto } from '@/hooks/api/useVehicles';
 
@@ -26,6 +18,19 @@ interface EditVehicleDialogProps {
   onSubmit: (id: string, dto: UpdateVehicleDto) => void;
   isLoading?: boolean;
 }
+
+const TYPES = [
+  { id: 'van', label: 'Van' },
+  { id: 'truck', label: 'Truck' },
+  { id: 'motorcycle', label: 'Moto' },
+  { id: 'car', label: 'Car' },
+];
+
+const STATUSES = [
+  { id: 'active', label: 'Active' },
+  { id: 'maintenance', label: 'Maintenance' },
+  { id: 'inactive', label: 'Inactive' },
+];
 
 export function EditVehicleDialog({
   open,
@@ -76,123 +81,65 @@ export function EditVehicleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Edit Vehicle</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-[480px] gap-0 overflow-hidden p-0">
+        <DialogTitle className="sr-only">Edit Vehicle</DialogTitle>
+        <DenseDialogHeader icon={<Pencil className="h-3.5 w-3.5" />} title="Edit Vehicle" />
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>
-              Plate <span className="text-destructive">*</span>
-            </Label>
-            <Input
+        <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
+          <Field label="Plate" required>
+            <DenseInput
               value={plate}
-              onChange={(e) => setPlate(e.target.value)}
-              placeholder="ABC-1234"
+              onChange={(e) => setPlate(e.target.value.toUpperCase())}
+              className="font-mono"
             />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Type">
+              <ChipGroup value={type} onChange={setType} options={TYPES} />
+            </Field>
+            <Field label="Status">
+              <ChipGroup value={status} onChange={setStatus} options={STATUSES} />
+            </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="van">Van</SelectItem>
-                  <SelectItem value="truck">Truck</SelectItem>
-                  <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                  <SelectItem value="car">Car</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Brand">
+              <DenseInput value={brand} onChange={(e) => setBrand(e.target.value)} />
+            </Field>
+            <Field label="Model">
+              <DenseInput value={model} onChange={(e) => setModel(e.target.value)} />
+            </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Brand</Label>
-              <Input
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="Mercedes-Benz"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Model</Label>
-              <Input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="Sprinter"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Year</Label>
-              <Input
-                type="number"
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                placeholder="2024"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Capacity (kg)</Label>
-              <Input
+          <div className="grid grid-cols-3 gap-2.5">
+            <Field label="Year">
+              <DenseInput type="number" value={year} onChange={(e) => setYear(e.target.value)} />
+            </Field>
+            <Field label="Color">
+              <DenseInput value={color} onChange={(e) => setColor(e.target.value)} />
+            </Field>
+            <Field label="Capacity (kg)">
+              <DenseInput
                 type="number"
                 value={capacityKg}
                 onChange={(e) => setCapacityKg(e.target.value)}
-                placeholder="1500"
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="space-y-2">
-            <Label>Color</Label>
-            <Input
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              placeholder="White"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Notes</Label>
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional notes..."
-            />
-          </div>
+          <Field label="Notes">
+            <DenseInput value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!plate.trim() || isLoading}>
-            {isLoading ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
+        <DialogFormFooter
+          onCancel={() => onOpenChange(false)}
+          onSubmit={handleSubmit}
+          submitLabel="Save changes"
+          canSubmit={!!plate.trim()}
+          isLoading={isLoading}
+        />
       </DialogContent>
     </Dialog>
   );

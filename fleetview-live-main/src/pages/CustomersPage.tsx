@@ -1,41 +1,67 @@
-import { useState } from 'react';
-import { Plus, Building2, MapPin, Phone, Mail, CheckCircle2, Clock } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Plus, Building2, Clock, Phone, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCustomers, useCreateCustomer } from '@/hooks/api/useRouteBuilder';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSocket } from '@/hooks/useSocket';
 import { CreateCustomerDialog } from '@/components/customers/CreateCustomerDialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { CustomerDetailPanel } from '@/components/customers/CustomerDetailPanel';
+import { Footer } from '@/components/dashboard/Footer';
+import { FilterBar, useDatasetFilters } from '@/components/filters';
+import { TableShell, Td } from '@/components/ui/table-shell';
+import { getCustomerMeta, CATEGORY_META, lastVisitLabel } from '@/lib/mock/customerMeta';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  CUSTOMER_DIRECTORY_FIELDS,
+  CUSTOMER_DIRECTORY_VIEWS,
+  type CustomerDirectoryRow,
+} from '@/components/reports/reportFilters';
+import { cn } from '@/lib/utils';
 import type { CreateCustomerDto } from '@/hooks/api/useRouteBuilder';
-
-const TYPE_STYLES: Record<string, string> = {
-  retail: 'bg-blue-500/15 text-blue-600 border-blue-500/20',
-  wholesale: 'bg-purple-500/15 text-purple-600 border-purple-500/20',
-  distributor: 'bg-orange-500/15 text-orange-600 border-orange-500/20',
-  other: 'bg-secondary text-muted-foreground border-border',
-};
 
 export default function CustomersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [pendingNames, setPendingNames] = useState<string[]>([]);
+
   const user = useAuthStore((s) => s.user);
-  const { data: customers = [], isLoading, error } = useCustomers();
+  const { isConnected } = useSocket();
+  const { data: customers = [], isLoading } = useCustomers();
   const createCustomer = useCreateCustomer();
+
+  const isManager = user?.role === 'admin' || user?.role === 'dispatcher';
+
+  const rows = useMemo<CustomerDirectoryRow[]>(
+    () =>
+      customers.map((c) => {
+        const meta = getCustomerMeta(c);
+        return {
+          ...c,
+          category: meta.category,
+          lastVisitDays: meta.lastVisitDays,
+          monthlyFrequency: meta.monthlyFrequency,
+        };
+      }),
+    [customers],
+  );
+
+  // NOTE: '-page' suffix is required — must not collide with the Reports
+  // Customers tab's 'customers' localStorage key (different fields/views).
+  const ds = useDatasetFilters(
+    'customers-page',
+    rows,
+    CUSTOMER_DIRECTORY_FIELDS,
+    CUSTOMER_DIRECTORY_VIEWS,
+  );
+
+  const selected = useMemo(
+    () => ds.filtered.find((c) => c.id === selectedId) ?? null,
+    [ds.filtered, selectedId],
+  );
 
   const handleCreate = async (dto: CreateCustomerDto) => {
     try {
       await createCustomer.mutateAsync(dto);
       setPendingNames((prev) => [...prev, dto.name]);
-      // Remove from pending after CDC propagation window
       setTimeout(() => {
         setPendingNames((prev) => prev.filter((n) => n !== dto.name));
       }, 5000);
@@ -48,30 +74,40 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="border-b border-border px-6 py-3">
         <div className="flex items-center gap-3">
-          <Building2 className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage your customer directory
-            </p>
+          <div className="grid h-8 w-8 place-items-center rounded-lg border border-mc-accent-border bg-mc-accent-soft text-mc-accent">
+            <Building2 className="h-4 w-4" />
           </div>
+          <div>
+            <div className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">
+              Customers
+            </div>
+            <div className="mt-0.5 text-xs text-mc-text-muted">
+              Manage your customer directory · {customers.length} total
+            </div>
+          </div>
+          {isManager && (
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={() => setDialogOpen(true)}
+                className="flex h-8 items-center gap-[6px] rounded-mc bg-mc-accent px-3 text-[12.5px] font-medium text-white hover:bg-mc-accent-strong"
+              >
+                <Plus className="h-[13px] w-[13px]" />
+                <span>New Customer</span>
+              </button>
+            </div>
+          )}
         </div>
-        {(user?.role === 'admin' || user?.role === 'dispatcher') && (
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Customer
-          </Button>
-        )}
       </div>
 
-      {/* Pending notice */}
+      {/* CDC pending banner */}
       {pendingNames.length > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400">
-          <Clock className="h-4 w-4 shrink-0" />
+        <div className="flex items-center gap-2 border-b border-[oklch(0.78_0.14_80/0.25)] bg-[oklch(0.78_0.14_80/0.10)] px-6 py-2 text-[11.5px] text-[oklch(0.5_0.14_80)] dark:text-[oklch(0.85_0.16_80)]">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
           <span>
             <strong>{pendingNames.join(', ')}</strong> — syncing via CDC, will appear in a few
             seconds.
@@ -79,117 +115,127 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* Content */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-14 w-full" />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="text-center py-12 text-muted-foreground">
-          Failed to load customers.
-        </div>
-      ) : customers.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Building2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
-          <p>No customers yet.</p>
-          {(user?.role === 'admin' || user?.role === 'dispatcher') && (
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => setDialogOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add your first customer
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border/50">
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5" />
-                    Location
-                  </span>
-                </TableHead>
-                <TableHead>
-                  <span className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5" />
-                    Contact
-                  </span>
-                </TableHead>
-                <TableHead>
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Active
-                  </span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id} className="border-border/50">
-                  <TableCell>
-                    <div className="font-medium">{customer.name}</div>
-                    {customer.address && (
-                      <div className="text-xs text-muted-foreground truncate max-w-[220px]">
-                        {customer.address}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={TYPE_STYLES[customer.customerType] ?? TYPE_STYLES.other}
-                    >
-                      {customer.customerType}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {customer.latitude != null && customer.longitude != null ? (
-                      <span className="font-mono text-xs">
-                        {customer.latitude.toFixed(4)}, {customer.longitude.toFixed(4)}
-                      </span>
-                    ) : (
-                      '—'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      {customer.phone && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          {customer.phone}
-                        </span>
-                      )}
-                      {customer.email && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          {customer.email}
-                        </span>
-                      )}
-                      {!customer.phone && !customer.email && '—'}
+      {/* Filter bar */}
+      <FilterBar
+        fields={CUSTOMER_DIRECTORY_FIELDS}
+        rows={rows}
+        filters={ds.filters}
+        onChange={ds.updateFilters}
+        views={ds.views}
+        activeViewId={ds.activeViewId}
+        onSelectView={ds.selectView}
+        onSaveView={ds.saveView}
+        onDeleteView={ds.deleteView}
+        isMock
+      />
+
+      {/* Body: table + detail */}
+      <div className="flex min-h-0 flex-1">
+        <TableShell
+          headers={[
+            { label: 'Customer' },
+            { label: 'Category' },
+            { label: 'Type' },
+            { label: 'Contact' },
+            { label: 'Geofence', num: true },
+            { label: 'Last visit' },
+            { label: 'Status' },
+          ]}
+          count={ds.filtered.length}
+          isLoading={isLoading}
+          emptyMessage="No customers match these filters."
+        >
+          {ds.filtered.map((c) => {
+            const cat = CATEGORY_META[c.category];
+            const CatIcon = cat.icon;
+            const isSelected = c.id === selectedId;
+            const isPremium = c.customerType === 'premium';
+            return (
+              <tr
+                key={c.id}
+                onClick={() => setSelectedId(c.id)}
+                className={cn(
+                  'cursor-pointer transition-colors hover:bg-mc-surface',
+                  isSelected && 'bg-mc-accent-soft/40',
+                )}
+              >
+                <Td>
+                  <div className="font-medium text-foreground">{c.name}</div>
+                  {c.address && (
+                    <div className="mt-px max-w-[220px] truncate text-[11px] text-mc-text-muted">
+                      {c.address}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-block w-2 h-2 rounded-full ${
-                        customer.active ? 'bg-green-500' : 'bg-muted-foreground/40'
-                      }`}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                  )}
+                </Td>
+                <Td>
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded px-1.5 py-px text-[11px]"
+                    style={{
+                      background: `color-mix(in oklch, ${cat.tint} 14%, transparent)`,
+                      color: cat.tint,
+                    }}
+                  >
+                    <CatIcon className="h-3 w-3" />
+                    {cat.label}
+                  </span>
+                </Td>
+                <Td>
+                  <span
+                    className={cn(
+                      'inline-flex rounded px-1.5 py-px font-mono text-[10.5px] capitalize',
+                      isPremium
+                        ? 'bg-mc-accent-soft text-mc-accent'
+                        : 'bg-mc-surface text-mc-text-muted',
+                    )}
+                  >
+                    {c.customerType}
+                  </span>
+                </Td>
+                <Td>
+                  <div className="flex flex-col gap-0.5">
+                    {c.phone && (
+                      <span className="flex items-center gap-1 font-mono text-[11px] text-mc-text-muted">
+                        <Phone className="h-3 w-3" />
+                        {c.phone}
+                      </span>
+                    )}
+                    {c.email && (
+                      <span className="flex items-center gap-1 font-mono text-[11px] text-mc-text-muted">
+                        <Mail className="h-3 w-3" />
+                        {c.email}
+                      </span>
+                    )}
+                    {!c.phone && !c.email && <span className="text-mc-text-dim">—</span>}
+                  </div>
+                </Td>
+                <Td num>{c.geofenceRadiusMeters} m</Td>
+                <Td>
+                  <span className="font-mono text-[11.5px] text-foreground">
+                    {lastVisitLabel(c.lastVisitDays)}
+                  </span>
+                </Td>
+                <Td>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-[7px] py-[1px] font-mono text-[10.5px] font-semibold',
+                      c.active
+                        ? 'bg-[oklch(0.72_0.16_150/0.16)] text-[oklch(0.45_0.16_150)] dark:text-[oklch(0.85_0.18_150)]'
+                        : 'bg-mc-surface text-mc-text-muted',
+                    )}
+                  >
+                    <span className="h-[5px] w-[5px] rounded-full bg-current" />
+                    {c.active ? 'active' : 'inactive'}
+                  </span>
+                </Td>
+              </tr>
+            );
+          })}
+        </TableShell>
+
+        <CustomerDetailPanel customer={selected} onClose={() => setSelectedId(null)} />
+      </div>
+
+      <Footer isConnected={isConnected} />
 
       <CreateCustomerDialog
         open={dialogOpen}

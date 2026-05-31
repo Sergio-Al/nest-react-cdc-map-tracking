@@ -1,22 +1,13 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Users, Phone, Hash, Truck } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Field,
+  DenseInput,
+  ChipGroup,
+  DialogFormFooter,
+  DenseDialogHeader,
+} from '@/components/ui/dense-form';
 import type { CreateDriverDto } from '@/hooks/api/useDrivers';
 
 interface CreateDriverDialogProps {
@@ -26,6 +17,13 @@ interface CreateDriverDialogProps {
   onSubmit: (dto: CreateDriverDto) => void;
   isLoading?: boolean;
 }
+
+const VEHICLE_TYPES = [
+  { id: 'van', label: 'Van' },
+  { id: 'truck', label: 'Truck' },
+  { id: 'motorcycle', label: 'Moto' },
+  { id: 'car', label: 'Car' },
+];
 
 export function CreateDriverDialog({
   open,
@@ -40,6 +38,14 @@ export function CreateDriverDialog({
   const [vehicleType, setVehicleType] = useState('van');
   const [deviceId, setDeviceId] = useState('');
 
+  const reset = () => {
+    setName('');
+    setPhone('');
+    setVehiclePlate('');
+    setVehicleType('van');
+    setDeviceId('');
+  };
+
   const handleSubmit = () => {
     if (!name.trim()) return;
     onSubmit({
@@ -51,91 +57,74 @@ export function CreateDriverDialog({
       deviceId: deviceId.trim() || undefined,
       status: 'offline',
     });
-    setName('');
-    setPhone('');
-    setVehiclePlate('');
-    setVehicleType('van');
-    setDeviceId('');
+    reset();
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New Driver</DialogTitle>
-        </DialogHeader>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) reset();
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="max-w-[440px] gap-0 overflow-hidden p-0">
+        <DialogTitle className="sr-only">New Driver</DialogTitle>
+        <DenseDialogHeader icon={<Users className="h-3.5 w-3.5" />} title="New Driver" />
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>
-              Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
+        <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
+          <Field label="Name" required>
+            <DenseInput
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Full name"
             />
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input
+          <Field label="Phone">
+            <DenseInput
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+591 ..."
+              placeholder="+591 …"
+              icon={<Phone className="h-3.5 w-3.5 text-mc-text-dim" />}
             />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Vehicle plate">
+              <DenseInput
+                value={vehiclePlate}
+                onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
+                placeholder="ABC-123"
+                className="font-mono"
+                icon={<Truck className="h-3.5 w-3.5 text-mc-text-dim" />}
+              />
+            </Field>
+            <Field label="Device ID">
+              <DenseInput
+                value={deviceId}
+                onChange={(e) => setDeviceId(e.target.value)}
+                placeholder="DEV001"
+                className="font-mono"
+                icon={<Hash className="h-3.5 w-3.5 text-mc-text-dim" />}
+              />
+            </Field>
           </div>
 
-          <div className="space-y-2">
-            <Label>Vehicle Plate</Label>
-            <Input
-              value={vehiclePlate}
-              onChange={(e) => setVehiclePlate(e.target.value)}
-              placeholder="ABC-123"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Vehicle Type</Label>
-            <Select value={vehicleType} onValueChange={setVehicleType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="van">Van</SelectItem>
-                <SelectItem value="truck">Truck</SelectItem>
-                <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                <SelectItem value="car">Car</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>
-              Device ID{' '}
-              <span className="text-muted-foreground text-xs">(optional)</span>
-            </Label>
-            <Input
-              value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
-              placeholder="GPS device identifier"
-            />
-          </div>
+          <Field label="Vehicle type">
+            <ChipGroup value={vehicleType} onChange={setVehicleType} options={VEHICLE_TYPES} />
+          </Field>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!name.trim() || isLoading}
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Create
-          </Button>
-        </DialogFooter>
+        <DialogFormFooter
+          onCancel={() => onOpenChange(false)}
+          onSubmit={handleSubmit}
+          submitLabel="Create"
+          submitIcon={<Plus className="h-[13px] w-[13px]" />}
+          canSubmit={!!name.trim()}
+          isLoading={isLoading}
+        />
       </DialogContent>
     </Dialog>
   );

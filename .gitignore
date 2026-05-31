@@ -31,3 +31,12 @@ infrastructure/osrm/data/
 
 # github prompts
 .github/prompts/
+
+# misc 
+tracking-project/
+
+# claude
+.claude
+CLAUDE.md
+skills-lock.json
+SKILL.md

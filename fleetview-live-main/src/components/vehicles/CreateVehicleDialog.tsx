@@ -1,21 +1,13 @@
 import { useState } from 'react';
+import { Plus, Car } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Field,
+  DenseInput,
+  ChipGroup,
+  DialogFormFooter,
+  DenseDialogHeader,
+} from '@/components/ui/dense-form';
 import type { CreateVehicleDto } from '@/hooks/api/useVehicles';
 
 interface CreateVehicleDialogProps {
@@ -24,6 +16,13 @@ interface CreateVehicleDialogProps {
   onSubmit: (dto: CreateVehicleDto) => void;
   isLoading?: boolean;
 }
+
+const TYPES = [
+  { id: 'van', label: 'Van' },
+  { id: 'truck', label: 'Truck' },
+  { id: 'motorcycle', label: 'Moto' },
+  { id: 'car', label: 'Car' },
+];
 
 export function CreateVehicleDialog({
   open,
@@ -40,7 +39,7 @@ export function CreateVehicleDialog({
   const [capacityKg, setCapacityKg] = useState('');
   const [notes, setNotes] = useState('');
 
-  const resetForm = () => {
+  const reset = () => {
     setPlate('');
     setType('van');
     setBrand('');
@@ -63,115 +62,96 @@ export function CreateVehicleDialog({
       capacityKg: capacityKg ? parseFloat(capacityKg) : undefined,
       notes: notes.trim() || undefined,
     });
-    resetForm();
+    reset();
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New Vehicle</DialogTitle>
-        </DialogHeader>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) reset();
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="max-w-[480px] gap-0 overflow-hidden p-0">
+        <DialogTitle className="sr-only">New Vehicle</DialogTitle>
+        <DenseDialogHeader icon={<Car className="h-3.5 w-3.5" />} title="New Vehicle" />
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>
-              Plate <span className="text-destructive">*</span>
-            </Label>
-            <Input
+        <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
+          <Field label="Plate" required>
+            <DenseInput
               value={plate}
-              onChange={(e) => setPlate(e.target.value)}
+              onChange={(e) => setPlate(e.target.value.toUpperCase())}
               placeholder="ABC-1234"
+              className="font-mono"
             />
-          </div>
+          </Field>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="van">Van</SelectItem>
-                  <SelectItem value="truck">Truck</SelectItem>
-                  <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                  <SelectItem value="car">Car</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <Field label="Type">
+            <ChipGroup value={type} onChange={setType} options={TYPES} />
+          </Field>
 
-            <div className="space-y-2">
-              <Label>Color</Label>
-              <Input
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                placeholder="White"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Brand</Label>
-              <Input
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Brand">
+              <DenseInput
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 placeholder="Mercedes-Benz"
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Model</Label>
-              <Input
+            </Field>
+            <Field label="Model">
+              <DenseInput
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="Sprinter"
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Year</Label>
-              <Input
+          <div className="grid grid-cols-3 gap-2.5">
+            <Field label="Year">
+              <DenseInput
                 type="number"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 placeholder="2024"
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Capacity (kg)</Label>
-              <Input
+            </Field>
+            <Field label="Color">
+              <DenseInput
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                placeholder="White"
+              />
+            </Field>
+            <Field label="Capacity (kg)">
+              <DenseInput
                 type="number"
                 value={capacityKg}
                 onChange={(e) => setCapacityKg(e.target.value)}
                 placeholder="1500"
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="space-y-2">
-            <Label>Notes</Label>
-            <Input
+          <Field label="Notes">
+            <DenseInput
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional notes..."
+              placeholder="Additional notes…"
             />
-          </div>
+          </Field>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!plate.trim() || isLoading}>
-            {isLoading ? 'Creating...' : 'Create Vehicle'}
-          </Button>
-        </DialogFooter>
+        <DialogFormFooter
+          onCancel={() => onOpenChange(false)}
+          onSubmit={handleSubmit}
+          submitLabel="Create"
+          submitIcon={<Plus className="h-[13px] w-[13px]" />}
+          canSubmit={!!plate.trim()}
+          isLoading={isLoading}
+        />
       </DialogContent>
     </Dialog>
   );

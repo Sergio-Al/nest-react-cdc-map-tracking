@@ -209,19 +209,26 @@ streaming-tracking-logistic/
     ├── .env.example
     └── src/
         ├── components/
-        │   ├── dashboard/            # Mapa, sidebar, tarjetas de conductores
-        │   ├── drivers/              # CreateDriverDialog
-        │   ├── history/              # Reproducción de rutas
+        │   ├── customers/            # CustomerDetailPanel, CreateCustomerDialog (pin en el mapa)
+        │   ├── dashboard/            # Mapa, workspace, driver panel/inbox, footer, controles
+        │   ├── drivers/              # DriverDetailPanel, CreateDriverDialog
+        │   ├── filters/              # FilterBar + useDatasetFilters (compartido por tablas)
+        │   ├── history/              # Reproducción, filtro, detalle, barra de reproducción
+        │   ├── layout/               # AppLayout, IconRail, CommandPalette, ProtectedRoute
         │   ├── monitoring/           # Monitoreo de lag CDC (admin)
-        │   ├── routes/               # Constructor de rutas (sidebar, mapa, drag-and-drop, diálogos)
-        │   ├── vehicles/             # CreateVehicleDialog, EditVehicleDialog
-        │   ├── layout/               # AppLayout, ProtectedRoute
-        │   └── ui/                   # Componentes shadcn/ui
-        ├── hooks/                    # Hooks React Query, useSocket
-        │   └── api/
-        │       └── useRouteBuilder.ts # Hooks API del constructor de rutas (7 hooks)
-        ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles, Drivers, Reports, NotFound
-        ├── stores/                   # Stores Zustand (auth, map, playback, routeBuilder)
+        │   ├── reports/              # ReportsHeader + tabs (Overview/Routes/Visits/Drivers/Vehicles/Customers)
+        │   ├── routes/               # Constructor de rutas (sidebar, mapa, drag-and-drop, paleta)
+        │   ├── theme/                # ThemeProvider + toggle
+        │   ├── vehicles/             # VehicleDetailPanel, diálogos Create/Edit
+        │   └── ui/                   # Primitivas shadcn + del proyecto:
+        │                             #   table-shell, directory-detail-panel,
+        │                             #   location-picker-map, date-range-picker, dense-form
+        ├── hooks/                    # Hooks React Query, useSocket, hotkeys, exporter
+        │   └── api/                  # useDrivers, useVehicles, useRoutes, useRouteBuilder,
+        │                             #   useHistory, useReports, useDriverDetail
+        ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles,
+        │                             #   Drivers, Customers, Reports, NotFound
+        ├── stores/                   # Stores Zustand (auth, map, playback, routeBuilder, reports, dashboard)
         └── types/                    # Interfaces TypeScript
 ```
 

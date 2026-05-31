@@ -209,19 +209,26 @@ streaming-tracking-logistic/
     ├── .env.example
     └── src/
         ├── components/
-        │   ├── dashboard/            # Map, sidebar, driver cards
-        │   ├── drivers/              # CreateDriverDialog
-        │   ├── history/              # Route playback
+        │   ├── customers/            # CustomerDetailPanel, CreateCustomerDialog (map-pin)
+        │   ├── dashboard/            # Map, workspace, driver panel/inbox, footer, controls
+        │   ├── drivers/              # DriverDetailPanel, CreateDriverDialog
+        │   ├── filters/              # FilterBar + useDatasetFilters (shared by directory & report tables)
+        │   ├── history/              # Route playback, filter, detail, playback bar
+        │   ├── layout/               # AppLayout, IconRail, CommandPalette, ProtectedRoute
         │   ├── monitoring/           # CDC lag monitoring (admin)
-        │   ├── routes/               # Route builder (sidebar, map, drag-and-drop, dialogs)
-        │   ├── vehicles/             # CreateVehicleDialog, EditVehicleDialog
-        │   ├── layout/               # AppLayout, ProtectedRoute
-        │   └── ui/                   # shadcn/ui components
-        ├── hooks/                    # React Query hooks, useSocket
-        │   └── api/
-        │       └── useRouteBuilder.ts # Route builder API hooks (7 hooks)
-        ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles, Drivers, Reports, NotFound
-        ├── stores/                   # Zustand stores (auth, map, playback, routeBuilder)
+        │   ├── reports/              # ReportsHeader + tabs (Overview/Routes/Visits/Drivers/Vehicles/Customers)
+        │   ├── routes/               # Route builder (sidebar, map, drag-and-drop, add-stop palette)
+        │   ├── theme/                # ThemeProvider + toggle
+        │   ├── vehicles/             # VehicleDetailPanel, Create/Edit dialogs
+        │   └── ui/                   # shadcn primitives + project primitives:
+        │                             #   table-shell, directory-detail-panel,
+        │                             #   location-picker-map, date-range-picker, dense-form
+        ├── hooks/                    # React Query hooks, useSocket, hotkeys, exporter
+        │   └── api/                  # useDrivers, useVehicles, useRoutes, useRouteBuilder,
+        │                             #   useHistory, useReports, useDriverDetail
+        ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles,
+        │                             #   Drivers, Customers, Reports, NotFound
+        ├── stores/                   # Zustand stores (auth, map, playback, routeBuilder, reports, dashboard)
         └── types/                    # TypeScript interfaces
 ```
 
