@@ -1,111 +1,95 @@
-import {
-  ZoomIn,
-  ZoomOut,
-  Crosshair,
-  Navigation,
-  Layers,
-  Map as MapIcon,
-  Satellite,
-} from "lucide-react";
+import { useEffect, useRef } from "react";
+import { useMap } from "react-leaflet";
+import * as L from "leaflet";
+import { ZoomIn, ZoomOut, Locate, Navigation, Layers } from "lucide-react";
+import { useMapStore } from "@/stores/map.store";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
-interface MapControlsProps {
-  showRoutes: boolean;
-  showGeofences: boolean;
-  showHeatmap: boolean;
-  onToggleRoutes: () => void;
-  onToggleGeofences: () => void;
-  onToggleHeatmap: () => void;
-  mapStyle: "streets" | "satellite";
-  onSetMapStyle: (style: "streets" | "satellite") => void;
+const DEFAULT_CENTER: L.LatLngExpression = [-16.5, -68.1]; // La Paz
+
+function CtrlButton({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "flex h-[30px] w-[30px] items-center justify-center transition-colors",
+        active ? "text-mc-accent" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
 }
 
-export function MapControls({
-  showRoutes,
-  showGeofences,
-  showHeatmap,
-  onToggleRoutes,
-  onToggleGeofences,
-  onToggleHeatmap,
-  mapStyle,
-  onSetMapStyle,
-}: MapControlsProps) {
-  const [showLayers, setShowLayers] = useState(false);
+/** Floating map controls (top-right). Rendered inside MapContainer so it can drive the Leaflet map. */
+export function MapControls() {
+  const map = useMap();
+  const ref = useRef<HTMLDivElement>(null);
+  const positions = useMapStore((s) => s.positions);
+  const following = useMapStore((s) => s.followDriver);
+  const toggleFollow = useMapStore((s) => s.toggleFollowDriver);
+
+  // Don't let clicks/scrolls on the controls pan or zoom the map underneath.
+  useEffect(() => {
+    if (!ref.current) return;
+    L.DomEvent.disableClickPropagation(ref.current);
+    L.DomEvent.disableScrollPropagation(ref.current);
+  }, []);
+
+  const recenter = () => {
+    const pts = Object.values(positions);
+    if (pts.length > 0) {
+      const bounds = L.latLngBounds(pts.map((p) => [p.latitude, p.longitude] as [number, number]));
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+    } else {
+      map.setView(DEFAULT_CENTER, 12);
+    }
+  };
+
+  const cellBox = "overflow-hidden rounded-md border border-border bg-mc-elev shadow-mc-card";
 
   return (
-    <div className="absolute top-4 right-4 z-[999] flex flex-col gap-2">
-      {/* Zoom */}
-      <div className="bento-card p-1 flex flex-col">
-        <button className="p-2 hover:bg-secondary rounded-md transition-colors">
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button className="p-2 hover:bg-secondary rounded-md transition-colors">
-          <ZoomOut className="w-4 h-4" />
-        </button>
+    <div ref={ref} className="absolute right-3.5 top-3.5 z-[1000] flex flex-col gap-1.5">
+      <div className={cn(cellBox, "flex flex-col")}>
+        <CtrlButton label="Zoom in" onClick={() => map.zoomIn()}>
+          <ZoomIn className="h-4 w-4" />
+        </CtrlButton>
+        <div className="h-px bg-border" />
+        <CtrlButton label="Zoom out" onClick={() => map.zoomOut()}>
+          <ZoomOut className="h-4 w-4" />
+        </CtrlButton>
       </div>
 
-      {/* Fit & Follow */}
-      <div className="bento-card p-1 flex flex-col">
-        <button className="p-2 hover:bg-secondary rounded-md transition-colors" title="Fit all drivers">
-          <Crosshair className="w-4 h-4" />
-        </button>
-        <button className="p-2 hover:bg-secondary rounded-md transition-colors" title="Follow selected">
-          <Navigation className="w-4 h-4" />
-        </button>
+      <div className={cellBox}>
+        <CtrlButton label="Recenter on fleet" onClick={recenter}>
+          <Locate className="h-4 w-4" />
+        </CtrlButton>
       </div>
 
-      {/* Layers */}
-      <div className="bento-card p-1 relative">
-        <button
-          onClick={() => setShowLayers(!showLayers)}
-          className="p-2 hover:bg-secondary rounded-md transition-colors"
-        >
-          <Layers className="w-4 h-4" />
-        </button>
+      <div className={cn(cellBox, following && "border-mc-accent-border")}>
+        <CtrlButton label="Follow selected driver" active={following} onClick={toggleFollow}>
+          <Navigation className="h-4 w-4" />
+        </CtrlButton>
+      </div>
 
-        {showLayers && (
-          <div className="absolute right-full mr-2 top-0 bento-card p-3 w-44 space-y-2 animate-fade-in">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Layers
-            </p>
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <input type="checkbox" checked={showRoutes} onChange={onToggleRoutes} className="rounded" />
-              Routes
-            </label>
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <input type="checkbox" checked={showGeofences} onChange={onToggleGeofences} className="rounded" />
-              Geofences
-            </label>
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <input type="checkbox" checked={showHeatmap} onChange={onToggleHeatmap} className="rounded" />
-              Heatmap
-            </label>
-
-            <div className="h-px bg-border my-2" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Style
-            </p>
-            <button
-              onClick={() => onSetMapStyle("streets")}
-              className={cn(
-                "flex items-center gap-2 text-xs w-full p-1.5 rounded",
-                mapStyle === "streets" ? "bg-primary/10 text-primary" : "hover:bg-secondary"
-              )}
-            >
-              <MapIcon className="w-3.5 h-3.5" /> Streets
-            </button>
-            <button
-              onClick={() => onSetMapStyle("satellite")}
-              className={cn(
-                "flex items-center gap-2 text-xs w-full p-1.5 rounded",
-                mapStyle === "satellite" ? "bg-primary/10 text-primary" : "hover:bg-secondary"
-              )}
-            >
-              <Satellite className="w-3.5 h-3.5" /> Satellite
-            </button>
-          </div>
-        )}
+      <div className={cellBox}>
+        <CtrlButton label="Layers">
+          <Layers className="h-4 w-4" />
+        </CtrlButton>
       </div>
     </div>
   );

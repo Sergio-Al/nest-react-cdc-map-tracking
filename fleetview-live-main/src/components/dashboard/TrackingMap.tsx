@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { Icon, DivIcon, LatLngExpression } from 'leaflet';
+import { DivIcon, LatLngExpression } from 'leaflet';
+import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import { useMapStore } from '@/stores/map.store';
 import { MapControls } from './MapControls';
-import { MapLegend } from './MapLegend';
-import { cn } from '@/lib/utils';
+import { getDriverStatus, speedKmh, statusColorVar } from '@/lib/driverStatus';
 import { formatDistanceToNow } from 'date-fns';
 
 interface TrackingMapProps {
@@ -13,79 +13,76 @@ interface TrackingMapProps {
   onSelectDriver: (id: string) => void;
 }
 
-// Component to fly to selected driver
+// Flies to the selected driver, and pans to keep them centered while "follow" is on.
 function MapController({ selectedDriverId }: { selectedDriverId: string | null }) {
   const map = useMap();
   const positions = useMapStore((state) => state.positions);
+  const followDriver = useMapStore((state) => state.followDriver);
+  const mapFocusTick = useMapStore((state) => state.mapFocusTick);
 
   useEffect(() => {
     if (selectedDriverId && positions[selectedDriverId]) {
       const pos = positions[selectedDriverId];
-      map.flyTo([pos.latitude, pos.longitude], 15, {
-        duration: 1.5,
-      });
+      map.flyTo([pos.latitude, pos.longitude], 15, { duration: 1.2 });
     }
-  }, [selectedDriverId, positions, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDriverId, mapFocusTick]);
+
+  useEffect(() => {
+    if (followDriver && selectedDriverId && positions[selectedDriverId]) {
+      const pos = positions[selectedDriverId];
+      map.panTo([pos.latitude, pos.longitude], { animate: true });
+    }
+  }, [positions, followDriver, selectedDriverId, map]);
 
   return null;
+}
+
+function initials(name: string): string {
+  return name.split(' ').map((n) => n[0]).filter(Boolean).slice(0, 2).join('');
 }
 
 export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapProps) {
   const positions = useMapStore((state) => state.positions);
   const positionsArray = Object.values(positions);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
-  // Default center - Bolivia La Paz area
   const defaultCenter: LatLngExpression = [-16.5, -68.1];
   const defaultZoom = 12;
 
-  // Calculate center from driver positions
-  const mapCenter: LatLngExpression = positionsArray.length > 0
-    ? [
-        positionsArray.reduce((sum, p) => sum + p.latitude, 0) / positionsArray.length,
-        positionsArray.reduce((sum, p) => sum + p.longitude, 0) / positionsArray.length,
-      ]
-    : defaultCenter;
+  const mapCenter: LatLngExpression =
+    positionsArray.length > 0
+      ? [
+          positionsArray.reduce((sum, p) => sum + p.latitude, 0) / positionsArray.length,
+          positionsArray.reduce((sum, p) => sum + p.longitude, 0) / positionsArray.length,
+        ]
+      : defaultCenter;
 
-  // Get driver status based on speed and time
-  const getDriverStatus = (position: typeof positionsArray[0]) => {
-    const ageMs = new Date().getTime() - new Date(position.time).getTime();
-    const ageMinutes = ageMs / 1000 / 60;
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
-    if (ageMinutes > 5) return 'offline';
-    if (position.speed > 2) return 'moving';
-    return 'idle';
-  };
-
-  // Get color based on status
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'moving':
-        return 'bg-green-500';
-      case 'idle':
-        return 'bg-yellow-500';
-      case 'offline':
-        return 'bg-gray-400';
-      default:
-        return 'bg-gray-400';
-    }
-  };
-
-  // Create custom marker icon
-  const createDriverIcon = (position: typeof positionsArray[0], isSelected: boolean) => {
+  // Mission Control pin: solid status dot, elev-colored ring, pulsing outline when moving,
+  // accent outline when selected.
+  const createDriverIcon = (position: (typeof positionsArray)[number], isSelected: boolean) => {
     const status = getDriverStatus(position);
-    const colorClass = getStatusColor(status);
-    const size = isSelected ? 44 : 36;
+    const color = statusColorVar(status);
+    const size = 26;
+    const ring =
+      status === 'moving'
+        ? `<span class="animate-pinpulse" style="position:absolute;inset:0;border-radius:9999px;border:1.5px solid ${color};"></span>`
+        : '';
 
     return new DivIcon({
-      className: 'custom-driver-marker',
+      className: 'mc-driver-marker',
       html: `
-        <div class="relative" style="width: ${size}px; height: ${size}px;">
-          ${isSelected ? '<div class="absolute inset-0 rounded-full animate-ping opacity-75 ' + colorClass + '"></div>' : ''}
-          <div class="absolute inset-0 rounded-full ${colorClass} border-2 border-white shadow-lg flex items-center justify-center"
-               style="transform: rotate(${position.heading}deg);">
-            <div style="transform: rotate(-${position.heading}deg);" class="text-white font-bold text-xs">
-              ${position.driverName.split(' ').map(n => n[0]).join('')}
-            </div>
+        <div style="position:relative;width:${size}px;height:${size}px;">
+          ${ring}
+          <div style="position:absolute;inset:0;border-radius:9999px;background:${color};border:2px solid var(--mc-bg-elev);box-shadow:0 2px 6px oklch(0 0 0 / 0.35);display:flex;align-items:center;justify-content:center;${
+            isSelected ? 'outline:2px solid var(--mc-accent);outline-offset:2px;' : ''
+          }">
+            <span style="color:#fff;font-family:'Geist Mono',monospace;font-weight:700;font-size:9.5px;line-height:1;">${initials(position.driverName)}</span>
           </div>
         </div>
       `,
@@ -95,21 +92,16 @@ export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapPro
   };
 
   return (
-    <div className="flex-1 bento-card relative overflow-hidden min-h-0">
-      <MapContainer
-        center={mapCenter}
-        zoom={defaultZoom}
-        className="h-full w-full"
-        zoomControl={false}
-      >
+    <div className="relative h-full w-full overflow-hidden">
+      <MapContainer center={mapCenter} zoom={defaultZoom} className="h-full w-full" zoomControl={false}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={isDark ? 'dark' : 'light'}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={tileUrl}
         />
 
         <MapController selectedDriverId={selectedDriverId} />
 
-        {/* Driver markers */}
         {positionsArray.map((position) => {
           const isSelected = position.driverId === selectedDriverId;
           const status = getDriverStatus(position);
@@ -119,23 +111,21 @@ export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapPro
               key={position.driverId}
               position={[position.latitude, position.longitude]}
               icon={createDriverIcon(position, isSelected)}
-              eventHandlers={{
-                click: () => onSelectDriver(position.driverId),
-              }}
+              eventHandlers={{ click: () => onSelectDriver(position.driverId) }}
             >
               <Popup>
-                <div className="min-w-[200px] p-2">
-                  <h3 className="font-bold text-sm mb-1">{position.driverName}</h3>
-                  <div className="text-xs space-y-1">
+                <div className="min-w-[200px] p-1">
+                  <h3 className="mb-1 text-sm font-bold">{position.driverName}</h3>
+                  <div className="space-y-1 text-xs">
                     <p>
-                      <span className="font-medium">Speed:</span> {position.speed.toFixed(1)} km/h
+                      <span className="font-medium">Speed:</span> {speedKmh(position.speed)} km/h
                     </p>
                     <p>
                       <span className="font-medium">Status:</span>{' '}
-                      <span className={cn(
-                        'inline-block w-2 h-2 rounded-full mr-1',
-                        getStatusColor(status)
-                      )} />
+                      <span
+                        className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                        style={{ background: statusColorVar(status) }}
+                      />
                       {status.charAt(0).toUpperCase() + status.slice(1)}
                     </p>
                     {position.nextCustomerName && (
@@ -143,21 +133,20 @@ export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapPro
                         <p>
                           <span className="font-medium">Next Stop:</span> {position.nextCustomerName}
                         </p>
-                        {position.distanceToNextM && (
+                        {position.distanceToNextM != null && (
                           <p>
                             <span className="font-medium">Distance:</span>{' '}
                             {(position.distanceToNextM / 1000).toFixed(2)} km
                           </p>
                         )}
-                        {position.etaToNextSec && (
+                        {position.etaToNextSec != null && (
                           <p>
-                            <span className="font-medium">ETA:</span>{' '}
-                            {Math.round(position.etaToNextSec / 60)} min
+                            <span className="font-medium">ETA:</span> {Math.round(position.etaToNextSec / 60)} min
                           </p>
                         )}
                       </>
                     )}
-                    <p className="text-muted-foreground text-[10px] mt-2">
+                    <p className="mt-2 text-[10px] text-muted-foreground">
                       Updated {formatDistanceToNow(new Date(position.time), { addSuffix: true })}
                     </p>
                   </div>
@@ -166,24 +155,9 @@ export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapPro
             </Marker>
           );
         })}
+
+        <MapControls />
       </MapContainer>
-
-      <MapControls
-        showRoutes={false}
-        showGeofences={false}
-        showHeatmap={false}
-        onToggleRoutes={() => {}}
-        onToggleGeofences={() => {}}
-        onToggleHeatmap={() => {}}
-        mapStyle="streets"
-        onSetMapStyle={() => {}}
-      />
-
-      <MapLegend />
-
-      <div className="absolute bottom-4 right-4 z-[999] text-[10px] text-muted-foreground/70 bg-white/90 px-2 py-1 rounded shadow">
-        FleetTrack Map · {positionsArray.length} driver{positionsArray.length !== 1 ? 's' : ''} active
-      </div>
     </div>
   );
 }

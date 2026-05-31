@@ -1,13 +1,15 @@
 import { Outlet } from 'react-router-dom';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { IconRail } from '@/components/layout/IconRail';
+import { CommandPalette } from '@/components/layout/CommandPalette';
 
 export function AppLayout() {
   return (
-    <div className="flex flex-col h-screen">
-      <DashboardHeader />
-      <main className="flex-1 overflow-y-auto">
+    <div className="flex h-screen overflow-hidden">
+      <IconRail />
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <Outlet />
       </main>
+      <CommandPalette />
     </div>
   );
 }

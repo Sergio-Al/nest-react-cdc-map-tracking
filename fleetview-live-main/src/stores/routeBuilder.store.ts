@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { PlannedVisit } from '@/types/visit.types';
-import type { Customer } from '@/types/customer.types';
 
 export interface RouteBuilderState {
   // Selected route
@@ -16,7 +15,7 @@ export interface RouteBuilderState {
   lastOptimizedAt: string | null;
 
   // UI
-  addStopDialogOpen: boolean;
+  paletteOpen: boolean;
   createRouteDialogOpen: boolean;
 
   // Actions
@@ -28,7 +27,7 @@ export interface RouteBuilderState {
   setIsOptimizing: (val: boolean) => void;
   setLastOptimizedAt: (val: string | null) => void;
   markClean: () => void;
-  setAddStopDialogOpen: (open: boolean) => void;
+  setPaletteOpen: (open: boolean) => void;
   setCreateRouteDialogOpen: (open: boolean) => void;
   reset: () => void;
 }
@@ -40,7 +39,7 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
   isDirty: false,
   isOptimizing: false,
   lastOptimizedAt: null,
-  addStopDialogOpen: false,
+  paletteOpen: false,
   createRouteDialogOpen: false,
 
   setSelectedRoute: (routeId, driverId) =>
@@ -91,7 +90,7 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
 
   markClean: () => set({ isDirty: false }),
 
-  setAddStopDialogOpen: (open) => set({ addStopDialogOpen: open }),
+  setPaletteOpen: (open) => set({ paletteOpen: open }),
 
   setCreateRouteDialogOpen: (open) => set({ createRouteDialogOpen: open }),
 
@@ -103,7 +102,7 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
       isDirty: false,
       isOptimizing: false,
       lastOptimizedAt: null,
-      addStopDialogOpen: false,
+      paletteOpen: false,
       createRouteDialogOpen: false,
     }),
 }));

@@ -1,96 +1,143 @@
-import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import { HistorySidebar } from '@/components/history/HistorySidebar';
-import { HistoryMap } from '@/components/history/HistoryMap';
-import { PlaybackControls } from '@/components/history/PlaybackControls';
+import { useEffect, useState } from 'react';
 import { usePlaybackStore } from '@/stores/playback.store';
-import { useDriverHistory, useRouteHistory } from '@/hooks/api/useHistory';
+import { useDriverHistory } from '@/hooks/api/useHistory';
+import { useDrivers } from '@/hooks/api/useDrivers';
+import { useSocket } from '@/hooks/useSocket';
+import { RouteHistoryFilter, type FilterToggles } from '@/components/history/RouteHistoryFilter';
+import { RouteHistoryTripsPanel } from '@/components/history/RouteHistoryTripsPanel';
+import { RouteHistoryMap } from '@/components/history/RouteHistoryMap';
+import { RouteHistoryDetail } from '@/components/history/RouteHistoryDetail';
+import { Footer } from '@/components/dashboard/Footer';
+import { getMockRoutePath } from '@/lib/mock/historyMock';
+import { List, SlidersHorizontal } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// ── Panel mode toggle (Filter form vs. Trips list) ───────────────────────────
+type LeftPanel = 'filter' | 'trips';
 
 export default function HistoryPage() {
   const {
-    mode,
     selectedDriverId,
-    selectedRouteId,
     dateFrom,
     dateTo,
+    positions,
+    isPlaying,
+    currentIndex,
     setPositions,
     reset,
   } = usePlaybackStore();
 
-  // Fetch history data based on mode
-  const {
-    data: driverHistory,
-    isLoading: driverLoading,
-    isError: driverError,
-  } = useDriverHistory(
-    mode === 'driver' ? selectedDriverId : null,
-    dateFrom,
-    dateTo,
-  );
+  const { isConnected } = useSocket();
+  const { data: drivers = [] } = useDrivers();
 
-  const {
-    data: routeHistory,
-    isLoading: routeLoading,
-    isError: routeError,
-  } = useRouteHistory(
-    mode === 'route' ? selectedRouteId : null,
-    dateFrom,
-    dateTo,
-  );
+  // Fetch real driver history when all params are set
+  const { data: driverHistory } = useDriverHistory(selectedDriverId, dateFrom, dateTo);
 
-  // Push fetched data into the playback store
+  // Push real data → store, fall back to mock when empty
   useEffect(() => {
-    if (mode === 'driver' && driverHistory) {
+    if (driverHistory && driverHistory.length > 0) {
       setPositions(driverHistory);
+    } else if (selectedDriverId && dateFrom && dateTo && !driverHistory) {
+      // query not yet resolved — do nothing (avoid flash)
+    } else if (!selectedDriverId) {
+      // No driver selected yet — use mock fallback for demo
+      const mock = getMockRoutePath();
+      setPositions(mock);
     }
-  }, [driverHistory, mode, setPositions]);
-
-  useEffect(() => {
-    if (mode === 'route' && routeHistory) {
-      setPositions(routeHistory);
-    }
-  }, [routeHistory, mode, setPositions]);
+  }, [driverHistory, selectedDriverId, dateFrom, dateTo, setPositions]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => reset();
   }, [reset]);
 
-  const isLoading = driverLoading || routeLoading;
-  const isError = driverError || routeError;
+  // ── Local UI state ────────────────────────────────────────────────────────
+  const [leftPanel, setLeftPanel] = useState<LeftPanel>('filter');
+
+  const [toggles, setToggles] = useState<FilterToggles>({
+    speedPath:      true,
+    stopMarkers:    true,
+    idleEvents:     true,
+    speedingEvents: false,
+  });
+
+  const handleToggle = (key: keyof FilterToggles, val: boolean) => {
+    setToggles((prev) => ({ ...prev, [key]: val }));
+  };
+
+  // Determine page state
+  // empty  = no driver, no positions
+  // loaded = positions present, not playing
+  // playback = playing or scrubbed (currentIndex > 0 while stopped)
+  const hasPositions = positions.length > 0;
+  // Playback (H3) persists once started — visible while playing OR after scrubbing,
+  // and hidden again only when a fresh trip loads (setPositions resets currentIndex).
+  const showPlayback = hasPositions && (isPlaying || currentIndex > 0);
+
+  // Resolve selected driver object for map/detail panels
+  const selectedDriver = drivers.find((d) => d.id === selectedDriverId) ?? null;
 
   return (
-    <div className="h-full flex flex-col bg-background overflow-hidden">
-      <div className="flex-1 flex min-h-0 p-3 gap-3">
-        {/* Sidebar */}
-        <HistorySidebar />
-
-        {/* Main content */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0">
-          {/* Map */}
-          <div className="flex-1 flex flex-col relative min-h-0">
-            {isLoading && (
-              <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-background/50 rounded-lg">
-                <div className="flex items-center gap-2 bg-card px-4 py-2 rounded-lg shadow-md text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading history...
-                </div>
-              </div>
-            )}
-            {isError && (
-              <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-background/50 rounded-lg">
-                <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-lg text-sm">
-                  Failed to load history data. Check your date range and try again.
-                </div>
-              </div>
-            )}
-            <HistoryMap />
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      {/* Three-column body */}
+      <div className="flex min-h-0 flex-1">
+        {/* Left panel toggle button (small strip above left panel) */}
+        <div className="flex flex-col">
+          {/* Panel mode switch */}
+          <div className="flex h-9 shrink-0 items-center gap-1 border-b border-r border-border bg-background px-2">
+            <button
+              type="button"
+              title="Filter form"
+              onClick={() => setLeftPanel('filter')}
+              className={cn(
+                'flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors',
+                leftPanel === 'filter'
+                  ? 'bg-mc-accent-soft text-mc-accent'
+                  : 'text-muted-foreground hover:bg-mc-surface hover:text-foreground',
+              )}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              title="Trips list"
+              onClick={() => setLeftPanel('trips')}
+              className={cn(
+                'flex h-6 w-6 items-center justify-center rounded-[5px] transition-colors',
+                leftPanel === 'trips'
+                  ? 'bg-mc-accent-soft text-mc-accent'
+                  : 'text-muted-foreground hover:bg-mc-surface hover:text-foreground',
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+            </button>
           </div>
 
-          {/* Playback controls */}
-          <PlaybackControls />
+          {/* Left panel content */}
+          <div className="flex min-h-0 flex-1">
+            {leftPanel === 'filter' ? (
+              <RouteHistoryFilter toggles={toggles} onToggleChange={handleToggle} />
+            ) : (
+              <RouteHistoryTripsPanel />
+            )}
+          </div>
         </div>
+
+        {/* Map workspace — flex-1 */}
+        <div className="relative flex min-h-0 min-w-0 flex-1">
+          <RouteHistoryMap
+            driver={selectedDriver}
+            toggles={toggles}
+            showPlayback={showPlayback}
+          />
+        </div>
+
+        {/* Right detail panel */}
+        <RouteHistoryDetail driver={selectedDriver} />
       </div>
+
+      {/* Footer */}
+      <Footer isConnected={isConnected} />
     </div>
   );
 }

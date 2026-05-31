@@ -1,66 +1,67 @@
-import { useState} from "react";
-import { FleetSidebar } from "@/components/dashboard/FleetSidebar";
-import { TrackingMap } from "@/components/dashboard/TrackingMap";
-import { StatsGrid } from "@/components/dashboard/StatsGrid";
+import { DriverInbox } from "@/components/dashboard/DriverInbox";
+import { MapWorkspace } from "@/components/dashboard/MapWorkspace";
+import { DriverPanel, DriverPanelBody } from "@/components/dashboard/DriverPanel";
+import { Footer } from "@/components/dashboard/Footer";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useSocket } from "@/hooks/useSocket";
 import { useDriverPositions } from "@/hooks/useDriverPositions";
 import { useDrivers, useInitialPositions } from "@/hooks/api/useDrivers";
+import { useDashboardHotkeys } from "@/hooks/useDashboardHotkeys";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useMapStore } from "@/stores/map.store";
 
 const Index = () => {
-  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Shared driver selection lives in the map store so inbox, map, and the
+  // detail panel all react to the same value.
+  const selectedDriverId = useMapStore((state) => state.selectedDriverId);
+  const selectDriver = useMapStore((state) => state.selectDriver);
 
-  // Initialize WebSocket connection
   const { isConnected } = useSocket();
-
-  // Subscribe to real-time position updates (re-registers on reconnect)
   useDriverPositions(isConnected);
+  useDashboardHotkeys();
 
-  // Fetch driver metadata
   const { data: drivers = [], isLoading: isLoadingDrivers } = useDrivers();
-
-  // Seed map store with latest known positions from REST API
   useInitialPositions(drivers);
 
-  // Get live positions from map store
   const positions = useMapStore((state) => state.positions);
-  const positionsArray = Object.values(positions);
-
-  // Merge driver data with live positions for the sidebar
   const driversWithPositions = drivers.map((driver) => ({
     ...driver,
     position: positions[driver.id],
   }));
 
+  const selected = driversWithPositions.find((d) => d.id === selectedDriverId);
+
+  // Below xl the detail panel becomes a slide-over that opens on selection.
+  const isBelowXl = useMediaQuery("(max-width: 1279px)");
+  const drawerOpen = isBelowXl && !!selected;
+
   return (
-    <div className="h-full flex flex-col bg-background overflow-hidden">
-      <div className="flex-1 flex min-h-0 p-3 gap-3">
-        {/* Fleet Sidebar */}
-        <FleetSidebar
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      <div className="flex min-h-0 flex-1">
+        <DriverInbox
           drivers={driversWithPositions}
           selectedDriverId={selectedDriverId}
-          onSelectDriver={setSelectedDriverId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          isConnected={isConnected}
+          onSelectDriver={selectDriver}
           isLoading={isLoadingDrivers}
         />
 
-        {/* Main content - bento grid */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0">
-          {/* Stats row */}
-          <div className="grid grid-cols-4 gap-3 shrink-0">
-            <StatsGrid drivers={driversWithPositions} />
-          </div>
+        <MapWorkspace
+          drivers={driversWithPositions}
+          selectedDriverId={selectedDriverId}
+          onSelectDriver={selectDriver}
+        />
 
-          {/* Map */}
-          <TrackingMap
-            selectedDriverId={selectedDriverId}
-            onSelectDriver={setSelectedDriverId}
-          />
-        </div>
+        <DriverPanel driver={selected} />
       </div>
+
+      <Footer isConnected={isConnected} />
+
+      {/* Detail slide-over for < xl */}
+      <Sheet open={drawerOpen} onOpenChange={(open) => !open && selectDriver(null)}>
+        <SheetContent side="right" className="w-[340px] border-mc-border bg-background p-0">
+          <DriverPanelBody driver={selected} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

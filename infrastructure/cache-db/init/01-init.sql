@@ -128,7 +128,10 @@ CREATE TABLE IF NOT EXISTS driver_positions (
 CREATE INDEX idx_dpos_tenant ON driver_positions(tenant_id);
 
 -- ─── Seed: demo drivers ─────────────────────────────────────
+-- Warms the read model; MySQL (infrastructure/mysql/init/03-drivers.sql) is the
+-- source of truth and keeps these in sync via Debezium CDC. Keep device_id values
+-- identical to the MySQL seed (John Smith uses his plate ABC-1234 as the Traccar id).
 INSERT INTO drivers (id, tenant_id, device_id, name, phone, vehicle_plate, vehicle_type, status) VALUES
-('a1b2c3d4-0001-4000-8000-000000000001', 'tenant-1', 'DEV001', 'John Smith',    '+1-555-1001', 'ABC-1234', 'van',   'offline'),
+('a1b2c3d4-0001-4000-8000-000000000001', 'tenant-1', 'ABC-1234', 'John Smith',    '+1-555-1001', 'ABC-1234', 'van',   'offline'),
 ('a1b2c3d4-0001-4000-8000-000000000002', 'tenant-1', 'DEV002', 'Jane Doe',      '+1-555-1002', 'DEF-5678', 'truck', 'offline'),
 ('a1b2c3d4-0002-4000-8000-000000000003', 'tenant-2', 'DEV003', 'Bob Wilson',    '+1-555-2001', 'GHI-9012', 'van',   'offline');

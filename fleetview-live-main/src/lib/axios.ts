@@ -53,7 +53,14 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // A 401 from the auth endpoints themselves is a credentials/refresh failure,
+    // not an expired session — let it bubble up to the caller (e.g. the login
+    // form) instead of clearing storage and hard-redirecting to /login.
+    const requestUrl = originalRequest.url ?? '';
+    const isAuthRequest =
+      requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

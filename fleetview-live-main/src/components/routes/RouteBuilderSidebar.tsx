@@ -1,327 +1,263 @@
-import { useEffect, useCallback } from 'react';
-import {
-  Plus,
-  Wand2,
-  Save,
-  Loader2,
-  Route as RouteIcon,
-  Clock,
-  ArrowLeft,
-} from 'lucide-react';
+import { useEffect } from 'react';
+import { Plus, Wand2, Save, Loader2, Route as RouteIcon, ChevronLeft } from 'lucide-react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { SortableVisitList } from './SortableVisitList';
-import { AddStopDialog } from './AddStopDialog';
 import { CreateRouteDialog } from './CreateRouteDialog';
 import { RouteSelector } from './RouteSelector';
 import { useRouteBuilderStore } from '@/stores/routeBuilder.store';
-import { useAuthStore } from '@/stores/auth.store';
-import {
-  useRouteVisits,
-  useCustomers,
-  useOptimizeRoute,
-  useReorderVisits,
-  useAddVisit,
-  useDeleteVisit,
-  useCreateRoute,
-} from '@/hooks/api/useRouteBuilder';
+import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
+import { useRouteVisits, useCustomers } from '@/hooks/api/useRouteBuilder';
 import { useRoutes } from '@/hooks/api/useRoutes';
 import { useDrivers } from '@/hooks/api/useDrivers';
-import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import type { Route } from '@/types/route.types';
 
-export function RouteBuilderSidebar() {
-  const { user } = useAuthStore();
-  const store = useRouteBuilderStore();
-  const {
-    selectedRouteId,
-    selectedDriverId,
-    localVisits,
-    isDirty,
-    isOptimizing,
-    addStopDialogOpen,
-    createRouteDialogOpen,
-  } = store;
+const START_TIME = '07:30';
 
-  // Data
+function fmtDate(date: string): string {
+  try {
+    return format(new Date(date), 'd MMM');
+  } catch {
+    return date;
+  }
+}
+
+function fmtDuration(seconds: number): string {
+  const mins = Math.round(seconds / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+/** Add `seconds` to the fixed depot start time → "HH:MM". */
+function returnEta(seconds: number | null): string | null {
+  if (seconds == null) return null;
+  const [sh, sm] = START_TIME.split(':').map(Number);
+  const total = sh * 60 + sm + Math.round(seconds / 60);
+  const h = Math.floor((total % 1440) / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function statusBadge(route: Route | undefined, stops: number) {
+  if (!route || (route.status === 'planned' && stops === 0)) {
+    return { label: 'draft', cls: 'border-mc-accent-border bg-mc-accent-soft text-mc-accent', dot: 'var(--mc-accent)' };
+  }
+  switch (route.status) {
+    case 'in_progress':
+      return { label: 'in progress', cls: 'border-border bg-mc-surface text-foreground', dot: 'var(--mc-status-moving)' };
+    case 'completed':
+      return { label: 'completed', cls: 'border-border bg-mc-surface text-foreground', dot: 'var(--mc-status-moving)' };
+    case 'cancelled':
+      return { label: 'cancelled', cls: 'border-border bg-mc-surface text-mc-text-dim', dot: 'var(--mc-status-offline)' };
+    default:
+      return { label: 'planned', cls: 'border-mc-accent-border bg-mc-accent-soft text-mc-accent', dot: 'var(--mc-accent)' };
+  }
+}
+
+function DepotRow({
+  label,
+  meta,
+  tag,
+}: {
+  label: 'A' | 'B';
+  meta: string;
+  tag: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 px-1 py-1.5">
+      <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border border-mc-border-strong bg-mc-surface font-mono text-[11px] font-bold text-mc-text-muted">
+        {label}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px] font-medium text-foreground">Depot</div>
+        <div className="text-[11px] text-mc-text-dim">{meta}</div>
+      </div>
+      <span className="shrink-0 text-[10px] uppercase tracking-[0.06em] text-mc-text-dim">{tag}</span>
+    </div>
+  );
+}
+
+function StatCell({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <div>
+      <div className="text-[9.5px] uppercase tracking-[0.07em] text-mc-text-dim">{label}</div>
+      <div className="mt-0.5 font-mono text-[15px] font-bold tabular-nums text-foreground">
+        {value}
+        {unit && <span className="ml-1 text-[10px] font-normal text-mc-text-dim">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+export function RouteBuilderSidebar() {
+  const store = useRouteBuilderStore();
+  const { selectedRouteId, selectedDriverId, localVisits, isDirty, isOptimizing } = store;
+
   const { data: routes = [], isLoading: routesLoading } = useRoutes();
   const { data: drivers = [] } = useDrivers();
   const { data: serverVisits = [] } = useRouteVisits(selectedRouteId);
   const { data: customers = [] } = useCustomers();
 
-  // Mutations
-  const optimizeMut = useOptimizeRoute();
-  const reorderMut = useReorderVisits();
-  const addVisitMut = useAddVisit();
-  const deleteVisitMut = useDeleteVisit();
-  const createRouteMut = useCreateRoute();
+  const { optimize, saveOrder, deleteVisit, createRoute, isSaving, isCreating } =
+    useRouteBuilderActions();
 
-  // Sync server visits → local
+  // Sync server visits → local order while there are no unsaved edits.
   useEffect(() => {
     if (serverVisits.length > 0 && !isDirty) {
       store.setLocalVisits(serverVisits);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverVisits, isDirty]);
 
-  // Selected route object
-  const selectedRoute: Route | undefined = routes.find((r) => r.id === selectedRouteId);
+  const selectedRoute = routes.find((r) => r.id === selectedRouteId);
 
-  // Handlers
-  const handleSelectRoute = useCallback(
-    (routeId: string) => {
-      const route = routes.find((r) => r.id === routeId);
-      store.setSelectedRoute(routeId, route?.driverId ?? null);
-    },
-    [routes],
-  );
-
-  const handleOptimize = useCallback(async () => {
-    if (!selectedRouteId) return;
-    store.setIsOptimizing(true);
-    try {
-      const result = await optimizeMut.mutateAsync(selectedRouteId);
-      store.setLastOptimizedAt(result.optimizedAt);
-      store.markClean();
-      toast.success('Route optimized successfully');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Optimization failed');
-    } finally {
-      store.setIsOptimizing(false);
-    }
-  }, [selectedRouteId]);
-
-  const handleSaveOrder = useCallback(async () => {
-    if (!selectedRouteId || !isDirty) return;
-    try {
-      await reorderMut.mutateAsync({
-        routeId: selectedRouteId,
-        visits: localVisits.map((v) => ({
-          visitId: v.id,
-          sequenceNumber: v.sequenceNumber,
-        })),
-      });
-      store.markClean();
-      toast.success('Order saved');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to save order');
-    }
-  }, [selectedRouteId, isDirty, localVisits]);
-
-  const handleAddStop = useCallback(
-    async (customerId: number, timeWindowStart?: string, timeWindowEnd?: string) => {
-      if (!selectedRouteId || !selectedDriverId || !user?.tenantId) return;
-      try {
-        await addVisitMut.mutateAsync({
-          tenantId: user.tenantId,
-          routeId: selectedRouteId,
-          driverId: selectedDriverId,
-          customerId,
-          sequenceNumber: localVisits.length + 1,
-          scheduledDate: selectedRoute?.scheduledDate ?? new Date().toISOString().slice(0, 10),
-          timeWindowStart: timeWindowStart ? `${timeWindowStart}:00` : undefined,
-          timeWindowEnd: timeWindowEnd ? `${timeWindowEnd}:00` : undefined,
-        });
-        toast.success('Stop added');
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || 'Failed to add stop');
-      }
-    },
-    [selectedRouteId, selectedDriverId, localVisits.length, selectedRoute, user],
-  );
-
-  const handleDeleteVisit = useCallback(
-    async (visitId: string) => {
-      if (!selectedRouteId) return;
-      store.removeVisitLocally(visitId);
-      try {
-        await deleteVisitMut.mutateAsync({ visitId, routeId: selectedRouteId });
-        toast.success('Stop removed');
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || 'Failed to remove stop');
-      }
-    },
-    [selectedRouteId],
-  );
-
-  const handleCreateRoute = useCallback(
-    async (driverId: string, scheduledDate: string) => {
-      if (!user?.tenantId) return;
-      try {
-        const route = await createRouteMut.mutateAsync({ tenantId: user.tenantId, driverId, scheduledDate });
-        store.setSelectedRoute(route.id, route.driverId);
-        toast.success('Route created');
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || 'Failed to create route');
-      }
-    },
-    [],
-  );
-
-  // If no route selected, show route list
+  // ── Route list (no route selected) ──
   if (!selectedRouteId) {
     return (
-      <div className="w-96 shrink-0 border-r bg-card flex flex-col h-full">
-        <div className="p-4 pb-3 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <RouteIcon className="w-5 h-5 text-primary" />
-              <h2 className="font-semibold">Route Builder</h2>
+      <aside className="flex w-[360px] shrink-0 flex-col border-r border-border bg-background">
+        <div className="flex items-center justify-between border-b border-border px-3.5 py-3">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-7 w-7 place-items-center rounded-[7px] border border-mc-accent-border bg-mc-accent-soft text-mc-accent">
+              <RouteIcon className="h-[14px] w-[14px]" />
+            </span>
+            <div>
+              <div className="text-[13px] font-semibold">Route Builder</div>
+              <div className="text-[11px] text-mc-text-dim">Pick a route to edit</div>
             </div>
-            <Button size="sm" onClick={() => store.setCreateRouteDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              New Route
-            </Button>
           </div>
+          <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={() => store.setCreateRouteDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            New
+          </Button>
         </div>
-        <ScrollArea className="flex-1">
-          <div className="p-3">
-            {routesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <RouteSelector
-                routes={routes}
-                selectedRouteId={null}
-                onSelectRoute={handleSelectRoute}
-              />
-            )}
-          </div>
-        </ScrollArea>
-
+        <div className="flex-1 overflow-y-auto p-3">
+          {routesLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-mc-text-dim" />
+            </div>
+          ) : (
+            <RouteSelector routes={routes} selectedRouteId={null} onSelectRoute={(id) => {
+              const r = routes.find((x) => x.id === id);
+              store.setSelectedRoute(id, r?.driverId ?? null);
+            }} />
+          )}
+        </div>
         <CreateRouteDialog
-          open={createRouteDialogOpen}
+          open={store.createRouteDialogOpen}
           onOpenChange={store.setCreateRouteDialogOpen}
           drivers={drivers}
-          onSubmit={handleCreateRoute}
-          isLoading={createRouteMut.isPending}
+          onSubmit={createRoute}
+          isLoading={isCreating}
         />
-      </div>
+      </aside>
     );
   }
 
-  // Route detail view
+  // ── Builder (route selected) ──
   const driver = drivers.find((d) => d.id === selectedDriverId);
-  const isEditable = selectedRoute?.status === 'planned';
+  const isEditable = !selectedRoute || selectedRoute.status === 'planned';
+  const hasStops = localVisits.length > 0;
+  const badge = statusBadge(selectedRoute, localVisits.length);
+  const distanceKm =
+    selectedRoute?.totalDistanceMeters != null ? (selectedRoute.totalDistanceMeters / 1000).toFixed(1) : '—';
+  const duration =
+    selectedRoute?.totalEstimatedSeconds != null ? fmtDuration(selectedRoute.totalEstimatedSeconds) : '—';
+  const eta = returnEta(selectedRoute?.totalEstimatedSeconds ?? null);
 
   return (
-    <div className="w-96 shrink-0 border-r bg-card flex flex-col h-full">
+    <aside className="flex w-[360px] shrink-0 flex-col border-r border-border bg-background">
       {/* Header */}
-      <div className="p-4 pb-3 border-b space-y-3">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1 -ml-2"
+      <div className="border-b border-border px-3.5 py-3">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
             onClick={() => store.setSelectedRoute(null)}
+            title="Back to routes"
+            className="group grid h-7 w-7 shrink-0 place-items-center rounded-[7px] border border-mc-accent-border bg-mc-accent-soft text-mc-accent transition-colors hover:border-mc-border-strong"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Routes
-          </Button>
-          {isDirty && (
-            <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px]">
-              Unsaved
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">
-              {driver?.name ?? 'Unknown Driver'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {selectedRoute?.scheduledDate} · {localVisits.length} stops
-              {selectedRoute?.totalDistanceMeters != null && (
-                <> · {(selectedRoute.totalDistanceMeters / 1000).toFixed(1)} km</>
-              )}
-            </p>
+            <RouteIcon className="h-[14px] w-[14px] group-hover:hidden" />
+            <ChevronLeft className="hidden h-[14px] w-[14px] group-hover:block" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold text-foreground">
+              {driver?.name ?? 'Unknown driver'}
+            </div>
+            <div className="font-mono text-[11px] text-mc-text-dim">
+              {selectedRoute ? fmtDate(selectedRoute.scheduledDate) : '—'}
+              {driver?.vehiclePlate && ` · ${driver.vehiclePlate}`}
+            </div>
           </div>
-          <Badge
-            variant="secondary"
-            className="text-[10px]"
-          >
-            {selectedRoute?.status?.replace('_', ' ') ?? 'planned'}
-          </Badge>
+          <span className={cn('flex shrink-0 items-center gap-1.5 rounded-pill border px-2 py-0.5 text-[11px] font-medium', badge.cls)}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: badge.dot }} />
+            {badge.label}
+          </span>
         </div>
 
-        {/* Action buttons */}
+        {/* Stats */}
+        {hasStops && (
+          <div className="mt-3 grid grid-cols-3 rounded-mc border border-border bg-mc-surface">
+            <div className="px-3 py-2"><StatCell label="Distance" value={distanceKm} unit="km" /></div>
+            <div className="border-l border-border px-3 py-2"><StatCell label="Duration" value={duration} /></div>
+            <div className="border-l border-border px-3 py-2"><StatCell label="Stops" value={String(localVisits.length)} /></div>
+          </div>
+        )}
+
+        {/* Actions */}
         {isEditable && (
-          <div className="flex gap-2">
+          <div className="mt-3 flex gap-2">
             <Button
-              size="sm"
-              className="flex-1 gap-1"
-              onClick={handleOptimize}
+              className="h-9 flex-1 gap-1.5"
+              onClick={optimize}
               disabled={isOptimizing || localVisits.length < 2}
             >
-              {isOptimizing ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Wand2 className="w-3.5 h-3.5" />
-              )}
+              {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               Optimize
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              onClick={handleSaveOrder}
-              disabled={!isDirty || reorderMut.isPending}
-            >
-              {reorderMut.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
+            <Button variant="outline" className="h-9 gap-1.5" onClick={saveOrder} disabled={!isDirty || isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              onClick={() => store.setAddStopDialogOpen(true)}
-            >
-              <Plus className="w-3.5 h-3.5" />
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => store.setPaletteOpen(true)}>
+              <Plus className="h-4 w-4" />
               Stop
             </Button>
           </div>
         )}
-
-        {selectedRoute?.optimizedAt && (
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Clock className="w-3 h-3" />
-            Optimized {new Date(selectedRoute.optimizedAt).toLocaleString()}
-            {selectedRoute.optimizationMethod && ` (${selectedRoute.optimizationMethod})`}
-          </div>
-        )}
       </div>
 
-      <Separator />
+      {/* Stop list */}
+      <div className="flex-1 space-y-2 overflow-y-auto px-3.5 py-3">
+        <DepotRow label="A" meta={`start ${START_TIME}`} tag="origin" />
 
-      {/* Sortable visit list */}
-      <ScrollArea className="flex-1">
-        <div className="p-2">
+        {hasStops && (
           <SortableVisitList
             visits={localVisits}
             customers={customers}
             onReorder={store.reorderVisit}
-            onDeleteVisit={handleDeleteVisit}
+            onDeleteVisit={deleteVisit}
             disabled={!isEditable}
           />
-        </div>
-      </ScrollArea>
+        )}
 
-      {/* Dialogs */}
-      <AddStopDialog
-        open={addStopDialogOpen}
-        onOpenChange={store.setAddStopDialogOpen}
-        customers={customers}
-        existingCustomerIds={localVisits.map((v) => v.customerId)}
-        onAdd={handleAddStop}
-        isLoading={addVisitMut.isPending}
-      />
-    </div>
+        {hasStops && <DepotRow label="B" meta={eta ? `return · ETA ${eta}` : 'return'} tag="end" />}
+
+        {/* Add a stop */}
+        <button
+          type="button"
+          onClick={() => store.setPaletteOpen(true)}
+          className="flex w-full items-center gap-2.5 rounded-mc border border-dashed border-mc-border-strong px-2.5 py-2.5 text-[13px] text-mc-text-muted transition-colors hover:border-mc-accent-border hover:text-foreground"
+        >
+          <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border border-dashed border-mc-border-strong">
+            <Plus className="h-3 w-3" />
+          </span>
+          <span className="flex-1 text-left">Add a stop</span>
+          <kbd className="rounded border border-border bg-mc-surface px-1.5 py-px font-mono text-[10.5px] text-mc-text-dim">
+            ⌘K
+          </kbd>
+        </button>
+      </div>
+    </aside>
   );
 }

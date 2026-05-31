@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
   :root {
@@ -15,8 +15,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 25% 10%;
 
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
+    /* Brand accent — warm orange, matching --mc-accent (dark text on fill) */
+    --primary: 23 88% 59%;
+    --primary-foreground: 30 40% 12%;
 
     --secondary: 220 16% 93%;
     --secondary-foreground: 220 25% 10%;
@@ -32,7 +33,7 @@
 
     --border: 220 13% 90%;
     --input: 220 13% 90%;
-    --ring: 160 84% 39%;
+    --ring: 23 88% 59%;
 
     --radius: 0.75rem;
 
@@ -54,63 +55,130 @@
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 25% 10%;
-    --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 23 88% 59%;
+    --sidebar-primary-foreground: 30 40% 12%;
     --sidebar-accent: 220 16% 93%;
     --sidebar-accent-foreground: 220 25% 10%;
     --sidebar-border: 220 13% 90%;
-    --sidebar-ring: 160 84% 39%;
+    --sidebar-ring: 23 88% 59%;
+
+    /* ── Mission Control design tokens — light (warm off-white) ── */
+    --mc-bg:            oklch(0.985 0.003 70);
+    --mc-bg-elev:       oklch(1 0 0);
+    --mc-surface:       oklch(0.975 0.003 70);
+    --mc-surface-hi:    oklch(0.95 0.003 70);
+    --mc-border:        oklch(0.91 0.004 70);
+    --mc-border-strong: oklch(0.83 0.004 70);
+    --mc-text:          oklch(0.2 0.006 70);
+    --mc-text-muted:    oklch(0.5 0.005 70);
+    --mc-text-dim:      oklch(0.68 0.004 70);
+
+    --mc-map-bg:        oklch(0.96 0.005 70);
+    --mc-map-block:     oklch(0.985 0.003 70);
+    --mc-map-road:      oklch(0.78 0.005 70);
+    --mc-map-road-soft: oklch(0.88 0.004 70);
+    --mc-map-park:      oklch(0.86 0.05 145 / 0.55);
+    --mc-map-water:     oklch(0.85 0.045 235 / 0.7);
+    --mc-map-label:     oklch(0.55 0.005 70);
+    --mc-map-grid:      oklch(0.93 0.003 70);
+
+    /* shared accent + status hues (identical in both themes) */
+    --mc-accent:        oklch(0.72 0.16 50);
+    --mc-accent-strong: oklch(0.66 0.18 47);
+    --mc-accent-soft:   oklch(0.72 0.16 50 / 0.14);
+    --mc-accent-border: oklch(0.72 0.16 50 / 0.35);
+    --mc-accent-fg:     oklch(0.18 0.04 50);
+    --mc-status-moving:  oklch(0.72 0.16 150);
+    --mc-status-idle:    oklch(0.78 0.14 80);
+    --mc-status-offline: oklch(0.65 0.18 25);
+    --mc-status-pending: oklch(0.65 0.005 240);
+    --mc-status-arrived: oklch(0.65 0.15 240);
+
+    /* form fields + error (login / forms) — light */
+    --mc-field-bg:       oklch(1 0 0);
+    --mc-field-bg-focus: oklch(1 0 0);
+    --mc-error:          oklch(0.55 0.18 25);
+    --mc-error-soft:     oklch(0.55 0.18 25 / 0.08);
+    --mc-error-border:   oklch(0.55 0.18 25 / 0.35);
   }
 
   .dark {
-    --background: 222 28% 7%;
-    --foreground: 210 20% 95%;
+    /* Warm-dark palette (Mission Control Pro) — keeps shadcn primitives coherent */
+    --background: 30 8% 9%;
+    --foreground: 40 12% 96%;
 
-    --card: 222 25% 11%;
-    --card-foreground: 210 20% 95%;
+    --card: 32 7% 12%;
+    --card-foreground: 40 12% 96%;
 
-    --popover: 222 25% 11%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 32 7% 12%;
+    --popover-foreground: 40 12% 96%;
 
-    --primary: 160 84% 44%;
-    --primary-foreground: 222 28% 7%;
+    --primary: 25 90% 60%;
+    --primary-foreground: 28 45% 12%;
 
-    --secondary: 222 20% 16%;
-    --secondary-foreground: 210 20% 95%;
+    --secondary: 32 6% 16%;
+    --secondary-foreground: 40 12% 96%;
 
-    --muted: 222 20% 16%;
-    --muted-foreground: 215 15% 55%;
+    --muted: 32 6% 16%;
+    --muted-foreground: 36 6% 68%;
 
-    --accent: 222 20% 16%;
-    --accent-foreground: 210 20% 95%;
+    --accent: 32 6% 18%;
+    --accent-foreground: 40 12% 96%;
 
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 8 72% 52%;
+    --destructive-foreground: 40 12% 96%;
 
-    --border: 222 20% 18%;
-    --input: 222 20% 18%;
-    --ring: 160 84% 44%;
+    --border: 32 5% 22%;
+    --input: 32 5% 22%;
+    --ring: 25 90% 60%;
 
-    --status-active: 160 84% 44%;
-    --status-idle: 38 92% 55%;
-    --status-offline: 0 72% 55%;
-    --status-active-bg: 160 84% 44% / 0.15;
-    --status-idle-bg: 38 92% 55% / 0.15;
-    --status-offline-bg: 0 72% 55% / 0.15;
+    --status-active: 145 60% 52%;
+    --status-idle: 70 70% 58%;
+    --status-offline: 8 72% 55%;
+    --status-active-bg: 145 60% 52% / 0.15;
+    --status-idle-bg: 70 70% 58% / 0.15;
+    --status-offline-bg: 8 72% 55% / 0.15;
 
-    --visit-pending: 215 15% 55%;
-    --visit-arrived: 217 91% 65%;
-    --visit-completed: 160 84% 44%;
-    --visit-skipped: 25 95% 58%;
+    --visit-pending: 36 6% 60%;
+    --visit-arrived: 235 55% 65%;
+    --visit-completed: 145 60% 52%;
+    --visit-skipped: 25 90% 60%;
 
-    --sidebar-background: 222 25% 9%;
-    --sidebar-foreground: 210 20% 95%;
-    --sidebar-primary: 160 84% 44%;
-    --sidebar-primary-foreground: 222 28% 7%;
-    --sidebar-accent: 222 20% 16%;
-    --sidebar-accent-foreground: 210 20% 95%;
-    --sidebar-border: 222 20% 18%;
-    --sidebar-ring: 160 84% 44%;
+    --sidebar-background: 30 8% 9%;
+    --sidebar-foreground: 40 12% 96%;
+    --sidebar-primary: 25 90% 60%;
+    --sidebar-primary-foreground: 28 45% 12%;
+    --sidebar-accent: 32 6% 16%;
+    --sidebar-accent-foreground: 40 12% 96%;
+    --sidebar-border: 32 5% 22%;
+    --sidebar-ring: 25 90% 60%;
+
+    /* ── Mission Control design tokens — warm dark ── */
+    --mc-bg:            oklch(0.16 0.006 60);
+    --mc-bg-elev:       oklch(0.195 0.006 60);
+    --mc-surface:       oklch(0.22 0.006 60);
+    --mc-surface-hi:    oklch(0.26 0.006 60);
+    --mc-border:        oklch(0.28 0.005 60);
+    --mc-border-strong: oklch(0.36 0.005 60);
+    --mc-text:          oklch(0.97 0.005 60);
+    --mc-text-muted:    oklch(0.70 0.005 60);
+    --mc-text-dim:      oklch(0.50 0.005 60);
+
+    --mc-map-bg:        oklch(0.17 0.006 60);
+    --mc-map-block:     oklch(0.205 0.006 60);
+    --mc-map-road:      oklch(0.36 0.006 60);
+    --mc-map-road-soft: oklch(0.27 0.005 60);
+    --mc-map-park:      oklch(0.32 0.05 145 / 0.4);
+    --mc-map-water:     oklch(0.38 0.06 240 / 0.55);
+    --mc-map-label:     oklch(0.55 0.005 60);
+    --mc-map-grid:      oklch(0.21 0.005 60);
+
+    /* form fields + error (login / forms) — warm dark */
+    --mc-field-bg:       oklch(0.205 0.006 60);
+    --mc-field-bg-focus: oklch(0.225 0.006 60);
+    --mc-error:          oklch(0.7 0.18 25);
+    --mc-error-soft:     oklch(0.7 0.18 25 / 0.12);
+    --mc-error-border:   oklch(0.7 0.18 25 / 0.35);
   }
 }
 
@@ -121,11 +189,13 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Geist', 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    letter-spacing: -0.005em;
   }
 
   code, .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Geist Mono', 'JetBrains Mono', monospace;
   }
 }
 

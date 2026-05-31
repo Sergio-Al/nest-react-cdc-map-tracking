@@ -32,6 +32,9 @@ export class EnrichmentService implements OnModuleInit {
     { driverId: string; tenantId: string; name: string }
   >();
 
+  /** Reverse driver→device index so a changed/cleared device_id can evict its stale key. */
+  private driverDeviceIndex = new Map<string, string>();
+
   constructor(
     private readonly kafkaConsumer: KafkaConsumerService,
     private readonly kafkaProducer: KafkaProducerService,
@@ -72,14 +75,44 @@ export class EnrichmentService implements OnModuleInit {
           tenantId: d.tenantId,
           name: d.name,
         });
+        this.driverDeviceIndex.set(d.id, d.deviceId);
       }
     }
     this.logger.log(`Loaded ${this.deviceDriverMap.size} device→driver mappings`);
   }
 
-  /** Called externally when a new driver is added/updated */
-  refreshDriverMapping(deviceId: string, driverId: string, tenantId: string, name: string): void {
-    this.deviceDriverMap.set(deviceId, { driverId, tenantId, name });
+  /**
+   * Apply a driver insert/update to the in-memory map without a restart.
+   * Called by the CDC consumer on `cdc.drivers` upserts. Handles a changed or
+   * cleared device_id by evicting the driver's previous key first.
+   */
+  refreshDriverMapping(
+    deviceId: string | null,
+    driverId: string,
+    tenantId: string,
+    name: string,
+  ): void {
+    const prevDeviceId = this.driverDeviceIndex.get(driverId);
+    if (prevDeviceId && prevDeviceId !== deviceId) {
+      this.deviceDriverMap.delete(prevDeviceId);
+    }
+
+    if (deviceId) {
+      this.deviceDriverMap.set(deviceId, { driverId, tenantId, name });
+      this.driverDeviceIndex.set(driverId, deviceId);
+      this.logger.debug(`Mapping updated: ${deviceId} → ${name} (${driverId})`);
+    } else {
+      // Driver no longer has a device — drop it from the lookup.
+      this.driverDeviceIndex.delete(driverId);
+    }
+  }
+
+  /** Remove a driver from the map (called by the CDC consumer on delete). */
+  removeDriverMapping(driverId: string): void {
+    const deviceId = this.driverDeviceIndex.get(driverId);
+    if (deviceId) this.deviceDriverMap.delete(deviceId);
+    this.driverDeviceIndex.delete(driverId);
+    this.logger.debug(`Mapping removed for driver ${driverId}`);
   }
 
   // ── Main enrichment pipeline ─────────────────────────────

@@ -12,6 +12,7 @@ import {
 } from './entities';
 import { Driver } from '../drivers/entities';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { EnrichmentModule } from '../enrichment/enrichment.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
       Driver,
     ], 'cacheDb'),
     forwardRef(() => WebsocketModule),
+    EnrichmentModule,
   ],
   controllers: [SyncController],
   providers: [CdcConsumerService, CdcMetricsService],

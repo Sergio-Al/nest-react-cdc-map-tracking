@@ -11,6 +11,7 @@ import {
 } from './entities';
 import { Driver } from '../drivers/entities';
 import { CdcMetricsService } from './cdc-metrics.service';
+import { EnrichmentService } from '../enrichment/enrichment.service';
 
 /**
  * CDC Consumer – listens to Debezium Kafka topics and syncs
@@ -33,6 +34,7 @@ export class CdcConsumerService implements OnModuleInit {
   constructor(
     private readonly kafkaConsumer: KafkaConsumerService,
     private readonly cdcMetrics: CdcMetricsService,
+    private readonly enrichment: EnrichmentService,
 
     @InjectRepository(CachedAccount, 'cacheDb')
     private readonly accountRepo: Repository<CachedAccount>,
@@ -171,12 +173,23 @@ export class CdcConsumerService implements OnModuleInit {
       const id = data.id;
       if (id) {
         await repo.delete({ id });
+        if (topic === 'cdc.drivers') this.enrichment.removeDriverMapping(id);
         this.logger.debug(`[${tableName}] DELETED id=${id}`);
       }
     } else {
       // UPSERT (INSERT or UPDATE)
       const entity = mapFn(data);
       await repo.upsert(entity, ['id']);
+      // Keep the in-memory device→driver map current so device_id changes take
+      // effect for live GPS enrichment without restarting the service.
+      if (topic === 'cdc.drivers') {
+        this.enrichment.refreshDriverMapping(
+          entity.deviceId ?? null,
+          entity.id,
+          entity.tenantId,
+          entity.name,
+        );
+      }
       this.logger.debug(`[${tableName}] UPSERTED id=${entity.id} (op=${op})`);
     }
 

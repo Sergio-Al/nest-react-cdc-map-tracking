@@ -17,3 +17,22 @@ CREATE TABLE IF NOT EXISTS drivers (
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_drivers_tenant (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ─── Seed: demo drivers (source of truth) ───────────────────
+-- Mirrors the cache seed (infrastructure/cache-db/init/01-init.sql) so the
+-- same demo drivers exist in MySQL and replicate to the cache via Debezium CDC.
+-- device_id is the GPS/Traccar identifier the device reports; John Smith uses
+-- his plate (ABC-1234) to match the Traccar device registered with that id.
+-- Idempotent so re-running on an existing volume is safe.
+INSERT INTO drivers (id, tenant_id, name, device_id, phone, vehicle_plate, vehicle_type, status) VALUES
+('a1b2c3d4-0001-4000-8000-000000000001', 'tenant-1', 'John Smith', 'ABC-1234', '+1-555-1001', 'ABC-1234', 'van',   'offline'),
+('a1b2c3d4-0001-4000-8000-000000000002', 'tenant-1', 'Jane Doe',   'DEV002',   '+1-555-1002', 'DEF-5678', 'truck', 'offline'),
+('a1b2c3d4-0002-4000-8000-000000000003', 'tenant-2', 'Bob Wilson', 'DEV003',   '+1-555-2001', 'GHI-9012', 'van',   'offline')
+ON DUPLICATE KEY UPDATE
+    tenant_id     = VALUES(tenant_id),
+    name          = VALUES(name),
+    device_id     = VALUES(device_id),
+    phone         = VALUES(phone),
+    vehicle_plate = VALUES(vehicle_plate),
+    vehicle_type  = VALUES(vehicle_type),
+    status        = VALUES(status);
