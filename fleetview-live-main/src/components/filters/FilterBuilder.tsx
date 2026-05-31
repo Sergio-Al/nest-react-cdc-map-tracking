@@ -29,6 +29,9 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
   const [search, setSearch] = useState('');
   const { t } = useTranslation('common');
   const opLabel = (op: Operator) => t(`filters.operators.${op}`);
+  const fieldLabel = (f: FieldDef<T>) => (f.labelKey ? t(f.labelKey) : f.label);
+  const optionLabel = (o: { label: string; labelKey?: string }) =>
+    o.labelKey ? t(o.labelKey) : o.label;
 
   const def = draft ? fields.find((f) => f.id === draft.field) : undefined;
 
@@ -62,7 +65,9 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
   const toggleValue = (v: string) =>
     setDraft((d) => (d ? { ...d, values: d.values.includes(v) ? d.values.filter((x) => x !== v) : [...d.values, v] } : d));
 
-  const options = def?.options ? def.options(rows).filter((o) => o.label.toLowerCase().includes(search.toLowerCase())) : [];
+  const options = def?.options
+    ? def.options(rows).filter((o) => optionLabel(o).toLowerCase().includes(search.toLowerCase()))
+    : [];
 
   return (
     <Popover open={open} onOpenChange={reset}>
@@ -77,7 +82,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                 onClick={() => pickField(f)}
                 className="flex w-full items-center rounded-[5px] px-2 py-1.5 text-left text-xs text-foreground hover:bg-mc-surface"
               >
-                {f.label}
+                {fieldLabel(f)}
               </button>
             ))}
           </div>
@@ -95,7 +100,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
               )}
-              <span className="text-xs font-semibold text-foreground">{def.label}</span>
+              <span className="text-xs font-semibold text-foreground">{fieldLabel(def)}</span>
             </div>
 
             {def.kind === 'enum' ? (
@@ -151,7 +156,7 @@ export function FilterBuilder<T>({ fields, rows, editing, onApply, align = 'star
                         >
                           {on && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
                         </span>
-                        <span className="truncate text-foreground">{o.label}</span>
+                        <span className="truncate text-foreground">{optionLabel(o)}</span>
                       </button>
                     );
                   })}

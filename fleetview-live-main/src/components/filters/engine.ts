@@ -55,11 +55,17 @@ export function describeFilter<T>(
   def: FieldDef<T>,
   rows: T[],
 ): { key: string; value: string } {
-  const key = def.label.toLowerCase();
+  const fieldLabel = def.labelKey ? i18n.t(def.labelKey, { ns: 'common' }) : def.label;
+  const key = fieldLabel.toLowerCase();
   const tOp = (op: Operator) => i18n.t(`filters.operators.${op}`, { ns: 'common' });
+  const tOpt = (o: { label: string; labelKey?: string }) =>
+    o.labelKey ? i18n.t(o.labelKey, { ns: 'common' }) : o.label;
   if (def.kind === 'enum') {
     const opts = def.options ? def.options(rows) : [];
-    const labels = f.values.map((val) => opts.find((o) => o.value === val)?.label ?? val);
+    const labels = f.values.map((val) => {
+      const o = opts.find((x) => x.value === val);
+      return o ? tOpt(o) : val;
+    });
     const shown = labels.slice(0, 2).join(', ');
     const extra = labels.length > 2 ? `, +${labels.length - 2}` : '';
     const prefix = f.operator === 'not_any_of' ? `${tOp('not_any_of')} ` : '';

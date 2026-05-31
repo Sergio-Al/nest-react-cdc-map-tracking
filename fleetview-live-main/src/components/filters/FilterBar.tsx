@@ -99,7 +99,7 @@ export function FilterBar<T>({
                 )}
               >
                 {v.star && <Star className="h-3 w-3 fill-mc-accent text-mc-accent" />}
-                {v.name}
+                {v.nameKey ? t(v.nameKey) : v.name}
                 <span className={cn('font-mono text-[10px]', active ? 'text-mc-accent' : 'text-mc-text-dim')}>
                   {v.count.toLocaleString(i18n.language)}
                 </span>

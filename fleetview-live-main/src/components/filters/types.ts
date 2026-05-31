@@ -17,12 +17,17 @@ export const NUMBER_OPERATORS: Operator[] = ['lt', 'lte', 'eq', 'gte', 'gt', 'be
 
 export interface FieldOption {
   value: string;
+  /** English fallback. Renderers should prefer `labelKey` when present. */
   label: string;
+  /** Optional i18next key (e.g. `filters.options.completed` in the `common` namespace). */
+  labelKey?: string;
 }
 
 export interface FieldDef<T> {
   id: string;
   label: string;
+  /** Optional i18next key (e.g. `filters.fields.status` in the `common` namespace). */
+  labelKey?: string;
   kind: FieldKind;
   /** Suffix shown in number pills, e.g. '%' or 'km'. */
   unit?: string;
@@ -46,6 +51,8 @@ export interface ActiveFilter {
 export interface SavedView {
   id: string;
   name: string;
+  /** Optional i18next key (e.g. `filters.views.all` in the `common` namespace). */
+  nameKey?: string;
   filters: ActiveFilter[];
   /** Built-in views can't be deleted. */
   builtin?: boolean;
