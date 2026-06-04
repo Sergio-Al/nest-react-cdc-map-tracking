@@ -1,25 +1,32 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { RouteBuilderSidebar } from '@/components/routes/RouteBuilderSidebar';
 import { RouteBuilderMap } from '@/components/routes/RouteBuilderMap';
 import { AddStopPalette } from '@/components/routes/AddStopPalette';
+import { RouteFilters } from '@/components/routes/RouteFilters';
+import { ROUTE_LIST_FIELDS, ROUTE_LIST_VIEWS } from '@/components/routes/routeListFilters';
+import type { RouteListRow } from '@/components/routes/routeListFilters';
 import { Footer } from '@/components/dashboard/Footer';
-import { Button } from '@/components/ui/button';
 import { useRouteBuilderStore } from '@/stores/routeBuilder.store';
 import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
 import { useCustomers, useRouteGeometry } from '@/hooks/api/useRouteBuilder';
+import { useRoutes } from '@/hooks/api/useRoutes';
+import { useDrivers } from '@/hooks/api/useDrivers';
+import { useDatasetFilters } from '@/components/filters/useDatasetFilters';
 import { useSocket } from '@/hooks/useSocket';
 
 function BuilderHead({
   hasRoute,
   onBackToRoutes,
   onOpenPalette,
+  filtersSlot,
 }: {
   hasRoute: boolean;
   onBackToRoutes: () => void;
   onOpenPalette: () => void;
+  filtersSlot?: React.ReactNode;
 }) {
   const navigate = useNavigate();
   const { t } = useTranslation('routes');
@@ -54,10 +61,7 @@ function BuilderHead({
           <span className="flex-1 text-left">{t('page.findCustomer')}</span>
           <kbd className="rounded border border-border bg-mc-elev px-1.5 font-mono text-[10.5px]">⌘K</kbd>
         </button>
-        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          {t('page.filters')}
-        </Button>
+        {filtersSlot}
       </div>
     </div>
   );
@@ -68,8 +72,18 @@ export default function RoutesPage() {
   const { selectedRouteId, localVisits, paletteOpen } = store;
   const { isConnected } = useSocket();
   const { data: customers = [] } = useCustomers();
+  const { data: routes = [] } = useRoutes();
+  const { data: drivers = [] } = useDrivers();
   const { data: geometry } = useRouteGeometry(selectedRouteId, localVisits.length);
   const { addStops } = useRouteBuilderActions();
+
+  // Enrich routes with their driver's name so the list can be filtered by driver.
+  const routeRows = useMemo<RouteListRow[]>(() => {
+    const nameById = new Map(drivers.map((d) => [d.id, d.name]));
+    return routes.map((r) => ({ ...r, driverName: nameById.get(r.driverId) ?? '' }));
+  }, [routes, drivers]);
+
+  const ds = useDatasetFilters('routes-builder', routeRows, ROUTE_LIST_FIELDS, ROUTE_LIST_VIEWS);
 
   const existingIds = useMemo(() => localVisits.map((v) => v.customerId), [localVisits]);
 
@@ -105,10 +119,24 @@ export default function RoutesPage() {
         hasRoute={!!selectedRouteId}
         onBackToRoutes={() => store.setSelectedRoute(null)}
         onOpenPalette={() => store.setPaletteOpen(true)}
+        filtersSlot={
+          !selectedRouteId ? (
+            <RouteFilters
+              rows={routeRows}
+              filters={ds.filters}
+              onChange={ds.updateFilters}
+              views={ds.views}
+              activeViewId={ds.activeViewId}
+              onSelectView={ds.selectView}
+              onSaveView={ds.saveView}
+              onDeleteView={ds.deleteView}
+            />
+          ) : null
+        }
       />
 
       <div className="flex min-h-0 flex-1">
-        <RouteBuilderSidebar />
+        <RouteBuilderSidebar listRoutes={ds.filtered} />
         <RouteBuilderMap
           visits={localVisits}
           customers={customers}

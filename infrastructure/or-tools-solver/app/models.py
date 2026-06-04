@@ -49,6 +49,13 @@ class OptimizeRequest(BaseModel):
         default=None,
         description="Maximum total route duration in seconds (e.g., 28800 = 8 hours)",
     )
+    return_to_depot: bool = Field(
+        default=True,
+        description=(
+            "True: the vehicle returns to the depot (round trip). "
+            "False: the route ends at the last stop (open route)."
+        ),
+    )
     solver_time_limit_seconds: int = Field(
         default=5, description="Maximum time for the solver to run"
     )

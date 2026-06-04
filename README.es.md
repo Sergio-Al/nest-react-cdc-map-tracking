@@ -126,7 +126,8 @@ streaming-tracking-logistic/
 │   │       ├── 02-cached-users.sql   # Tabla cached_users (poblada vía CDC en runtime)
 │   │       ├── 03-route-optimizer.sql # Columnas de optimización de rutas (routes & planned_visits)
 │   │       ├── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
-│   │       └── 05-vehicles.sql       # Tabla de vehículos + datos semilla
+│   │       ├── 05-vehicles.sql       # Tabla de vehículos + datos semilla
+│   │       └── 06-routes-unique-driver-date.sql # Una ruta activa por conductor por día (índice único parcial)
 │   ├── osrm/
 │   │   ├── setup.sh                  # Descarga Bolivia OSM, recorta región La Paz, construye grafo OSRM
 │   │   └── data/                     # Archivos OSRM preprocesados (generados por setup.sh)
@@ -336,6 +337,11 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 # Semillar 23 clientes de La Paz con coordenadas reales
 docker exec -i cache-db psql -U tracking -d tracking_cache \
   < infrastructure/cache-db/init/04-seed-customers-lapaz.sql
+
+# Forzar una ruta activa por conductor por día (índice único parcial).
+# Falla si los datos existentes duplican un conductor — cancela/reasigna los extras primero.
+docker exec -i cache-db psql -U tracking -d tracking_cache \
+  < infrastructure/cache-db/init/06-routes-unique-driver-date.sql
 ```
 
 ### 6. Registrar el conector CDC de Debezium

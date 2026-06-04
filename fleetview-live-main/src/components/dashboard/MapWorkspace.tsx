@@ -1,14 +1,18 @@
-import { Search, SlidersHorizontal, Plus, PanelLeftOpen } from "lucide-react";
+import type { ReactNode } from "react";
+import { Search, Plus, PanelLeftOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { Driver } from "@/types/driver.types";
 import type { EnrichedPosition } from "@/types/position.types";
 import { TrackingMap } from "./TrackingMap";
+import { FleetFilters } from "./FleetFilters";
 import { getDriverStatus, statusColorVar } from "@/lib/driverStatus";
 import { getFleetStats } from "@/lib/mock/driverMock";
 import type { FleetStats } from "@/lib/mock/driverMock";
 import { useDashboardStore } from "@/stores/dashboard.store";
 import { Button } from "@/components/ui/button";
+import type { ActiveFilter } from "@/components/filters/types";
+import type { ViewWithCount } from "@/components/filters/useDatasetFilters";
 
 type DriverWithPosition = Driver & { position?: EnrichedPosition };
 
@@ -20,10 +24,12 @@ function WorkspaceHead({
   onOpenCommand,
   onNewRoute,
   onOpenInbox,
+  filtersSlot,
 }: {
   onOpenCommand: () => void;
   onNewRoute: () => void;
   onOpenInbox: () => void;
+  filtersSlot: ReactNode;
 }) {
   const { t } = useTranslation("dashboard");
   return (
@@ -53,10 +59,7 @@ function WorkspaceHead({
           <span className="flex-1 text-left">{t("workspace.quickSearch")}</span>
           <kbd className="rounded border border-border bg-mc-elev px-1.5 font-mono text-[10.5px]">⌘K</kbd>
         </button>
-        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          {t("workspace.filters")}
-        </Button>
+        {filtersSlot}
         <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={onNewRoute}>
           <Plus className="h-3.5 w-3.5" />
           {t("workspace.newRoute")}
@@ -117,12 +120,34 @@ function MiniStatsCard({ stats }: { stats: FleetStats }) {
 }
 
 interface MapWorkspaceProps {
+  /** Full fleet — used for stats and to derive filter options/counts. */
   drivers: DriverWithPosition[];
+  /** IDs that pass the active fleet filters; map markers are limited to these. */
+  visibleDriverIds: Set<string>;
   selectedDriverId: string | null;
   onSelectDriver: (id: string) => void;
+  filters: ActiveFilter[];
+  onChangeFilters: (filters: ActiveFilter[]) => void;
+  views: ViewWithCount[];
+  activeViewId: string;
+  onSelectView: (id: string) => void;
+  onSaveView: (name: string) => void;
+  onDeleteView: (id: string) => void;
 }
 
-export function MapWorkspace({ drivers, selectedDriverId, onSelectDriver }: MapWorkspaceProps) {
+export function MapWorkspace({
+  drivers,
+  visibleDriverIds,
+  selectedDriverId,
+  onSelectDriver,
+  filters,
+  onChangeFilters,
+  views,
+  activeViewId,
+  onSelectView,
+  onSaveView,
+  onDeleteView,
+}: MapWorkspaceProps) {
   const navigate = useNavigate();
   const setCommandOpen = useDashboardStore((s) => s.setCommandOpen);
   const setInboxSheetOpen = useDashboardStore((s) => s.setInboxSheetOpen);
@@ -135,11 +160,27 @@ export function MapWorkspace({ drivers, selectedDriverId, onSelectDriver }: MapW
         onOpenCommand={() => setCommandOpen(true)}
         onNewRoute={() => navigate("/routes")}
         onOpenInbox={() => setInboxSheetOpen(true)}
+        filtersSlot={
+          <FleetFilters
+            rows={drivers}
+            filters={filters}
+            onChange={onChangeFilters}
+            views={views}
+            activeViewId={activeViewId}
+            onSelectView={onSelectView}
+            onSaveView={onSaveView}
+            onDeleteView={onDeleteView}
+          />
+        }
       />
       {/* `isolate` contains Leaflet's + the chrome's high z-indices in their own
           stacking context, so modals (⌘K palette, detail drawer) render above the map. */}
       <div className="relative isolate min-h-0 flex-1">
-        <TrackingMap selectedDriverId={selectedDriverId} onSelectDriver={onSelectDriver} />
+        <TrackingMap
+          selectedDriverId={selectedDriverId}
+          onSelectDriver={onSelectDriver}
+          visibleDriverIds={visibleDriverIds}
+        />
         <NowTrackingChip driver={selected} />
         <MiniStatsCard stats={stats} />
       </div>

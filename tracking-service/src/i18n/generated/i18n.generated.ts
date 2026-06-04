@@ -33,6 +33,8 @@ export type I18nTranslations = {
             "noPendingVisits": string;
             "visitNotInRoute": string;
             "customerHasNoCoords": string;
+            "driverConflict": string;
+            "depotIncomplete": string;
         };
         "visits": {
             "notFound": string;

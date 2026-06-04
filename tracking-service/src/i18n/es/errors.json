@@ -25,7 +25,9 @@
     "noVisitsToOptimize": "La ruta no tiene paradas para optimizar",
     "noPendingVisits": "No hay paradas pendientes para optimizar",
     "visitNotInRoute": "La parada {{visitId}} no pertenece a la ruta {{routeId}}",
-    "customerHasNoCoords": "El cliente {{customerId}} no se encontró o no tiene coordenadas"
+    "customerHasNoCoords": "El cliente {{customerId}} no se encontró o no tiene coordenadas",
+    "driverConflict": "El conductor ya tiene una ruta asignada el {{date}}",
+    "depotIncomplete": "Un punto de partida necesita latitud y longitud"
   },
   "visits": {
     "notFound": "Parada {{id}} no encontrada",

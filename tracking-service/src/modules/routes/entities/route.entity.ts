@@ -47,6 +47,20 @@ export class Route {
   @Column({ name: 'optimization_method', type: 'varchar', length: 50, nullable: true })
   optimizationMethod!: string | null;
 
+  // Per-route starting point (depot). When depotLat/depotLon are null the
+  // optimizer resolves the origin from the driver's live GPS at run time.
+  @Column({ name: 'depot_lat', type: 'double precision', nullable: true })
+  depotLat!: number | null;
+
+  @Column({ name: 'depot_lon', type: 'double precision', nullable: true })
+  depotLon!: number | null;
+
+  @Column({ name: 'depot_label', type: 'varchar', length: 120, nullable: true })
+  depotLabel!: string | null;
+
+  @Column({ name: 'return_to_depot', type: 'boolean', default: true })
+  returnToDepot!: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

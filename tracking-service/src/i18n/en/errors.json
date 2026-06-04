@@ -25,7 +25,9 @@
     "noVisitsToOptimize": "Route has no visits to optimize",
     "noPendingVisits": "No pending visits to optimize",
     "visitNotInRoute": "Visit {{visitId}} does not belong to route {{routeId}}",
-    "customerHasNoCoords": "Customer {{customerId}} not found or has no coordinates"
+    "customerHasNoCoords": "Customer {{customerId}} not found or has no coordinates",
+    "driverConflict": "Driver already has a route assigned on {{date}}",
+    "depotIncomplete": "A depot needs both latitude and longitude"
   },
   "visits": {
     "notFound": "Visit {{id}} not found",

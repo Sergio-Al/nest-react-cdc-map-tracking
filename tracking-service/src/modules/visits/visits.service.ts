@@ -116,6 +116,10 @@ export class VisitsService {
     // Publish visit event to Kafka
     await this.publishVisitEvent(saved, previousStatus);
 
+    // Advance the parent route's status from this visit's progress
+    // (covers both manual updates and geofence auto-arrival).
+    await this.routesService.syncStatusFromVisits(saved.routeId);
+
     this.logger.log(`Visit ${id} status: ${previousStatus} → ${dto.status}`);
     return saved;
   }

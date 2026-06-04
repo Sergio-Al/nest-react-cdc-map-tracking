@@ -13,11 +13,19 @@
     "back": "Back to routes",
     "unknownDriver": "Unknown driver",
     "depot": "Depot",
+    "startPoint": "Start point",
     "depotStart": "start {{time}}",
     "depotReturn": "return",
     "depotReturnEta": "return · ETA {{eta}}",
     "depotTagOrigin": "origin",
     "depotTagEnd": "end",
+    "depotLive": "Driver's live location",
+    "depotPick": "Pick on map",
+    "depotUseLive": "Use live location",
+    "depotPicking": "Click the map to set the start point",
+    "depotCancel": "Cancel",
+    "returnToDepot": "Return to start",
+    "endAtLastStop": "End at last stop",
     "addStop": "Add a stop",
     "actions": {
       "optimize": "Optimize",
@@ -35,6 +43,12 @@
       "in_progress": "in progress",
       "completed": "completed",
       "cancelled": "cancelled"
+    },
+    "statusActions": {
+      "start": "Start route",
+      "complete": "Complete route",
+      "cancel": "Cancel route",
+      "reopen": "Reopen route"
     }
   },
   "selector": {
@@ -51,6 +65,7 @@
     "title": "Create Route",
     "driver": "Driver",
     "driverPlaceholder": "Select a driver",
+    "noAvailableDrivers": "No drivers available on this date",
     "scheduledDate": "Scheduled Date",
     "cancel": "Cancel",
     "create": "Create"
@@ -110,7 +125,20 @@
     "stopRemoved": "Stop removed",
     "removeFailed": "Failed to remove stop",
     "routeCreated": "Route created",
-    "createFailed": "Failed to create route"
+    "createFailed": "Failed to create route",
+    "driverReassigned": "Driver reassigned",
+    "reassignFailed": "Failed to reassign driver",
+    "depotSet": "Start point set",
+    "depotCleared": "Start point reset to driver's live location",
+    "depotFailed": "Failed to update start point",
+    "returnEnabled": "Route will return to the start point",
+    "returnDisabled": "Route will end at the last stop",
+    "returnFailed": "Failed to update return setting",
+    "routeStarted": "Route started",
+    "routeCompleted": "Route completed",
+    "routeCancelled": "Route cancelled",
+    "routeReopened": "Route reopened",
+    "statusFailed": "Failed to update route status"
   },
   "palette": {
     "searchPlaceholder": "Search customers by name or address…",

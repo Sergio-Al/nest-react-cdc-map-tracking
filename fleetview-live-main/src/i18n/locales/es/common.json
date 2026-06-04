@@ -34,6 +34,7 @@
       "punctuality": "Puntualidad",
       "duration": "Duración",
       "distance": "Distancia",
+      "date": "Fecha",
       "stops": "Paradas",
       "capacity": "Capacidad",
       "year": "Año",
@@ -84,6 +85,9 @@
     "views": {
       "all": "Todo",
       "allRoutes": "Todas las rutas",
+      "planned": "Planificadas",
+      "inProgress": "En progreso",
+      "completed": "Completadas",
       "allVisits": "Todas las visitas",
       "allVehicles": "Todos los vehículos",
       "allCustomers": "Todos los clientes",

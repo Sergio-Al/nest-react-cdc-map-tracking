@@ -1,18 +1,33 @@
-import { useEffect } from 'react';
-import { Plus, Wand2, Save, Loader2, Route as RouteIcon, ChevronLeft } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Plus, Wand2, Save, Loader2, Route as RouteIcon, ChevronLeft, ChevronDown, MapPin, Crosshair, RotateCcw, Play, CheckCircle2, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { SortableVisitList } from './SortableVisitList';
 import { CreateRouteDialog } from './CreateRouteDialog';
 import { RouteSelector } from './RouteSelector';
 import { useRouteBuilderStore } from '@/stores/routeBuilder.store';
 import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
+import { useAuthStore } from '@/stores/auth.store';
 import { useRouteVisits, useCustomers } from '@/hooks/api/useRouteBuilder';
 import { useRoutes } from '@/hooks/api/useRoutes';
 import { useDrivers } from '@/hooks/api/useDrivers';
 import { useDateLocale } from '@/i18n/useDateLocale';
 import { cn } from '@/lib/utils';
+import { busyDriverIds } from '@/lib/routeAssignment';
 import type { Route } from '@/types/route.types';
 
 const START_TIME = '07:30';
@@ -55,26 +70,194 @@ function statusBadgeKey(route: Route | undefined, stops: number): {
   }
 }
 
+type RouteStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
+
+/** Route status pill. For admin/dispatcher it's a dropdown with lifecycle actions. */
+function StatusBadge({
+  badge,
+  label,
+  status,
+  canManage,
+  hasStops,
+  onSetStatus,
+}: {
+  badge: { cls: string; dot: string };
+  label: string;
+  status: RouteStatus | undefined;
+  canManage: boolean;
+  hasStops: boolean;
+  onSetStatus: (status: RouteStatus) => void;
+}) {
+  const { t } = useTranslation('routes');
+  const pill = (
+    <span className={cn('flex shrink-0 items-center gap-1.5 rounded-pill border px-2 py-0.5 text-[11px] font-medium', badge.cls)}>
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: badge.dot }} />
+      {label}
+      {canManage && <ChevronDown className="h-3 w-3 opacity-60" />}
+    </span>
+  );
+
+  if (!canManage || !status) return pill;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="outline-none">{pill}</button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        {status === 'planned' && (
+          <>
+            <DropdownMenuItem disabled={!hasStops} onClick={() => onSetStatus('in_progress')}>
+              <Play className="mr-2 h-3.5 w-3.5" />
+              {t('sidebar.statusActions.start')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSetStatus('cancelled')}>
+              <XCircle className="mr-2 h-3.5 w-3.5" />
+              {t('sidebar.statusActions.cancel')}
+            </DropdownMenuItem>
+          </>
+        )}
+        {status === 'in_progress' && (
+          <>
+            <DropdownMenuItem onClick={() => onSetStatus('completed')}>
+              <CheckCircle2 className="mr-2 h-3.5 w-3.5" />
+              {t('sidebar.statusActions.complete')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSetStatus('cancelled')}>
+              <XCircle className="mr-2 h-3.5 w-3.5" />
+              {t('sidebar.statusActions.cancel')}
+            </DropdownMenuItem>
+          </>
+        )}
+        {(status === 'completed' || status === 'cancelled') && (
+          <DropdownMenuItem onClick={() => onSetStatus('planned')}>
+            <RotateCcw className="mr-2 h-3.5 w-3.5" />
+            {t('sidebar.statusActions.reopen')}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function DepotRow({
   label,
+  title,
   meta,
   tag,
 }: {
   label: 'A' | 'B';
+  title: string;
   meta: string;
   tag: string;
 }) {
-  const { t } = useTranslation('routes');
   return (
     <div className="flex items-center gap-2.5 px-1 py-1.5">
       <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border border-mc-border-strong bg-mc-surface font-mono text-[11px] font-bold text-mc-text-muted">
         {label}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-medium text-foreground">{t('sidebar.depot')}</div>
+        <div className="truncate text-[13px] font-medium text-foreground">{title}</div>
         <div className="text-[11px] text-mc-text-dim">{meta}</div>
       </div>
       <span className="shrink-0 text-[10px] uppercase tracking-[0.06em] text-mc-text-dim">{tag}</span>
+    </div>
+  );
+}
+
+/** Editable origin (A) row: pick a fixed start point or follow driver live GPS. */
+function OriginRow({
+  pinned,
+  startTime,
+  pinnedLabel,
+  editable,
+  onPick,
+  onUseLive,
+}: {
+  pinned: boolean;
+  startTime: string;
+  pinnedLabel: string;
+  editable: boolean;
+  onPick: () => void;
+  onUseLive: () => void;
+}) {
+  const { t } = useTranslation('routes');
+  const meta = pinned
+    ? pinnedLabel
+    : t('sidebar.depotLive');
+  return (
+    <div className="rounded-mc px-1 py-1.5">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border border-mc-border-strong bg-mc-surface font-mono text-[11px] font-bold text-mc-text-muted">
+          A
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-medium text-foreground">
+            {pinned ? t('sidebar.startPoint') : t('sidebar.depot')}
+          </div>
+          <div className="truncate text-[11px] text-mc-text-dim">
+            {meta} · {t('sidebar.depotStart', { time: startTime })}
+          </div>
+        </div>
+        <span className="shrink-0 text-[10px] uppercase tracking-[0.06em] text-mc-text-dim">
+          {t('sidebar.depotTagOrigin')}
+        </span>
+      </div>
+      {editable && (
+        <div className="mt-1.5 flex gap-1.5 pl-[32px]">
+          <button
+            type="button"
+            onClick={onPick}
+            className="flex items-center gap-1.5 rounded-mc border border-border bg-mc-surface px-2 py-1 text-[11px] text-mc-text-muted transition-colors hover:border-mc-accent-border hover:text-foreground"
+          >
+            <MapPin className="h-3 w-3" />
+            {t('sidebar.depotPick')}
+          </button>
+          {pinned && (
+            <button
+              type="button"
+              onClick={onUseLive}
+              className="flex items-center gap-1.5 rounded-mc border border-border bg-mc-surface px-2 py-1 text-[11px] text-mc-text-muted transition-colors hover:border-mc-accent-border hover:text-foreground"
+            >
+              <Crosshair className="h-3 w-3" />
+              {t('sidebar.depotUseLive')}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Segmented control: return to start vs. end at last stop. */
+function ReturnToggle({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: boolean;
+  disabled: boolean;
+  onChange: (returnToDepot: boolean) => void;
+}) {
+  const { t } = useTranslation('routes');
+  const opt = (active: boolean, label: string, icon: React.ReactNode, val: boolean) => (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => !active && onChange(val)}
+      className={cn(
+        'flex flex-1 items-center justify-center gap-1.5 rounded-[6px] px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50',
+        active ? 'bg-mc-surface text-foreground shadow-mc-card' : 'text-mc-text-dim hover:text-foreground',
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+  return (
+    <div className="mx-1 flex gap-1 rounded-mc border border-border bg-background p-0.5">
+      {opt(value, t('sidebar.returnToDepot'), <RotateCcw className="h-3 w-3" />, true)}
+      {opt(!value, t('sidebar.endAtLastStop'), <MapPin className="h-3 w-3" />, false)}
     </div>
   );
 }
@@ -91,7 +274,12 @@ function StatCell({ label, value, unit }: { label: string; value: string; unit?:
   );
 }
 
-export function RouteBuilderSidebar() {
+interface RouteBuilderSidebarProps {
+  /** Filtered routes to show in the list view; falls back to all routes. */
+  listRoutes?: Route[];
+}
+
+export function RouteBuilderSidebar({ listRoutes }: RouteBuilderSidebarProps = {}) {
   const store = useRouteBuilderStore();
   const { selectedRouteId, selectedDriverId, localVisits, isDirty, isOptimizing } = store;
   const { t } = useTranslation('routes');
@@ -110,8 +298,21 @@ export function RouteBuilderSidebar() {
   const { data: serverVisits = [] } = useRouteVisits(selectedRouteId);
   const { data: customers = [] } = useCustomers();
 
-  const { optimize, saveOrder, deleteVisit, createRoute, isSaving, isCreating } =
-    useRouteBuilderActions();
+  const {
+    optimize,
+    saveOrder,
+    deleteVisit,
+    createRoute,
+    reassignDriver,
+    setRouteStatus,
+    clearDepot,
+    setReturnToDepot,
+    isSaving,
+    isCreating,
+    isReassigning,
+  } = useRouteBuilderActions();
+  const userRole = useAuthStore((s) => s.user?.role);
+  const canManageStatus = userRole === 'admin' || userRole === 'dispatcher';
 
   // Sync server visits → local order while there are no unsaved edits.
   useEffect(() => {
@@ -122,6 +323,13 @@ export function RouteBuilderSidebar() {
   }, [serverVisits, isDirty]);
 
   const selectedRoute = routes.find((r) => r.id === selectedRouteId);
+
+  // Drivers selectable for reassignment: drop anyone who already owns another
+  // (non-cancelled) route on this date, but always keep the current driver.
+  const assignableDrivers = useMemo(() => {
+    const busy = busyDriverIds(routes, selectedRoute?.scheduledDate, selectedRouteId);
+    return drivers.filter((d) => !busy.has(d.id) || d.id === selectedDriverId);
+  }, [drivers, routes, selectedRoute?.scheduledDate, selectedRouteId, selectedDriverId]);
 
   // ── Route list (no route selected) ──
   if (!selectedRouteId) {
@@ -148,7 +356,7 @@ export function RouteBuilderSidebar() {
               <Loader2 className="h-5 w-5 animate-spin text-mc-text-dim" />
             </div>
           ) : (
-            <RouteSelector routes={routes} selectedRouteId={null} onSelectRoute={(id) => {
+            <RouteSelector routes={listRoutes ?? routes} selectedRouteId={null} onSelectRoute={(id) => {
               const r = routes.find((x) => x.id === id);
               store.setSelectedRoute(id, r?.driverId ?? null);
             }} />
@@ -176,6 +384,14 @@ export function RouteBuilderSidebar() {
     selectedRoute?.totalEstimatedSeconds != null ? fmtDuration(selectedRoute.totalEstimatedSeconds) : '—';
   const eta = returnEta(selectedRoute?.totalEstimatedSeconds ?? null);
 
+  // Starting point (depot) state.
+  const depotPinned = selectedRoute?.depotLat != null && selectedRoute?.depotLon != null;
+  const pinnedLabel = depotPinned
+    ? selectedRoute!.depotLabel ||
+      `${selectedRoute!.depotLat!.toFixed(4)}, ${selectedRoute!.depotLon!.toFixed(4)}`
+    : '';
+  const returnToDepot = selectedRoute?.returnToDepot ?? true;
+
   return (
     <aside className="flex w-[360px] shrink-0 flex-col border-r border-border bg-background">
       {/* Header */}
@@ -191,18 +407,41 @@ export function RouteBuilderSidebar() {
             <ChevronLeft className="hidden h-[14px] w-[14px] group-hover:block" />
           </button>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-semibold text-foreground">
-              {driver?.name ?? t('sidebar.unknownDriver')}
-            </div>
+            {isEditable ? (
+              <Select
+                value={selectedDriverId ?? ''}
+                onValueChange={reassignDriver}
+                disabled={isReassigning}
+              >
+                <SelectTrigger className="h-auto truncate border-0 bg-transparent p-0 text-[13px] font-semibold text-foreground shadow-none focus:ring-0 focus:ring-offset-0 [&>svg]:ml-1 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-50">
+                  <SelectValue placeholder={t('sidebar.unknownDriver')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignableDrivers.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="truncate text-[13px] font-semibold text-foreground">
+                {driver?.name ?? t('sidebar.unknownDriver')}
+              </div>
+            )}
             <div className="font-mono text-[11px] text-mc-text-dim">
               {selectedRoute ? fmtDate(selectedRoute.scheduledDate) : '—'}
               {driver?.vehiclePlate && ` · ${driver.vehiclePlate}`}
             </div>
           </div>
-          <span className={cn('flex shrink-0 items-center gap-1.5 rounded-pill border px-2 py-0.5 text-[11px] font-medium', badge.cls)}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: badge.dot }} />
-            {t(`sidebar.status.${badge.key}`)}
-          </span>
+          <StatusBadge
+            badge={badge}
+            label={t(`sidebar.status.${badge.key}`)}
+            status={selectedRoute?.status}
+            canManage={canManageStatus}
+            hasStops={hasStops}
+            onSetStatus={setRouteStatus}
+          />
         </div>
 
         {/* Stats */}
@@ -239,7 +478,14 @@ export function RouteBuilderSidebar() {
 
       {/* Stop list */}
       <div className="flex-1 space-y-2 overflow-y-auto px-3.5 py-3">
-        <DepotRow label="A" meta={t('sidebar.depotStart', { time: START_TIME })} tag={t('sidebar.depotTagOrigin')} />
+        <OriginRow
+          pinned={depotPinned}
+          startTime={START_TIME}
+          pinnedLabel={pinnedLabel}
+          editable={isEditable}
+          onPick={() => store.setDepotPickMode(true)}
+          onUseLive={clearDepot}
+        />
 
         {hasStops && (
           <SortableVisitList
@@ -251,10 +497,21 @@ export function RouteBuilderSidebar() {
           />
         )}
 
+        {hasStops && isEditable && (
+          <ReturnToggle value={returnToDepot} disabled={isReassigning} onChange={setReturnToDepot} />
+        )}
+
         {hasStops && (
           <DepotRow
             label="B"
-            meta={eta ? t('sidebar.depotReturnEta', { eta }) : t('sidebar.depotReturn')}
+            title={returnToDepot ? t('sidebar.depot') : t('sidebar.endAtLastStop')}
+            meta={
+              returnToDepot
+                ? eta
+                  ? t('sidebar.depotReturnEta', { eta })
+                  : t('sidebar.depotReturn')
+                : pinnedLabel || t('sidebar.depotLive')
+            }
             tag={t('sidebar.depotTagEnd')}
           />
         )}

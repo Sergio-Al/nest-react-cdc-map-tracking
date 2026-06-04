@@ -64,6 +64,7 @@ def solve(request: OptimizeRequest) -> OptimizeResponse:
     """Run the VRP solver and return the optimized route."""
     data = _build_data_model(request)
     num_nodes = len(data["distance_matrix"])
+    open_route = not request.return_to_depot
 
     # Edge case: 0 or 1 visits (just the depot, or depot + 1 stop)
     if num_nodes <= 1:
@@ -77,31 +78,54 @@ def solve(request: OptimizeRequest) -> OptimizeResponse:
             solver_status="OPTIMAL",
         )
     if num_nodes == 2:
+        # Open route ends at the stop; round trip also pays the return leg.
+        out_dist = data["distance_matrix"][0][1]
+        out_time = data["time_matrix"][0][1]
+        back_dist = 0 if open_route else data["distance_matrix"][1][0]
+        back_time = 0 if open_route else data["time_matrix"][1][0]
         return OptimizeResponse(
             visit_order=[1],
-            total_distance_meters=data["distance_matrix"][0][1] + data["distance_matrix"][1][0],
-            total_duration_seconds=(
-                data["time_matrix"][0][1]
-                + data["service_times"][1]
-                + data["time_matrix"][1][0]
-            ),
-            estimated_arrivals=[data["time_matrix"][0][1]],
+            total_distance_meters=out_dist + back_dist,
+            total_duration_seconds=out_time + data["service_times"][1] + back_time,
+            estimated_arrivals=[out_time],
             feasible=True,
             dropped_visits=[],
             solver_status="OPTIMAL",
         )
 
+    # ── Build the routing matrices ───────────────────────
+    # For an open route we append a zero-cost "dummy" end node: every node can
+    # reach it for free, so the solver has no incentive to return to the depot
+    # and the route effectively ends at the last real stop.
+    dist_matrix = data["distance_matrix"]
+    time_matrix = data["time_matrix"]
+    service_times = data["service_times"]
+    time_windows = data["time_windows"]
+    model_nodes = num_nodes
+
+    if open_route:
+        dummy = num_nodes
+        dist_matrix = [row + [0] for row in dist_matrix] + [[0] * (num_nodes + 1)]
+        time_matrix = [row + [0] for row in time_matrix] + [[0] * (num_nodes + 1)]
+        service_times = list(service_times) + [0]
+        model_nodes = num_nodes + 1
+
     # ── Create routing model ─────────────────────────────
-    manager = pywrapcp.RoutingIndexManager(
-        num_nodes, data["num_vehicles"], data["depot"]
-    )
+    if open_route:
+        manager = pywrapcp.RoutingIndexManager(
+            model_nodes, data["num_vehicles"], [data["depot"]], [dummy]
+        )
+    else:
+        manager = pywrapcp.RoutingIndexManager(
+            model_nodes, data["num_vehicles"], data["depot"]
+        )
     routing = pywrapcp.RoutingModel(manager)
 
     # ── Distance callback ────────────────────────────────
     def distance_callback(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        return data["distance_matrix"][from_node][to_node]
+        return dist_matrix[from_node][to_node]
 
     distance_cb_index = routing.RegisterTransitCallback(distance_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(distance_cb_index)
@@ -110,8 +134,8 @@ def solve(request: OptimizeRequest) -> OptimizeResponse:
     def time_callback(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        travel = data["time_matrix"][from_node][to_node]
-        service = data["service_times"][from_node]
+        travel = time_matrix[from_node][to_node]
+        service = service_times[from_node]
         return travel + service
 
     time_cb_index = routing.RegisterTransitCallback(time_callback)
@@ -128,9 +152,12 @@ def solve(request: OptimizeRequest) -> OptimizeResponse:
     time_dimension = routing.GetDimensionOrDie("Time")
 
     # ── Apply time windows to each node ──────────────────
+    # Only real nodes (depot + visits). The open-route dummy is a dedicated END
+    # node; manager.NodeToIndex() on an end node returns -1, and setting a range
+    # on CumulVar(-1) segfaults. The end node needs no time window anyway.
     for node in range(num_nodes):
         index = manager.NodeToIndex(node)
-        tw = data["time_windows"][node]
+        tw = time_windows[node]
         if tw is not None:
             # Clamp to horizon so SetRange never gets out-of-bounds values
             earliest = min(tw.earliest, horizon)
@@ -223,16 +250,17 @@ def solve(request: OptimizeRequest) -> OptimizeResponse:
             arrival_time = solution.Value(time_dimension.CumulVar(index))
             estimated_arrivals.append(arrival_time)
 
-        if not routing.IsEnd(next_index):
-            from_node = manager.IndexToNode(index)
-            to_node = manager.IndexToNode(next_index)
-            total_distance += data["distance_matrix"][from_node][to_node]
+        # Count every leg, including the final one. For a round trip the last
+        # leg is last_stop → depot; for an open route it is last_stop → dummy
+        # (cost 0), so the return distance is naturally excluded.
+        from_node = manager.IndexToNode(index)
+        to_node = manager.IndexToNode(next_index)
+        total_distance += dist_matrix[from_node][to_node]
 
         index = next_index
 
-    # Add return-to-depot distance
-    last_node = manager.IndexToNode(solution.Value(routing.NextVar(routing.Start(0))))
-    # Total duration from the time dimension
+    # Total duration from the time dimension (includes the return leg for a
+    # round trip; ends at the last stop for an open route).
     end_idx = routing.End(0)
     total_duration = solution.Value(time_dimension.CumulVar(end_idx))
 

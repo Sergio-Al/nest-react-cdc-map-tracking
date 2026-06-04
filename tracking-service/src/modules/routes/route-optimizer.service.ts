@@ -47,6 +47,7 @@ interface OrToolsOptimizeRequest {
   num_vehicles: number;
   max_route_duration: number | null;
   solver_time_limit_seconds: number;
+  return_to_depot: boolean;
 }
 
 interface OrToolsOptimizeResponse {
@@ -130,8 +131,8 @@ export class RouteOptimizerService {
     // ── 2. Fetch customer locations ─────────────────────
     const customerLocations = await this.getCustomerLocations(optimizableVisits);
 
-    // ── 3. Get driver start position (depot) ────────────
-    const depot = await this.getDriverPosition(route.driverId);
+    // ── 3. Get start position (depot) ───────────────────
+    const depot = await this.resolveDepot(route);
 
     // ── 4. Build coordinate array: [depot, ...visits] ───
     const coordinates: Array<{ lat: number; lon: number }> = [
@@ -161,6 +162,7 @@ export class RouteOptimizerService {
       num_vehicles: 1,
       max_route_duration: null,  // no limit for now
       solver_time_limit_seconds: 5,
+      return_to_depot: route.returnToDepot,
     });
 
     // ── 9. Map results back to visits and persist ───────
@@ -234,7 +236,7 @@ export class RouteOptimizerService {
 
     // Get locations and compute ETAs
     const customerLocations = await this.getCustomerLocations(pendingVisits);
-    const depot = await this.getDriverPosition(route.driverId);
+    const depot = await this.resolveDepot(route);
 
     const coordinates: Array<{ lat: number; lon: number }> = [
       depot,
@@ -280,6 +282,14 @@ export class RouteOptimizerService {
         estimatedTravelSeconds: travelTime,
         estimatedDistanceMeters: travelDist,
       });
+    }
+
+    // For a round trip, add the leg from the last stop back to the depot
+    // (index 0). Open routes end at the last stop, so this is skipped.
+    if (route.returnToDepot) {
+      const lastIdx = pendingVisits.length; // depot=0, stops=1..n → last stop = n
+      cumulativeTime += timeMatrix[lastIdx][0];
+      totalDistance += distanceMatrix[lastIdx][0];
     }
 
     // Update route metadata
@@ -330,6 +340,20 @@ export class RouteOptimizerService {
     }
 
     return locations;
+  }
+
+  /**
+   * Resolve a route's starting point (depot):
+   *  - an explicitly pinned depot (depotLat + depotLon set), or
+   *  - the driver's live GPS position (dynamic), falling back to La Paz.
+   */
+  private async resolveDepot(
+    route: Route,
+  ): Promise<{ lat: number; lon: number }> {
+    if (route.depotLat != null && route.depotLon != null) {
+      return { lat: route.depotLat, lon: route.depotLon };
+    }
+    return this.getDriverPosition(route.driverId);
   }
 
   /**
@@ -492,7 +516,7 @@ export class RouteOptimizerService {
     }
 
     const customerLocations = await this.getCustomerLocations(pendingVisits);
-    const depot = await this.getDriverPosition(route.driverId);
+    const depot = await this.resolveDepot(route);
 
     // Build waypoints: depot → visit1 → visit2 → ...
     const coordinates: Array<{ lat: number; lon: number }> = [
@@ -502,6 +526,12 @@ export class RouteOptimizerService {
         return { lat: loc!.lat, lon: loc!.lon };
       }),
     ];
+
+    // Round trip: close the loop back to the depot so the drawn polyline
+    // includes the return leg. Open routes end at the last stop.
+    if (route.returnToDepot) {
+      coordinates.push(depot);
+    }
 
     const coordStr = coordinates.map((c) => `${c.lon},${c.lat}`).join(';');
     const url = `${this.osrmUrl}/route/v1/driving/${coordStr}?overview=full&geometries=polyline`;

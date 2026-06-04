@@ -17,9 +17,12 @@ export interface RouteBuilderState {
   // UI
   paletteOpen: boolean;
   createRouteDialogOpen: boolean;
+  // When true, the next map click sets the route's starting point (depot).
+  depotPickMode: boolean;
 
   // Actions
   setSelectedRoute: (routeId: string | null, driverId?: string | null) => void;
+  setSelectedDriver: (driverId: string | null) => void;
   setLocalVisits: (visits: PlannedVisit[]) => void;
   reorderVisit: (fromIndex: number, toIndex: number) => void;
   addVisitLocally: (visit: PlannedVisit) => void;
@@ -29,6 +32,7 @@ export interface RouteBuilderState {
   markClean: () => void;
   setPaletteOpen: (open: boolean) => void;
   setCreateRouteDialogOpen: (open: boolean) => void;
+  setDepotPickMode: (open: boolean) => void;
   reset: () => void;
 }
 
@@ -41,6 +45,7 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
   lastOptimizedAt: null,
   paletteOpen: false,
   createRouteDialogOpen: false,
+  depotPickMode: false,
 
   setSelectedRoute: (routeId, driverId) =>
     set({
@@ -49,7 +54,10 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
       localVisits: [],
       isDirty: false,
       lastOptimizedAt: null,
+      depotPickMode: false,
     }),
+
+  setSelectedDriver: (driverId) => set({ selectedDriverId: driverId }),
 
   setLocalVisits: (visits) =>
     set({ localVisits: [...visits].sort((a, b) => a.sequenceNumber - b.sequenceNumber) }),
@@ -68,11 +76,16 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
     }),
 
   addVisitLocally: (visit) =>
-    set((state) => ({
-      localVisits: [...state.localVisits, visit].sort(
-        (a, b) => a.sequenceNumber - b.sequenceNumber,
-      ),
-    })),
+    set((state) => {
+      // Idempotent: the refetch→sync effect may have already inserted this
+      // visit, so skip duplicates by id.
+      if (state.localVisits.some((v) => v.id === visit.id)) return state;
+      return {
+        localVisits: [...state.localVisits, visit].sort(
+          (a, b) => a.sequenceNumber - b.sequenceNumber,
+        ),
+      };
+    }),
 
   removeVisitLocally: (visitId) =>
     set((state) => {
@@ -94,6 +107,8 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
 
   setCreateRouteDialogOpen: (open) => set({ createRouteDialogOpen: open }),
 
+  setDepotPickMode: (open) => set({ depotPickMode: open }),
+
   reset: () =>
     set({
       selectedRouteId: null,
@@ -104,5 +119,6 @@ export const useRouteBuilderStore = create<RouteBuilderState>((set) => ({
       lastOptimizedAt: null,
       paletteOpen: false,
       createRouteDialogOpen: false,
+      depotPickMode: false,
     }),
 }));

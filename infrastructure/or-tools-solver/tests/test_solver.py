@@ -162,6 +162,67 @@ def test_five_stops_returns_all():
     assert len(result.estimated_arrivals) == 5
 
 
+def test_single_visit_open_route():
+    """An open route (no return) for depot + 1 visit counts only the outbound leg."""
+    request = OptimizeRequest(
+        distance_matrix=[
+            [0, 1000],
+            [1000, 0],
+        ],
+        time_matrix=[
+            [0, 300],
+            [300, 0],
+        ],
+        return_to_depot=False,
+    )
+    result = solve(request)
+    assert result.visit_order == [1]
+    assert result.total_distance_meters == 1000  # out only, no return
+    assert result.feasible is True
+
+
+def test_open_route_excludes_return_leg():
+    """For a linear depot→A→B→C layout, an open route should be cheaper than
+    the round trip by exactly the return leg (C → depot)."""
+    distance_matrix = [
+        #  D     A     B     C
+        [  0,  100,  200,  300],  # D
+        [100,    0,  100,  200],  # A
+        [200,  100,    0,  100],  # B
+        [300,  200,  100,    0],  # C
+    ]
+    time_matrix = [
+        [  0,   60,  120,  180],
+        [ 60,    0,   60,  120],
+        [120,   60,    0,   60],
+        [180,  120,   60,    0],
+    ]
+    service_times = [0, 300, 300, 300]
+
+    round_trip = solve(OptimizeRequest(
+        distance_matrix=distance_matrix,
+        time_matrix=time_matrix,
+        service_times=service_times,
+        return_to_depot=True,
+    ))
+    open_route = solve(OptimizeRequest(
+        distance_matrix=distance_matrix,
+        time_matrix=time_matrix,
+        service_times=service_times,
+        return_to_depot=False,
+    ))
+
+    # Both visit all 3 stops in linear order
+    assert open_route.visit_order == [1, 2, 3]
+    assert len(open_route.estimated_arrivals) == 3
+    assert open_route.feasible is True
+
+    # depot→A→B→C = 300; round trip adds C→depot = 300 more
+    assert open_route.total_distance_meters == 300
+    assert round_trip.total_distance_meters == 600
+    assert open_route.total_distance_meters < round_trip.total_distance_meters
+
+
 def test_solver_status_values():
     """Solver status should be one of the expected values."""
     request = OptimizeRequest(

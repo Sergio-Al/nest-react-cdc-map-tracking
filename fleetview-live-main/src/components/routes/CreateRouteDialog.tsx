@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useRoutes } from '@/hooks/api/useRoutes';
+import { busyDriverIds } from '@/lib/routeAssignment';
 import type { Driver } from '@/types/driver.types';
 
 interface CreateRouteDialogProps {
@@ -40,6 +42,18 @@ export function CreateRouteDialog({
     new Date().toISOString().slice(0, 10),
   );
   const { t } = useTranslation('routes');
+  const { data: routes = [] } = useRoutes();
+
+  // Hide drivers who already have a (non-cancelled) route on the chosen date.
+  const availableDrivers = useMemo(() => {
+    const busy = busyDriverIds(routes, scheduledDate);
+    return drivers.filter((d) => !busy.has(d.id));
+  }, [drivers, routes, scheduledDate]);
+
+  // If the date change makes the picked driver unavailable, clear the selection.
+  useEffect(() => {
+    if (driverId && !availableDrivers.some((d) => d.id === driverId)) setDriverId('');
+  }, [availableDrivers, driverId]);
 
   const handleSubmit = () => {
     if (!driverId || !scheduledDate) return;
@@ -63,11 +77,17 @@ export function CreateRouteDialog({
                 <SelectValue placeholder={t('createDialog.driverPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                {drivers.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.name} {d.vehiclePlate ? `(${d.vehiclePlate})` : ''}
-                  </SelectItem>
-                ))}
+                {availableDrivers.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    {t('createDialog.noAvailableDrivers')}
+                  </div>
+                ) : (
+                  availableDrivers.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} {d.vehiclePlate ? `(${d.vehiclePlate})` : ''}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

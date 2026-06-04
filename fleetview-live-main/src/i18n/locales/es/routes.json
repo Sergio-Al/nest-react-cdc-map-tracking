@@ -13,11 +13,19 @@
     "back": "Volver a rutas",
     "unknownDriver": "Conductor desconocido",
     "depot": "Depósito",
+    "startPoint": "Punto de partida",
     "depotStart": "salida {{time}}",
     "depotReturn": "regreso",
     "depotReturnEta": "regreso · ETA {{eta}}",
     "depotTagOrigin": "origen",
     "depotTagEnd": "fin",
+    "depotLive": "Ubicación en vivo del conductor",
+    "depotPick": "Elegir en el mapa",
+    "depotUseLive": "Usar ubicación en vivo",
+    "depotPicking": "Haz clic en el mapa para fijar el punto de partida",
+    "depotCancel": "Cancelar",
+    "returnToDepot": "Regresar al inicio",
+    "endAtLastStop": "Terminar en la última parada",
     "addStop": "Añadir parada",
     "actions": {
       "optimize": "Optimizar",
@@ -35,6 +43,12 @@
       "in_progress": "en progreso",
       "completed": "completada",
       "cancelled": "cancelada"
+    },
+    "statusActions": {
+      "start": "Iniciar ruta",
+      "complete": "Completar ruta",
+      "cancel": "Cancelar ruta",
+      "reopen": "Reabrir ruta"
     }
   },
   "selector": {
@@ -51,6 +65,7 @@
     "title": "Crear ruta",
     "driver": "Conductor",
     "driverPlaceholder": "Selecciona un conductor",
+    "noAvailableDrivers": "No hay conductores libres en esta fecha",
     "scheduledDate": "Fecha programada",
     "cancel": "Cancelar",
     "create": "Crear"
@@ -110,7 +125,20 @@
     "stopRemoved": "Parada eliminada",
     "removeFailed": "No se pudo eliminar la parada",
     "routeCreated": "Ruta creada",
-    "createFailed": "No se pudo crear la ruta"
+    "createFailed": "No se pudo crear la ruta",
+    "driverReassigned": "Conductor reasignado",
+    "reassignFailed": "No se pudo reasignar el conductor",
+    "depotSet": "Punto de partida fijado",
+    "depotCleared": "Punto de partida restablecido a la ubicación en vivo del conductor",
+    "depotFailed": "No se pudo actualizar el punto de partida",
+    "returnEnabled": "La ruta regresará al punto de partida",
+    "returnDisabled": "La ruta terminará en la última parada",
+    "returnFailed": "No se pudo actualizar la opción de regreso",
+    "routeStarted": "Ruta iniciada",
+    "routeCompleted": "Ruta completada",
+    "routeCancelled": "Ruta cancelada",
+    "routeReopened": "Ruta reabierta",
+    "statusFailed": "No se pudo actualizar el estado de la ruta"
   },
   "palette": {
     "searchPlaceholder": "Busca clientes por nombre o dirección…",

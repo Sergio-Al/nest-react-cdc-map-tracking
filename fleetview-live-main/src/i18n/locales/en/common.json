@@ -34,6 +34,7 @@
       "punctuality": "Punctuality",
       "duration": "Duration",
       "distance": "Distance",
+      "date": "Date",
       "stops": "Stops",
       "capacity": "Capacity",
       "year": "Year",
@@ -84,6 +85,9 @@
     "views": {
       "all": "All",
       "allRoutes": "All routes",
+      "planned": "Planned",
+      "inProgress": "In progress",
+      "completed": "Completed",
       "allVisits": "All visits",
       "allVehicles": "All vehicles",
       "allCustomers": "All customers",

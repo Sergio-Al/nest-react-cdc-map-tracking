@@ -13,6 +13,8 @@ import { formatDistanceToNow } from 'date-fns';
 interface TrackingMapProps {
   selectedDriverId: string | null;
   onSelectDriver: (id: string) => void;
+  /** When provided, only markers for these driver IDs are rendered (fleet filters). */
+  visibleDriverIds?: Set<string>;
 }
 
 // Flies to the selected driver, and pans to keep them centered while "follow" is on.
@@ -44,9 +46,11 @@ function initials(name: string): string {
   return name.split(' ').map((n) => n[0]).filter(Boolean).slice(0, 2).join('');
 }
 
-export function TrackingMap({ selectedDriverId, onSelectDriver }: TrackingMapProps) {
+export function TrackingMap({ selectedDriverId, onSelectDriver, visibleDriverIds }: TrackingMapProps) {
   const positions = useMapStore((state) => state.positions);
-  const positionsArray = Object.values(positions);
+  const positionsArray = Object.values(positions).filter(
+    (p) => !visibleDriverIds || visibleDriverIds.has(p.driverId),
+  );
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const { t } = useTranslation('dashboard');

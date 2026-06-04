@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import { DivIcon, LatLngExpression, LatLngBounds } from 'leaflet';
 import * as L from 'leaflet';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
-import { ZoomIn, ZoomOut, Locate, Navigation, Layers } from 'lucide-react';
+import { ZoomIn, ZoomOut, Locate, Navigation, Layers, MapPin, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import type { PlannedVisit } from '@/types/visit.types';
 import type { Customer } from '@/types/customer.types';
 import type { RouteGeometry } from '@/hooks/api/useRouteBuilder';
 import { decodePolyline } from '@/lib/polyline';
 import { cn } from '@/lib/utils';
+import { useRouteBuilderStore } from '@/stores/routeBuilder.store';
+import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
+import { useRoutes } from '@/hooks/api/useRoutes';
 import { PolylineArrows } from './PolylineArrows';
 
 interface RouteBuilderMapProps {
@@ -37,6 +40,23 @@ function FitBounds({ positions }: { positions: LatLngExpression[] }) {
     // Re-fit only when the number of points changes, not on every pan/identity change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positions.length, map]);
+  return null;
+}
+
+/** While active, the next map click sets the route's starting point. */
+function DepotPicker({ active, onPick }: { active: boolean; onPick: (lat: number, lon: number) => void }) {
+  const map = useMapEvents({
+    click(e) {
+      if (active) onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  useEffect(() => {
+    const el = map.getContainer();
+    el.style.cursor = active ? 'crosshair' : '';
+    return () => {
+      el.style.cursor = '';
+    };
+  }, [active, map]);
   return null;
 }
 
@@ -182,6 +202,15 @@ export function RouteBuilderMap({
   const isDark = resolvedTheme === 'dark';
   const { t, i18n } = useTranslation('routes');
 
+  const selectedRouteId = useRouteBuilderStore((s) => s.selectedRouteId);
+  const depotPickMode = useRouteBuilderStore((s) => s.depotPickMode);
+  const setDepotPickMode = useRouteBuilderStore((s) => s.setDepotPickMode);
+  const { setDepot } = useRouteBuilderActions();
+  const { data: routes = [] } = useRoutes();
+  const selectedRoute = routes.find((r) => r.id === selectedRouteId);
+  const isEditable = !selectedRoute || selectedRoute.status === 'planned';
+  const picking = depotPickMode && isEditable;
+
   const customerMap = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const visitCustomerIds = useMemo(() => new Set(visits.map((v) => v.customerId)), [visits]);
 
@@ -236,6 +265,7 @@ export function RouteBuilderMap({
         />
 
         <FitBounds positions={fit} />
+        <DepotPicker active={picking} onPick={setDepot} />
 
         {/* Addable customer pins (quick-add) */}
         {addable.map((c) => (
@@ -276,13 +306,27 @@ export function RouteBuilderMap({
           )
         )}
 
-        {/* Depot */}
+        {/* Depot — draggable when the route is editable */}
         {depotPosition && (
-          <Marker position={depotPosition} icon={depotIcon}>
+          <Marker
+            position={depotPosition}
+            icon={depotIcon}
+            draggable={isEditable}
+            eventHandlers={{
+              dragend: (e) => {
+                const { lat, lng } = e.target.getLatLng();
+                setDepot(lat, lng);
+              },
+            }}
+          >
             <Popup>
               <div className="min-w-[140px] p-1">
                 <h3 className="text-sm font-bold">{t('map.depot.title')}</h3>
-                <p className="mt-0.5 text-xs text-gray-500">{t('map.depot.subtitle')}</p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {selectedRoute?.depotLat != null
+                    ? t('map.depot.subtitle')
+                    : t('sidebar.depotLive')}
+                </p>
               </div>
             </Popup>
           </Marker>
@@ -312,6 +356,24 @@ export function RouteBuilderMap({
 
         <RouteMapControls fit={fit} />
       </MapContainer>
+
+      {/* Depot-pick hint banner */}
+      {picking && (
+        <div className="pointer-events-none absolute left-1/2 top-3.5 z-[1200] -translate-x-1/2">
+          <div className="pointer-events-auto flex items-center gap-2.5 rounded-pill border border-mc-accent-border bg-mc-elev/95 py-1.5 pl-3 pr-1.5 text-[12.5px] text-foreground shadow-mc-float backdrop-blur">
+            <MapPin className="h-3.5 w-3.5 text-mc-accent" />
+            <span>{t('sidebar.depotPicking')}</span>
+            <button
+              type="button"
+              onClick={() => setDepotPickMode(false)}
+              title={t('sidebar.depotCancel')}
+              className="grid h-6 w-6 place-items-center rounded-full text-mc-text-dim transition-colors hover:bg-mc-surface hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {isEmpty && <ZeroState onOpenPalette={onOpenPalette} />}
     </div>
