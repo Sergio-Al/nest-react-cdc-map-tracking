@@ -144,20 +144,20 @@ streaming-tracking-logistic/
 │   └── traccar/
 │       └── traccar.xml               # Traccar configuration (webhook, ports)
 │
-├── integration-service/               # Go microservice (Kafka → MySQL)
-│   ├── Dockerfile                    # Multi-stage alpine build
-│   ├── go.mod
-│   ├── cmd/server/main.go            # Entrypoint: config → DB → consumers → health
-│   └── internal/
-│       ├── config/config.go          # Env-based configuration
-│       ├── db/
-│       │   ├── mysql.go              # Connection pool setup
-│       │   └── queries.go            # Prepared INSERT statements
-│       ├── consumer/
-│       │   ├── runner.go             # Per-topic goroutine consumer loop
-│       │   ├── customers.go          # commands.customers handler
-│       │   └── drivers.go            # commands.drivers handler
-│       └── health/server.go          # /healthz + /metrics endpoints
+├── integration-service-nest/          # NestJS microservice (Kafka → MySQL)
+│   ├── Dockerfile                    # Multi-stage node:20-alpine build
+│   ├── package.json
+│   └── src/
+│       ├── main.ts                   # Bootstrap: HTTP (health/metrics) on :8090
+│       ├── config/configuration.ts   # Env-based configuration
+│       ├── database/database.config.ts # TypeORM MySQL connection (synchronize:false)
+│       ├── modules/kafka/            # Producer, consumer (group), DLQ service
+│       ├── modules/integration/
+│       │   ├── customers.handler.ts  # commands.customers handler
+│       │   ├── drivers.handler.ts    # commands.drivers handler
+│       │   └── entities/             # MySQL customers + drivers entities
+│       ├── modules/metrics/          # Prometheus-style counters
+│       └── modules/health/           # /healthz + /metrics endpoints
 │
 ├── scripts/
 │   ├── register-cdc-connector.sh     # Registers the Debezium connector with Kafka Connect
@@ -314,7 +314,7 @@ The following services will start:
 | `redis` | 6379 | Cache and pub/sub |
 | `osrm` | 5003 | OSRM routing engine (La Paz road network) |
 | `or-tools-solver` | 5002 | OR-Tools VRP solver (Python FastAPI) |
-| `integration-service` | 8090 | Go microservice: Kafka commands → MySQL writes |
+| `integration-service` | 8090 | NestJS microservice: Kafka commands → MySQL writes |
 
 ### 4. Set up OSRM (Route Optimization)
 
@@ -393,7 +393,7 @@ npm run start:dev
 
 The tracking service will be available at `http://localhost:3000`.
 
-The **integration-service** (Go) runs as a Docker container and starts automatically with `docker compose up -d`. It consumes `commands.customers` and `commands.drivers` from Kafka and writes to MySQL. To verify it is running:
+The **integration-service** (NestJS, in `integration-service-nest/`) runs as a Docker container and starts automatically with `docker compose up -d`. It consumes `commands.customers` and `commands.drivers` from Kafka and writes to MySQL. To verify it is running:
 
 ```bash
 curl http://localhost:8090/healthz
@@ -437,7 +437,7 @@ Expected response:
 | Frontend | http://localhost:5173 | React dashboard (login: admin@tenant1.com / admin123) |
 | Kafka UI | http://localhost:8080 | Topic, consumer, and connector monitoring |
 | Traccar | http://localhost:8082 | Traccar administration interface |
-| Integration Service | http://localhost:8090/healthz | Go service health check |
+| Integration Service | http://localhost:8090/healthz | Integration service health check |
 
 ---
 
@@ -462,7 +462,7 @@ GPS Device → Traccar → HTTP Webhook → NestJS (TraccarController)
 POST /api/customers or /api/drivers
     → NestJS produces to Kafka [commands.customers / commands.drivers]
     → HTTP 202 Accepted { correlationId }
-    → Integration Service (Go) consumes command
+    → Integration Service (NestJS) consumes command
         ├── INSERT into MySQL (with 3× retry + exponential backoff)
         └── On failure → DLQ (commands.customers.dlq / commands.drivers.dlq)
     → Debezium captures MySQL change → cdc.customers / cdc.drivers

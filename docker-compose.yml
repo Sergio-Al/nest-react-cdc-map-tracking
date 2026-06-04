@@ -359,9 +359,9 @@ services:
   #   networks:
   #     - tracking-net
 
-  # ─── Go Integration Service (Kafka → MySQL) ───────────────
+  # ─── Integration Service (Kafka → MySQL, NestJS) ──────────
   integration-service:
-    build: ./integration-service
+    build: ./integration-service-nest
     container_name: integration-service
     restart: unless-stopped
     depends_on:
@@ -371,6 +371,7 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BROKER: kafka:9092
+      KAFKA_CLIENT_ID: integration-service
       KAFKA_GROUP_ID: integration-service-group
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
