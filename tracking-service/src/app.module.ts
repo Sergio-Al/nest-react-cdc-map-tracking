@@ -20,6 +20,7 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 import { DlqModule } from './modules/dlq/dlq.module';
 import { HistoryModule } from './modules/history/history.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
 
 
@@ -58,6 +59,7 @@ import { AppI18nModule } from './i18n/app-i18n.module';
     DlqModule,
     HistoryModule,
     VehiclesModule,
+    SettingsModule,
     HealthModule,
   ],
 })

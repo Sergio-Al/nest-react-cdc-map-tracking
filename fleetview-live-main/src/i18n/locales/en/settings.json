@@ -1,0 +1,62 @@
+{
+  "title": "Settings",
+  "subtitle": "Preferences for your account and this workspace.",
+  "search": "Quick search…",
+  "localization": "Localization",
+  "appearance": "Appearance",
+  "appearanceDesc": "How FleetTrack looks on this device.",
+  "themeHelp": "Match your system or pick a fixed mode.",
+  "densityHelp": "Row height across lists and tables.",
+  "tenantDefaults": "Tenant defaults",
+  "tenantDefaultsHint": "Defaults applied to everyone in this tenant. Users can override them.",
+  "inheritHint": "Your overrides take precedence over the tenant defaults.",
+  "save": "Save changes",
+  "saved": "Settings saved",
+  "saveError": "Could not save settings",
+  "crumb": {
+    "workspace": "Workspace",
+    "scope": "La Paz, Bolivia"
+  },
+  "savebar": {
+    "unsaved": "You have unsaved changes.",
+    "discard": "Discard"
+  },
+  "footer": {
+    "commands": "commands",
+    "settings": "settings",
+    "shortcuts": "all shortcuts",
+    "connected": "Connected · La Paz, Bolivia"
+  },
+  "fields": {
+    "timezone": "Timezone",
+    "language": "Language",
+    "dateFormat": "Date format",
+    "units": "Units",
+    "defaultRange": "Default report range",
+    "theme": "Theme",
+    "density": "Density"
+  },
+  "units": {
+    "metric": "Metric (km)",
+    "imperial": "Imperial (mi)"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "density": {
+    "comfortable": "Comfortable",
+    "compact": "Compact"
+  },
+  "presets": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "7d": "Last 7 days",
+    "14d": "Last 14 days",
+    "30d": "Last 30 days",
+    "mtd": "Month to date",
+    "qtd": "Quarter to date",
+    "ytd": "Year to date"
+  }
+}

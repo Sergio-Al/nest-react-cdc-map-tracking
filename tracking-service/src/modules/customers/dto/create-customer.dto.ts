@@ -25,6 +25,11 @@ export class CreateCustomerDto {
   address?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  zone?: string;
+
+  @IsOptional()
   @IsNumber()
   latitude?: number;
 

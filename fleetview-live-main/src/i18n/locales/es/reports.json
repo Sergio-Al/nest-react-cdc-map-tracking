@@ -159,7 +159,7 @@
     },
     "byZone": {
       "title": "Por zona",
-      "sub": "distancia · km"
+      "sub": "visitas"
     },
     "exportedKpis": "KPIs del resumen exportados"
   },

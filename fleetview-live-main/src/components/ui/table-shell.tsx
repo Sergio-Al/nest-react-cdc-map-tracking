@@ -89,7 +89,7 @@ export function Td({ children, num, muted, className }: TdProps) {
   return (
     <td
       className={cn(
-        'border-b border-border/60 px-3.5 py-[9px]',
+        'border-b border-border/60 px-3.5 py-[var(--mc-row-py)]',
         num && 'text-right font-mono',
         muted && 'text-mc-text-muted',
         className,

@@ -4,6 +4,8 @@
     "subtitle": "Métricas en tiempo real de Change Data Capture",
     "lastUpdated": "Última actualización",
     "tableSync": "Sincronización de tablas",
+    "refresh": "Actualizar",
+    "filters": "Filtros",
     "errorTitle": "Error",
     "errorBody": "No se pudo cargar la información de monitoreo CDC: {{message}}",
     "unknownError": "Error desconocido",
@@ -46,5 +48,24 @@
     "maxLag": "Retraso máx.",
     "avgLag": "Retraso prom.",
     "uptime": "Tiempo activo"
+  },
+  "crumb": {
+    "workspace": "Espacio de trabajo",
+    "scope": "Pipeline CDC"
+  },
+  "status": {
+    "ok": "Saludable",
+    "warn": "Con retraso",
+    "idle": "Inactivo"
+  },
+  "card": {
+    "noEventsSinceStart": "Sin eventos desde el inicio del stream"
+  },
+  "footer": {
+    "refresh": "actualizar",
+    "commands": "comandos",
+    "shortcuts": "todos los atajos",
+    "streaming_one": "Transmitiendo · {{count}} tópico",
+    "streaming_other": "Transmitiendo · {{count}} tópicos"
   }
 }

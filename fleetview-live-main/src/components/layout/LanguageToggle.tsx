@@ -9,10 +9,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
+import { useUpdateUserSettings } from "@/hooks/api/useSettings";
 
 export function LanguageToggle() {
   const { i18n, t } = useTranslation("common");
+  const updateSettings = useUpdateUserSettings();
   const current = (i18n.language?.split("-")[0] ?? "es") as SupportedLanguage;
+
+  const choose = (lng: SupportedLanguage) => {
+    void i18n.changeLanguage(lng);
+    // Persist for authenticated users so the choice follows them across devices.
+    if (useAuthStore.getState().isAuthenticated) updateSettings.mutate({ locale: lng });
+  };
 
   return (
     <DropdownMenu>
@@ -32,9 +41,7 @@ export function LanguageToggle() {
           return (
             <DropdownMenuItem
               key={lng}
-              onSelect={() => {
-                void i18n.changeLanguage(lng);
-              }}
+              onSelect={() => choose(lng)}
               className="flex items-center justify-between"
             >
               <span>{t(`language.${lng}`)}</span>

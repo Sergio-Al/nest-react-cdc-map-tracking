@@ -77,6 +77,7 @@ export class CdcConsumerService implements OnModuleInit {
           phone: d.phone ?? null,
           email: d.email ?? null,
           address: d.address ?? null,
+          zone: d.zone ?? null,
           latitude: d.latitude ?? null,
           longitude: d.longitude ?? null,
           geofenceRadiusMeters: d.geofence_radius_meters ?? 100,

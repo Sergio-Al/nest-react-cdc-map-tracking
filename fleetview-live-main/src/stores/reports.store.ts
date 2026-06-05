@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { useAuthStore } from '@/stores/auth.store';
+import { presetRange, getUserTimezone } from '@/lib/datetime';
+import type { DatePreset } from '@/lib/datetime';
 
 export type ReportTab =
   | 'overview'
@@ -10,17 +13,10 @@ export type ReportTab =
   | 'fuel'
   | 'safety';
 
-export type DatePreset =
-  | 'today'
-  | 'yesterday'
-  | '7d'
-  | '14d'
-  | '30d'
-  | 'mtd'
-  | 'qtd'
-  | 'ytd'
-  /** Set when a custom range is picked from the calendar (no preset highlighted). */
-  | 'custom';
+// DatePreset and presetRange now live in '@/lib/datetime' (timezone-aware);
+// re-exported here so existing import sites keep working.
+export type { DatePreset };
+export { presetRange };
 
 export type Grain = 'hour' | 'day' | 'week' | 'month';
 
@@ -31,41 +27,6 @@ export const COMPARE_LABELS: Record<CompareMode, string> = {
   previous_year: 'previous year',
   none: 'no comparison',
 };
-
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-
-/** Resolve a preset to a [from, to] yyyy-mm-dd range relative to today. */
-export function presetRange(preset: DatePreset): { from: string; to: string } {
-  const start = new Date();
-  const end = new Date();
-  switch (preset) {
-    case 'today':
-      break;
-    case 'yesterday':
-      start.setDate(start.getDate() - 1);
-      end.setDate(end.getDate() - 1);
-      break;
-    case '7d':
-      start.setDate(start.getDate() - 6);
-      break;
-    case '14d':
-      start.setDate(start.getDate() - 13);
-      break;
-    case '30d':
-      start.setDate(start.getDate() - 29);
-      break;
-    case 'mtd':
-      start.setDate(1);
-      break;
-    case 'qtd':
-      start.setMonth(Math.floor(start.getMonth() / 3) * 3, 1);
-      break;
-    case 'ytd':
-      start.setMonth(0, 1);
-      break;
-  }
-  return { from: iso(start), to: iso(end) };
-}
 
 interface ReportsState {
   tab: ReportTab;
@@ -84,18 +45,21 @@ interface ReportsState {
   setExporter: (fn: (() => void) | null) => void;
 }
 
-const initial = presetRange('14d');
+// Seed from the (persisted) user's default preset + timezone, falling back to
+// 14d / system tz before login.
+const initialPreset = (useAuthStore.getState().settings?.defaultReportPreset as DatePreset) || '14d';
+const initial = presetRange(initialPreset, getUserTimezone());
 
 export const useReportsStore = create<ReportsState>((set) => ({
   tab: 'overview',
-  preset: '14d',
+  preset: initialPreset,
   from: initial.from,
   to: initial.to,
   grain: 'day',
   compare: 'previous_period',
   exporter: null,
   setTab: (tab) => set({ tab }),
-  setPreset: (preset) => set({ preset, ...presetRange(preset) }),
+  setPreset: (preset) => set({ preset, ...presetRange(preset, getUserTimezone()) }),
   setRange: (from, to) => set({ from, to, preset: 'custom' }),
   setGrain: (grain) => set({ grain }),
   setCompare: (compare) => set({ compare }),

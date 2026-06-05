@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { CachedUser } from '../sync/entities/cached-user.entity';
 import { RedisService } from '../redis/redis.service';
+import { SettingsService } from '../settings/settings.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
@@ -18,6 +19,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private redisService: RedisService,
+    private settingsService: SettingsService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -129,6 +131,9 @@ export class AuthService {
       Math.floor(refreshExpiresInMs / 1000),
     );
 
+    // Resolve effective settings so the client boots with the right tz/locale.
+    const settings = await this.settingsService.getEffective(user.id, user.tenantId);
+
     return {
       accessToken,
       refreshToken,
@@ -141,6 +146,7 @@ export class AuthService {
         tenantId: user.tenantId,
         driverId: user.driverId,
       },
+      settings,
     };
   }
 
@@ -158,12 +164,13 @@ export class AuthService {
 
   async getUserById(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     if (!user) {
       throw new NotFoundException({ errorCode: 'auth.userNotFound' });
     }
 
     const { password, ...result } = user;
-    return result;
+    const settings = await this.settingsService.getEffective(user.id, user.tenantId);
+    return { ...result, settings };
   }
 }

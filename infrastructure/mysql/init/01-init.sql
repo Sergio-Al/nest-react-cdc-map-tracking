@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS customers (
     phone                   VARCHAR(50),
     email                   VARCHAR(200),
     address                 VARCHAR(500),
+    zone                    VARCHAR(100),
     latitude                DECIMAL(10,7),
     longitude               DECIMAL(10,7),
     geofence_radius_meters  INT          NOT NULL DEFAULT 100,
@@ -72,9 +73,9 @@ INSERT INTO accounts (tenant_id, name, account_type) VALUES
 ('tenant-1', 'Acme Logistics', 'premium'),
 ('tenant-2', 'FastTrack Delivery', 'standard');
 
-INSERT INTO customers (tenant_id, name, phone, address, latitude, longitude, geofence_radius_meters, customer_type) VALUES
-('tenant-1', 'Downtown Warehouse',    '+1-555-0101', '123 Main St',    40.7128000, -74.0060000, 150, 'warehouse'),
-('tenant-1', 'Midtown Office',        '+1-555-0102', '456 Park Ave',   40.7549000, -73.9840000, 100, 'office'),
-('tenant-1', 'Brooklyn Store',        '+1-555-0103', '789 Atlantic',   40.6860000, -73.9770000, 100, 'retail'),
-('tenant-2', 'Queens Distribution',   '+1-555-0201', '321 Queens Blvd',40.7282000, -73.7949000, 200, 'warehouse'),
-('tenant-2', 'Bronx Retail',          '+1-555-0202', '654 Grand Ave',  40.8370000, -73.8654000, 100, 'retail');
+INSERT INTO customers (tenant_id, name, phone, address, zone, latitude, longitude, geofence_radius_meters, customer_type) VALUES
+('tenant-1', 'Downtown Warehouse',    '+1-555-0101', '123 Main St',    'Manhattan', 40.7128000, -74.0060000, 150, 'warehouse'),
+('tenant-1', 'Midtown Office',        '+1-555-0102', '456 Park Ave',   'Manhattan', 40.7549000, -73.9840000, 100, 'office'),
+('tenant-1', 'Brooklyn Store',        '+1-555-0103', '789 Atlantic',   'Brooklyn',  40.6860000, -73.9770000, 100, 'retail'),
+('tenant-2', 'Queens Distribution',   '+1-555-0201', '321 Queens Blvd','Queens',    40.7282000, -73.7949000, 200, 'warehouse'),
+('tenant-2', 'Bronx Retail',          '+1-555-0202', '654 Grand Ave',  'Bronx',     40.8370000, -73.8654000, 100, 'retail');

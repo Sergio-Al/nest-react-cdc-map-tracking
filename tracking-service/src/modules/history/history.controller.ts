@@ -20,14 +20,7 @@ export class HistoryController {
     @Query('driverId') driverId: string | undefined,
     @CurrentUser() user: any,
   ) {
-    if (!from || !to) {
-      throw new BadRequestException({ errorCode: 'history.fromToRequired' });
-    }
-    const fromDate = new Date(from);
-    const toDate = new Date(to);
-    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      throw new BadRequestException({ errorCode: 'history.fromToInvalid' });
-    }
+    const { fromDate, toDate } = this.parseRange(from, to);
     return this.timescaleService.getVisitCompletions(
       user.tenantId,
       fromDate,
@@ -43,6 +36,22 @@ export class HistoryController {
     @Query('to') to: string,
     @CurrentUser() user: any,
   ) {
+    const { fromDate, toDate } = this.parseRange(from, to);
+    return this.timescaleService.getDriverDailyStats(
+      user.tenantId,
+      fromDate,
+      toDate,
+    );
+  }
+
+  /**
+   * Parse the `from`/`to` query dates. The dashboard sends date-only ranges
+   * (`yyyy-mm-dd` → midnight UTC); without adjustment, `time <= to` makes a
+   * single-day selection (`from === to`) a zero-width window that matches
+   * nothing, and a multi-day range silently drops the end day. So when `to`
+   * carries no explicit time, extend it to the end of that day (inclusive).
+   */
+  private parseRange(from: string, to: string): { fromDate: Date; toDate: Date } {
     if (!from || !to) {
       throw new BadRequestException({ errorCode: 'history.fromToRequired' });
     }
@@ -51,10 +60,9 @@ export class HistoryController {
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
       throw new BadRequestException({ errorCode: 'history.fromToInvalid' });
     }
-    return this.timescaleService.getDriverDailyStats(
-      user.tenantId,
-      fromDate,
-      toDate,
-    );
+    if (!to.includes('T') && !to.includes(':')) {
+      toDate.setUTCHours(23, 59, 59, 999);
+    }
+    return { fromDate, toDate };
   }
 }

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/axios';
 import type { HistoryPosition, VisitCompletion, DriverDailyStat } from '@/types/history.types';
 import type { Route } from '@/types/route.types';
+import { useUserTz, civilRangeToUtc } from '@/lib/datetime';
 
 export function useDriverHistory(driverId: string | null, from: string | null, to: string | null) {
   return useQuery({
@@ -51,16 +52,21 @@ export function useRoutesByDateRange(
   });
 }
 
+// `from`/`to` are civil `yyyy-mm-dd` days in the user's timezone; these
+// instant-based endpoints get them converted to UTC ISO bounds so a "day"
+// means the user's civil day, not a UTC day.
 export function useVisitCompletions(
   from: string | null,
   to: string | null,
   driverId?: string,
 ) {
+  const tz = useUserTz();
   return useQuery({
-    queryKey: ['visit-completions', from, to, driverId],
+    queryKey: ['visit-completions', from, to, driverId, tz],
     queryFn: async () => {
+      const { fromIso, toIso } = civilRangeToUtc(from!, to!, tz);
       const response = await api.get<VisitCompletion[]>('/history/visits', {
-        params: { from, to, ...(driverId ? { driverId } : {}) },
+        params: { from: fromIso, to: toIso, ...(driverId ? { driverId } : {}) },
       });
       return response.data;
     },
@@ -70,11 +76,13 @@ export function useVisitCompletions(
 }
 
 export function useDriverDailyStats(from: string | null, to: string | null) {
+  const tz = useUserTz();
   return useQuery({
-    queryKey: ['driver-daily-stats', from, to],
+    queryKey: ['driver-daily-stats', from, to, tz],
     queryFn: async () => {
+      const { fromIso, toIso } = civilRangeToUtc(from!, to!, tz);
       const response = await api.get<DriverDailyStat[]>('/history/stats', {
-        params: { from, to },
+        params: { from: fromIso, to: toIso },
       });
       return response.data;
     },

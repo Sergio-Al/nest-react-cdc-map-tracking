@@ -7,6 +7,7 @@ import {
   Building2,
   Activity,
   FileBarChart,
+  Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -30,6 +31,7 @@ export const navItems: NavItem[] = [
   { to: "/customers", labelKey: "customers", icon: Building2, roles: ["admin", "dispatcher"], group: "primary" },
   { to: "/monitoring", labelKey: "monitoring", icon: Activity, roles: ["admin"], group: "secondary" },
   { to: "/reports", labelKey: "reports", icon: FileBarChart, roles: ["admin", "dispatcher"], group: "secondary" },
+  { to: "/settings", labelKey: "settings", icon: Settings, group: "secondary" },
 ];
 
 export const canSee = (item: Pick<NavItem, "roles">, role?: string | null): boolean =>

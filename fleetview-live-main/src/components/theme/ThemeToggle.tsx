@@ -9,6 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
+import { useUpdateUserSettings } from "@/hooks/api/useSettings";
 
 type ThemeChoice = "light" | "dark" | "system";
 
@@ -21,7 +23,14 @@ const CHOICES: { id: ThemeChoice; icon: typeof Sun }[] = [
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation("common");
+  const updateSettings = useUpdateUserSettings();
   const current = (theme as ThemeChoice | undefined) ?? "system";
+
+  const choose = (id: ThemeChoice) => {
+    setTheme(id);
+    // Persist for authenticated users so the choice follows them across devices.
+    if (useAuthStore.getState().isAuthenticated) updateSettings.mutate({ theme: id });
+  };
   // Trigger icon reflects the *choice* — System shows Monitor regardless of the
   // resolved theme, so the user can tell at a glance which mode they picked.
   const TriggerIcon =
@@ -45,7 +54,7 @@ export function ThemeToggle() {
           return (
             <DropdownMenuItem
               key={id}
-              onSelect={() => setTheme(id)}
+              onSelect={() => choose(id)}
               className="flex items-center justify-between"
             >
               <span className="flex items-center gap-2">

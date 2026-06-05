@@ -13,6 +13,7 @@ import Index from "./pages/Index";
 import HistoryPage from "./pages/HistoryPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportsPage from "./pages/ReportsPage";
+import SettingsPage from "./pages/SettingsPage";
 import RoutesPage from "./pages/RoutesPage";import DriversPage from "./pages/DriversPage";
 import VehiclesPage from "./pages/VehiclesPage";
 import NotFound from "./pages/NotFound";
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/monitoring" element={<MonitoringPage />} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

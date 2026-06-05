@@ -13,6 +13,8 @@ import { Insights } from './Insights';
 import { barColor } from './tones';
 import {
   useReportKpis,
+  useReportTrend,
+  useReportHeatmap,
   useReportInsights,
   useServiceLevel,
   useStopDuration,
@@ -27,6 +29,16 @@ const SERVICE_LEVEL_KEYS: Record<string, string> = {
   'Missed': 'missed',
   'Cancelled': 'cancelled',
 };
+
+/** Small "demo data" pill shown on panels still backed by mock data. */
+function DemoBadge({ show, label }: { show: boolean; label: string }) {
+  if (!show) return null;
+  return (
+    <span className="rounded bg-mc-surface px-2 py-0.5 font-mono text-[10px] text-mc-text-dim">
+      {label}
+    </span>
+  );
+}
 
 function Legend({ color, label, line }: { color: string; label: string; line?: boolean }) {
   return (
@@ -43,16 +55,20 @@ function Legend({ color, label, line }: { color: string; label: string; line?: b
 export function OverviewTab() {
   const { from, to, compare } = useReportsStore();
   const { t } = useTranslation('reports');
+  const { t: tc } = useTranslation('common');
+  const demoLabel = tc('filters.demoData');
   const showPrev = compare !== 'none';
   const prevLegend =
     compare === 'previous_year'
       ? t('overview.trend.legend.visitsPrevYear')
       : t('overview.trend.legend.visitsPrevPeriod');
-  const kpis = useReportKpis();
+  const { kpis, isMock: kpisMock } = useReportKpis(from, to, compare);
+  const { trend, isMock: trendMock } = useReportTrend(from, to, compare);
+  const { values: heatValues, max: heatMax, isMock: heatMock } = useReportHeatmap(from, to);
   const insights = useReportInsights();
-  const serviceLevel = useServiceLevel();
-  const stopDuration = useStopDuration();
-  const byZone = useByZone();
+  const { rows: serviceLevel, isMock: svcMock } = useServiceLevel(from, to);
+  const { data: stopDuration, isMock: stopMock } = useStopDuration(from, to);
+  const { rows: byZone, isMock: zoneMock } = useByZone(from, to);
   const { byVisits } = useDriverLeaderboard(from, to);
 
   const doExport = useCallback(() => {
@@ -75,6 +91,11 @@ export function OverviewTab() {
   return (
     <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-6 pb-6 pt-[18px]">
       {/* KPI strip */}
+      {kpisMock && (
+        <div className="-mb-2 flex justify-end">
+          <DemoBadge show label={demoLabel} />
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
         {kpis.map((k) => (
           <KpiCard key={k.lbl} k={k} />
@@ -89,6 +110,7 @@ export function OverviewTab() {
             sub={t('overview.trend.sub')}
             actions={
               <>
+                <DemoBadge show={trendMock} label={demoLabel} />
                 <span className="hidden items-center gap-3 xl:inline-flex">
                   <Legend color="var(--mc-accent)" label={t('overview.trend.legend.visitsCurrent')} />
                   {showPrev && <Legend color="var(--mc-text-dim)" label={prevLegend} line />}
@@ -101,7 +123,7 @@ export function OverviewTab() {
             }
           />
           <ReportCardBody className="px-1 pb-1 pt-2.5">
-            <TrendChart showPrev={showPrev} />
+            <TrendChart data={trend} showPrev={showPrev} />
           </ReportCardBody>
         </ReportCard>
 
@@ -133,30 +155,37 @@ export function OverviewTab() {
             title={t('overview.heatmap.title')}
             sub={t('overview.heatmap.sub')}
             actions={
-              <span className="inline-flex items-center gap-1 font-mono text-[10px] text-mc-text-dim">
-                <span>0</span>
-                <span className="flex gap-px">
-                  {[
-                    'var(--mc-surface)',
-                    'oklch(0.72 0.06 50 / 0.3)',
-                    'oklch(0.72 0.1 50 / 0.55)',
-                    'oklch(0.72 0.14 50 / 0.78)',
-                    'oklch(0.72 0.17 50 / 0.95)',
-                  ].map((c, i) => (
-                    <span key={i} className="h-3 w-3 rounded-[2px]" style={{ background: c }} />
-                  ))}
+              <>
+                <DemoBadge show={heatMock} label={demoLabel} />
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-mc-text-dim">
+                  <span>0</span>
+                  <span className="flex gap-px">
+                    {[
+                      'var(--mc-surface)',
+                      'oklch(0.72 0.06 50 / 0.3)',
+                      'oklch(0.72 0.1 50 / 0.55)',
+                      'oklch(0.72 0.14 50 / 0.78)',
+                      'oklch(0.72 0.17 50 / 0.95)',
+                    ].map((c, i) => (
+                      <span key={i} className="h-3 w-3 rounded-[2px]" style={{ background: c }} />
+                    ))}
+                  </span>
+                  <span>{heatMock ? '8+' : `${heatMax}+`}</span>
                 </span>
-                <span>8+</span>
-              </span>
+              </>
             }
           />
           <ReportCardBody className="flex">
-            <Heatmap />
+            <Heatmap values={heatValues} max={heatMax} />
           </ReportCardBody>
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title={t('overview.insights.title')} sub={t('overview.insights.sub')} />
+          <ReportCardHead
+            title={t('overview.insights.title')}
+            sub={t('overview.insights.sub')}
+            actions={<DemoBadge show label={demoLabel} />}
+          />
           <ReportCardBody>
             <Insights insights={insights} />
           </ReportCardBody>
@@ -166,7 +195,11 @@ export function OverviewTab() {
       {/* Service level + stop duration + by zone */}
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
         <ReportCard>
-          <ReportCardHead title={t('overview.serviceLevel.title')} sub={t('overview.serviceLevel.sub')} />
+          <ReportCardHead
+            title={t('overview.serviceLevel.title')}
+            sub={t('overview.serviceLevel.sub')}
+            actions={<DemoBadge show={svcMock} label={demoLabel} />}
+          />
           <ReportCardBody className="flex flex-col gap-2.5">
             {serviceLevel.map((r) => {
               const key = SERVICE_LEVEL_KEYS[r.lbl];
@@ -191,7 +224,11 @@ export function OverviewTab() {
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title={t('overview.stopDuration.title')} sub={t('overview.stopDuration.sub')} />
+          <ReportCardHead
+            title={t('overview.stopDuration.title')}
+            sub={t('overview.stopDuration.sub')}
+            actions={<DemoBadge show={stopMock} label={demoLabel} />}
+          />
           <ReportCardBody className="flex h-[140px] items-end gap-1">
             {stopDuration.map((h, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
@@ -211,7 +248,11 @@ export function OverviewTab() {
         </ReportCard>
 
         <ReportCard>
-          <ReportCardHead title={t('overview.byZone.title')} sub={t('overview.byZone.sub')} />
+          <ReportCardHead
+            title={t('overview.byZone.title')}
+            sub={t('overview.byZone.sub')}
+            actions={<DemoBadge show={zoneMock} label={demoLabel} />}
+          />
           <ReportCardBody className="flex flex-col gap-2">
             {byZone.map((r) => (
               <div key={r.lbl} className="flex items-center gap-2">

@@ -44,6 +44,8 @@ export function useCdcLag() {
   return {
     data: snapshot ?? query.data,
     isLoading: query.isLoading && !snapshot,
+    isFetching: query.isFetching,
     error: query.error,
+    refetch: query.refetch,
   };
 }

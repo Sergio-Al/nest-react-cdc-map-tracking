@@ -21,6 +21,9 @@ export class CachedCustomer {
   @Column({ type: 'varchar', length: 500, nullable: true })
   address!: string | null;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  zone!: string | null;
+
   @Column({ type: 'double precision', nullable: true })
   latitude!: number | null;
 

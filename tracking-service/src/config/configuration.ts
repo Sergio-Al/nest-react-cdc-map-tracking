@@ -2,6 +2,12 @@ export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
+  // Deployment-default IANA timezone. Used as the bucket tz for the
+  // `driver_daily_stats` continuous aggregate (one tz per deployment) and as
+  // the system-default tenant timezone. Keep in sync with the value baked into
+  // infrastructure/timescale/init/01-init.sql.
+  defaultTz: process.env.DEFAULT_TZ || 'America/La_Paz',
+
   kafka: {
     broker: process.env.KAFKA_BROKER || 'localhost:9094',
     clientId: process.env.KAFKA_CLIENT_ID || 'tracking-service',

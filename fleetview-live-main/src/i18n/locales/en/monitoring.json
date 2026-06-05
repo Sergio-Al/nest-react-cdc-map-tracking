@@ -4,6 +4,8 @@
     "subtitle": "Real-time Change Data Capture synchronization metrics",
     "lastUpdated": "Last updated",
     "tableSync": "Table Synchronization",
+    "refresh": "Refresh",
+    "filters": "Filters",
     "errorTitle": "Error",
     "errorBody": "Failed to load CDC monitoring data: {{message}}",
     "unknownError": "Unknown error",
@@ -46,5 +48,24 @@
     "maxLag": "Max Lag",
     "avgLag": "Avg Lag",
     "uptime": "Uptime"
+  },
+  "crumb": {
+    "workspace": "Workspace",
+    "scope": "CDC pipeline"
+  },
+  "status": {
+    "ok": "Healthy",
+    "warn": "Lagging",
+    "idle": "Idle"
+  },
+  "card": {
+    "noEventsSinceStart": "No events since stream start"
+  },
+  "footer": {
+    "refresh": "refresh",
+    "commands": "commands",
+    "shortcuts": "all shortcuts",
+    "streaming_one": "Streaming · {{count}} topic",
+    "streaming_other": "Streaming · {{count}} topics"
   }
 }

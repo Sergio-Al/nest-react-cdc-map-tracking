@@ -159,7 +159,7 @@
     },
     "byZone": {
       "title": "By zone",
-      "sub": "distance · km"
+      "sub": "visits"
     },
     "exportedKpis": "Exported overview KPIs"
   },

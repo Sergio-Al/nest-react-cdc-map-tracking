@@ -13,6 +13,7 @@ import enMonitoring from "./locales/en/monitoring.json";
 import enNav from "./locales/en/nav.json";
 import enReports from "./locales/en/reports.json";
 import enRoutes from "./locales/en/routes.json";
+import enSettings from "./locales/en/settings.json";
 import enVehicles from "./locales/en/vehicles.json";
 
 import esAuth from "./locales/es/auth.json";
@@ -26,6 +27,7 @@ import esMonitoring from "./locales/es/monitoring.json";
 import esNav from "./locales/es/nav.json";
 import esReports from "./locales/es/reports.json";
 import esRoutes from "./locales/es/routes.json";
+import esSettings from "./locales/es/settings.json";
 import esVehicles from "./locales/es/vehicles.json";
 
 export const SUPPORTED_LANGUAGES = ["es", "en"] as const;
@@ -46,6 +48,7 @@ const resources = {
     nav: enNav,
     reports: enReports,
     routes: enRoutes,
+    settings: enSettings,
     vehicles: enVehicles,
   },
   es: {
@@ -60,6 +63,7 @@ const resources = {
     nav: esNav,
     reports: esReports,
     routes: esRoutes,
+    settings: esSettings,
     vehicles: esVehicles,
   },
 } as const;

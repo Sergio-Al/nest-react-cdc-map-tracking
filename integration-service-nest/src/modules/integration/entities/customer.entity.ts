@@ -33,6 +33,9 @@ export class CustomerEntity {
   @Column({ type: 'varchar', length: 500, nullable: true })
   address!: string | null;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  zone!: string | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   latitude!: number | null;
 

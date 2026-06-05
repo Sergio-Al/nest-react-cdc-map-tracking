@@ -72,6 +72,7 @@ export class CustomersHandler implements OnModuleInit {
           phone: data.phone ?? null,
           email: data.email ?? null,
           address: data.address ?? null,
+          zone: data.zone ?? null,
           latitude: data.latitude ?? null,
           longitude: data.longitude ?? null,
           geofenceRadiusMeters: geofence,

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS customers_cache (
     phone                   VARCHAR(50),
     email                   VARCHAR(200),
     address                 VARCHAR(500),
+    zone                    VARCHAR(100),
     latitude                DOUBLE PRECISION,
     longitude               DOUBLE PRECISION,
     geofence_radius_meters  INT             NOT NULL DEFAULT 100,

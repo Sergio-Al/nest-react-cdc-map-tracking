@@ -100,6 +100,15 @@
     --mc-error:          oklch(0.55 0.18 25);
     --mc-error-soft:     oklch(0.55 0.18 25 / 0.08);
     --mc-error-border:   oklch(0.55 0.18 25 / 0.35);
+
+    /* Density — body-row vertical padding for data tables/lists. Theme-independent;
+       overridden by [data-density] which SettingsEffects sets on <html>. */
+    --mc-row-py: 10px;
+  }
+
+  /* Compact density: tighter rows across data tables/lists. */
+  [data-density='compact'] {
+    --mc-row-py: 6px;
   }
 
   .dark {

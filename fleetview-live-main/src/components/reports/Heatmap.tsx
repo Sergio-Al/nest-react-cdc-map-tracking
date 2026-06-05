@@ -3,14 +3,25 @@ import { heatmapValue } from '@/lib/mock/reportsMock';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-function colorFor(v: number): string {
-  const norm = Math.min(v / 8, 1);
+function colorFor(v: number, max: number): string {
+  const norm = Math.min(v / max, 1);
   if (norm < 0.05) return 'var(--mc-surface)';
   return `oklch(0.72 ${(0.04 + 0.13 * norm).toFixed(3)} 50 / ${(0.18 + 0.7 * norm).toFixed(3)})`;
 }
 
-/** Visits-by-hour-of-day × day-of-week heatmap. */
-export function Heatmap() {
+/** Default 7×24 matrix from the labeled mock, used when no data is passed. */
+const MOCK_VALUES: number[][] = Array.from({ length: 7 }, (_, d) =>
+  Array.from({ length: 24 }, (_, h) => heatmapValue(d, h)),
+);
+
+/** Visits-by-hour-of-day × day-of-week heatmap. `values` is [weekday 0=Mon][hour]. */
+export function Heatmap({
+  values = MOCK_VALUES,
+  max = 8,
+}: {
+  values?: number[][];
+  max?: number;
+}) {
   const { t } = useTranslation('reports');
   const days = t('overview.heatmap.days').split('');
   return (
@@ -28,16 +39,16 @@ export function Heatmap() {
         <div key={di} className="contents">
           <div className="flex h-4 items-center justify-end pr-1">{d}</div>
           {HOURS.map((h) => {
-            const v = heatmapValue(di, h);
+            const v = values[di]?.[h] ?? 0;
             return (
               <div
                 key={h}
                 className="aspect-square cursor-pointer rounded-[3px] transition-transform hover:scale-110 hover:outline hover:outline-1 hover:outline-mc-accent"
-                style={{ background: colorFor(v) }}
+                style={{ background: colorFor(v, max) }}
                 title={t('overview.heatmap.tooltip', {
                   day: d,
                   hour: String(h).padStart(2, '0'),
-                  count: v.toFixed(1),
+                  count: Number.isInteger(v) ? v : v.toFixed(1),
                 })}
               />
             );

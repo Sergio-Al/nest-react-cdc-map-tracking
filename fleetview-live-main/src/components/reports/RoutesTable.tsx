@@ -87,7 +87,7 @@ export function RoutesTable({
   onRowClick: (id: string) => void;
 }) {
   const { t } = useTranslation('reports');
-  const pad = density === 'dense' ? 'py-1.5' : 'py-[9px]';
+  const pad = density === 'dense' ? 'py-1.5' : 'py-[var(--mc-row-py)]';
   const show = (col: SortCol) => visible.has(col);
   return (
     <div className="relative flex-1 overflow-auto">

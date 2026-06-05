@@ -127,7 +127,9 @@ streaming-tracking-logistic/
 │   │       ├── 03-route-optimizer.sql # Columnas de optimización de rutas (routes & planned_visits)
 │   │       ├── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
 │   │       ├── 05-vehicles.sql       # Tabla de vehículos + datos semilla
-│   │       └── 06-routes-unique-driver-date.sql # Una ruta activa por conductor por día (índice único parcial)
+│   │       ├── 06-routes-unique-driver-date.sql # Una ruta activa por conductor por día (índice único parcial)
+│   │       ├── 07-routes-depot.sql    # Columnas de depósito por ruta
+│   │       └── 08-settings.sql        # tenant_settings + user_settings + semilla de valores por defecto del inquilino
 │   ├── osrm/
 │   │   ├── setup.sh                  # Descarga Bolivia OSM, recorta región La Paz, construye grafo OSRM
 │   │   └── data/                     # Archivos OSRM preprocesados (generados por setup.sh)
@@ -229,7 +231,7 @@ streaming-tracking-logistic/
         │   └── api/                  # useDrivers, useVehicles, useRoutes, useRouteBuilder,
         │                             #   useHistory, useReports, useDriverDetail
         ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles,
-        │                             #   Drivers, Customers, Reports, NotFound
+        │                             #   Drivers, Customers, Reports, Settings, NotFound
         ├── stores/                   # Stores Zustand (auth, map, playback, routeBuilder, reports, dashboard)
         └── types/                    # Interfaces TypeScript
 ```
@@ -287,6 +289,9 @@ REDIS_PASSWORD=redis_secret
 # Kafka
 KAFKA_BROKER=kafka:9092
 KAFKA_EXTERNAL_PORT=9094
+
+# App — zona horaria IANA por defecto del despliegue (default del inquilino + tz de buckets de driver_daily_stats)
+DEFAULT_TZ=America/La_Paz
 ```
 
 ### 3. Levantar la infraestructura con Docker
@@ -343,6 +348,17 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 docker exec -i cache-db psql -U tracking -d tracking_cache \
   < infrastructure/cache-db/init/06-routes-unique-driver-date.sql
 ```
+
+> **Solo para bases de datos existentes** (las instalaciones nuevas las obtienen de los scripts de init):
+> ```bash
+> # Tablas de settings (tenant_settings + user_settings) y semilla de inquilinos
+> docker exec -i cache-db psql -U tracking -d tracking_cache \
+>   < infrastructure/cache-db/init/08-settings.sql
+>
+> # Reconstruir driver_daily_stats para agrupar en la zona horaria del despliegue (DEFAULT_TZ)
+> docker exec -i timescale psql -U timescale -d tracking_history \
+>   < scripts/migrate-daily-stats-tz.sql
+> ```
 
 ### 6. Registrar el conector CDC de Debezium
 
@@ -554,7 +570,10 @@ Fallback: MySQL directo
 - **RouteOptimizerService**: Orquesta la optimización de rutas — obtiene matriz de distancias/duraciones de OSRM, envía al solver VRP de OR-Tools, actualiza secuencia de visitas, ETAs y distancias.
 
 ### `history/` — Reportes Históricos
-- **HistoryController**: Expone consultas filtradas sobre datos de TimescaleDB para reportes. Completaciones de visitas con filtros de conductor/fecha y estadísticas diarias de conductores.
+- **HistoryController**: Expone consultas filtradas sobre datos de TimescaleDB para reportes. Completaciones de visitas con filtros de conductor/fecha y estadísticas diarias de conductores. `from`/`to` se interpretan como instantes UTC — el dashboard convierte el rango de día civil del usuario a UTC usando su zona horaria antes de llamar, de modo que los límites del reporte reflejan el día local del usuario en lugar de un día UTC.
+
+### `settings/` — Preferencias de Usuario e Inquilino
+- **SettingsService/Controller**: Preferencias por inquilino (valores por defecto) y por usuario (zona horaria, idioma, formato de fecha/número, unidades, rango de reporte predeterminado, tema, densidad). Almacenadas en `tenant_settings` / `user_settings` — **tablas propias escritas directamente al caché PG** (no sincronizadas desde MySQL). `getEffective()` resuelve `override de usuario → valor por defecto del inquilino → valor por defecto del sistema`. Las preferencias efectivas también se devuelven en el login y en `/api/auth/profile`.
 
 ### `visits/` — Visitas Planificadas
 - **VisitsService/Controller**: Crear visitas, gestionar ciclo de vida (`pending` → `arrived` → `in_progress` → `completed` → `departed`), llegada/salida automática, publicación de eventos, eliminar visitas pendientes.
@@ -720,6 +739,17 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 |---|---|---|
 | GET | `/api/history/visits?from=&to=&driverId=` | Completaciones de visitas (filtrable por conductor) |
 | GET | `/api/history/stats?from=&to=` | Estadísticas diarias de conductores (velocidad, posiciones, ratio en movimiento) |
+
+> `from`/`to` aceptan una fecha `yyyy-mm-dd` **o** un instante UTC ISO completo. El dashboard envía instantes UTC derivados de la zona horaria del usuario para que un "día" signifique su día civil. `driver_daily_stats` se agrupa en la zona horaria del despliegue (`DEFAULT_TZ`).
+
+### Configuración (Settings)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/me/settings` | Preferencias efectivas del usuario actual + capas usuario/inquilino |
+| PUT | `/api/me/settings` | Actualizar los overrides del usuario actual (zona horaria, idioma, unidades, tema, …) |
+| GET | `/api/tenant/settings` | Valores por defecto del inquilino (solo admin) |
+| PUT | `/api/tenant/settings` | Actualizar valores por defecto del inquilino (solo admin) |
 
 ### Sincronización CDC
 
@@ -931,6 +961,7 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 - `planned_visits` — Paradas dentro de una ruta (+ `estimated_arrival_time`, `estimated_travel_seconds`, `estimated_distance_meters`)
 - `driver_positions` — Snapshot de la última posición por conductor
 - `sync_state` — Estado de sincronización CDC
+- `tenant_settings`, `user_settings` — Preferencias por inquilino (defaults) y por usuario (zona horaria, idioma, unidades, tema, …), escritas directamente (no CDC)
 
 ### TimescaleDB (`tracking_history`)
 

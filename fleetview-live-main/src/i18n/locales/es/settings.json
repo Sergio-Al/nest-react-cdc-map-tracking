@@ -1,0 +1,62 @@
+{
+  "title": "Configuración",
+  "subtitle": "Preferencias de tu cuenta y este espacio de trabajo.",
+  "search": "Búsqueda rápida…",
+  "localization": "Localización",
+  "appearance": "Apariencia",
+  "appearanceDesc": "Cómo se ve FleetTrack en este dispositivo.",
+  "themeHelp": "Coincide con tu sistema o elige un modo fijo.",
+  "densityHelp": "Altura de filas en listas y tablas.",
+  "tenantDefaults": "Valores predeterminados del inquilino",
+  "tenantDefaultsHint": "Valores predeterminados para todos en este inquilino. Cada usuario puede sobrescribirlos.",
+  "inheritHint": "Tus preferencias tienen prioridad sobre los valores del inquilino.",
+  "save": "Guardar cambios",
+  "saved": "Configuración guardada",
+  "saveError": "No se pudo guardar la configuración",
+  "crumb": {
+    "workspace": "Espacio de trabajo",
+    "scope": "La Paz, Bolivia"
+  },
+  "savebar": {
+    "unsaved": "Tienes cambios sin guardar.",
+    "discard": "Descartar"
+  },
+  "footer": {
+    "commands": "comandos",
+    "settings": "configuración",
+    "shortcuts": "todos los atajos",
+    "connected": "Conectado · La Paz, Bolivia"
+  },
+  "fields": {
+    "timezone": "Zona horaria",
+    "language": "Idioma",
+    "dateFormat": "Formato de fecha",
+    "units": "Unidades",
+    "defaultRange": "Rango de reporte predeterminado",
+    "theme": "Tema",
+    "density": "Densidad"
+  },
+  "units": {
+    "metric": "Métrico (km)",
+    "imperial": "Imperial (mi)"
+  },
+  "theme": {
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "density": {
+    "comfortable": "Cómoda",
+    "compact": "Compacta"
+  },
+  "presets": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "7d": "Últimos 7 días",
+    "14d": "Últimos 14 días",
+    "30d": "Últimos 30 días",
+    "mtd": "Mes a la fecha",
+    "qtd": "Trimestre a la fecha",
+    "ytd": "Año a la fecha"
+  }
+}

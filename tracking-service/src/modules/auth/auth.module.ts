@@ -12,6 +12,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { CachedUser } from '../sync/entities/cached-user.entity';
 import { RedisModule } from '../redis/redis.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { RedisModule } from '../redis/redis.module';
       inject: [ConfigService],
     }),
     RedisModule,
+    SettingsModule,
   ],
   controllers: [AuthController],
   providers: [
