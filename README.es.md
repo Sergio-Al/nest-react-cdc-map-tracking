@@ -118,12 +118,11 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Configuración de binlog (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tablas + datos semilla (accounts, customers, products, orders)
-│   │       ├── 02-users.sql          # Tabla users + cuentas admin semilla
 │   │       └── 03-drivers.sql        # Tabla drivers (PK UUID, consumida por integration-service)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Esquema del caché (sync, drivers, routes, visits, positions)
-│   │       ├── 02-cached-users.sql   # Tabla cached_users (poblada vía CDC en runtime)
+│   │       ├── 02-cached-users.sql   # Tabla users (fuente de verdad, propia de tracking-service) + cuentas admin semilla
 │   │       ├── 03-route-optimizer.sql # Columnas de optimización de rutas (routes & planned_visits)
 │   │       ├── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
 │   │       ├── 05-vehicles.sql       # Tabla de vehículos + datos semilla
@@ -931,7 +930,6 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 | `cdc.drivers` | 3 | Debezium | CdcConsumerService | Cambios en conductores |
 | `cdc.products` | 3 | Debezium | CdcConsumerService | Cambios en productos |
 | `cdc.orders` | 3 | Debezium | CdcConsumerService | Cambios en pedidos |
-| `cdc.users` | 3 | Debezium | CdcConsumerService | Cambios en usuarios |
 | `gps.positions.dlq` | 3 | DlqService | DlqAdminService | Enriquecimientos de posiciones crudas fallidos |
 | `gps.positions.enriched.dlq` | 3 | DlqService | DlqAdminService | Broadcasts WebSocket fallidos |
 | `visits.events.dlq` | 3 | DlqService | DlqAdminService | Broadcasts de eventos de visita fallidos |
@@ -947,14 +945,16 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 - `customers` — Clientes con ubicación geográfica (lat, lng, geofence_radius)
 - `products` — Catálogo de productos
 - `orders` — Pedidos
-- `users` — Cuentas de usuario con roles (admin, dispatcher, driver)
+
+> **Nota:** los `users` **no** están en MySQL. Son propios de `tracking_cache` (ver abajo) — el módulo de auth los lee y escribe en PostgreSQL, sin bucle CDC.
 
 ### PostgreSQL Caché (`tracking_cache`)
 
-**Tablas sincronizadas vía CDC (solo lectura):**, `cached_users`
+**Tablas sincronizadas vía CDC (solo lectura):**
 - `accounts_cache`, `customers_cache`, `products_cache`
 
 **Tablas propias del servicio de rastreo:**
+- `cached_users` — Cuentas de usuario con roles (admin, dispatcher, driver). **Fuente de verdad**, escrita directamente por el módulo de auth (login/registro), no sincronizada desde MySQL; sembrada con cuentas admin en `02-cached-users.sql`
 - `drivers` — Conductores (device_id vincula con Traccar)
 - `vehicles` — Vehículos de flota (placa, tipo, marca, modelo, año, color, capacidad_kg, estado, FK conductor opcional)
 - `routes` — Rutas de entrega planificadas (+ `total_distance_meters`, `total_estimated_seconds`, `optimized_at`, `optimization_method`)
@@ -1189,7 +1189,7 @@ docker exec redis redis-cli -a redis_secret \
 
 ### ✅ Fase 6 — Monitoreo y Robustez (Completada)
 - [x] Autenticación JWT con control de acceso basado en roles
-- [x] Gestión de usuarios vía sincronización CDC
+- [x] Gestión de usuarios (los usuarios son propios de PostgreSQL `tracking_cache`, escritos por el módulo de auth — sin bucle MySQL/CDC)
 - [x] Autenticación WebSocket
 - [x] Monitoreo de lag CDC
 - [x] Manejo de errores y dead letter queues (reintentos + DLQ en todos los consumidores)

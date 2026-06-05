@@ -264,7 +264,10 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
    * Get current gateway statistics for health checks.
    */
   getStats(): GatewayStats {
-    const rooms = this.server.sockets.adapter.rooms.size;
+    // Guard the adapter chain: `this.server`/its namespace adapter can be
+    // unset (e.g. before any socket has connected), and an unguarded deref
+    // here would 500 the whole /api/health endpoint.
+    const rooms = this.server?.sockets?.adapter?.rooms?.size ?? 0;
     return {
       connectedClients: this.connectedClients,
       rooms,

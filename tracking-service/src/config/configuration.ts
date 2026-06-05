@@ -30,14 +30,6 @@ export default () => ({
     password: process.env.TIMESCALE_PASSWORD || 'timescale_secret',
   },
 
-  mysql: {
-    host: process.env.MYSQL_HOST || 'localhost',
-    port: parseInt(process.env.MYSQL_PORT || '3306', 10),
-    database: process.env.MYSQL_DATABASE || 'core_business',
-    username: process.env.MYSQL_USER || 'app_user',
-    password: process.env.MYSQL_PASSWORD || 'app_secret',
-  },
-
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),

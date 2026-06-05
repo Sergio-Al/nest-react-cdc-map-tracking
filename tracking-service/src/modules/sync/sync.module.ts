@@ -8,7 +8,6 @@ import {
   CachedCustomer,
   CachedProduct,
   SyncState,
-  CachedUser,
 } from './entities';
 import { Driver } from '../drivers/entities';
 import { WebsocketModule } from '../websocket/websocket.module';
@@ -21,7 +20,6 @@ import { EnrichmentModule } from '../enrichment/enrichment.module';
       CachedCustomer,
       CachedProduct,
       SyncState,
-      CachedUser,
       Driver,
     ], 'cacheDb'),
     forwardRef(() => WebsocketModule),

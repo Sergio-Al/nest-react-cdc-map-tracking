@@ -118,12 +118,11 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Binlog configuration (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tables + seed data (accounts, customers, products, orders)
-│   │       ├── 02-users.sql          # Users table + admin seed accounts
 │   │       └── 03-drivers.sql        # Drivers table (UUID PK, consumed by integration-service)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Cache schema (sync, drivers, routes, visits, positions)
-│   │       ├── 02-cached-users.sql   # Cached users table (populated via CDC at runtime)
+│   │       ├── 02-cached-users.sql   # Users table (source of truth, owned by tracking-service) + admin seed accounts
 │   │       ├── 03-route-optimizer.sql # Route optimization columns (routes & planned_visits)
 │   │       ├── 04-seed-customers-lapaz.sql # La Paz customer seed data (20 tenant-1, 3 tenant-2)
 │   │       ├── 05-vehicles.sql       # Vehicles table + seed data
@@ -936,7 +935,6 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 | `cdc.drivers` | 3 | Debezium | CdcConsumerService | Driver changes |
 | `cdc.products` | 3 | Debezium | CdcConsumerService | Product changes |
 | `cdc.orders` | 3 | Debezium | CdcConsumerService | Order changes |
-| `cdc.users` | 3 | Debezium | CdcConsumerService | User changes |
 | `gps.positions.dlq` | 3 | DlqService | DlqAdminService | Failed raw position enrichments |
 | `gps.positions.enriched.dlq` | 3 | DlqService | DlqAdminService | Failed WebSocket broadcasts |
 | `visits.events.dlq` | 3 | DlqService | DlqAdminService | Failed visit event broadcasts |
@@ -952,14 +950,16 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 - `customers` — Customers with geographic location (lat, lng, geofence_radius)
 - `products` — Product catalog
 - `orders` — Orders
-- `users` — User accounts with roles (admin, dispatcher, driver)
+
+> **Note:** `users` are **not** in MySQL. They are owned directly by `tracking_cache` (see below) — the auth module reads and writes them in PostgreSQL, with no CDC loop.
 
 ### PostgreSQL Cache (`tracking_cache`)
 
-**Tables synced via CDC (read-only):**, `cached_users`
+**Tables synced via CDC (read-only):**
 - `accounts_cache`, `customers_cache`, `products_cache`
 
 **Tracking service owned tables:**
+- `cached_users` — User accounts with roles (admin, dispatcher, driver). **Source of truth**, written directly by the auth module (login/register), not synced from MySQL; seeded with admin accounts in `02-cached-users.sql`
 - `drivers` — Drivers (device_id links to Traccar)
 - `vehicles` — Fleet vehicles (plate, type, brand, model, year, color, capacity_kg, status, optional driver_id FK)
 - `tenant_settings`, `user_settings` — Tenant-default + per-user preferences (timezone, locale, units, theme, …), written directly (not CDC)
@@ -1248,7 +1248,7 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/cleanup-loa
 
 ### ✅ Phase 6 — Monitoring & Hardening (Completed)
 - [x] JWT authentication with role-based access control
-- [x] User management via CDC sync
+- [x] User management (users owned directly by PostgreSQL `tracking_cache`, written by the auth module — no MySQL/CDC loop)
 - [x] WebSocket authentication
 - [x] CDC lag monitoring
 - [x] Error handling and dead letter queues (retry + DLQ across all consumers)

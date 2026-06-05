@@ -1,7 +1,9 @@
 # JWT Authentication Implementation Summary
 
 ## Overview
-Successfully implemented a complete JWT authentication system with role-based access control (RBAC) for the NestJS tracking service. Users are stored in MySQL, synced to the cache DB via CDC, and validated using JWT tokens stored in Redis.
+Successfully implemented a complete JWT authentication system with role-based access control (RBAC) for the NestJS tracking service. Users are stored **directly in PostgreSQL `tracking_cache`** (owned by the auth module — see note below), and validated using JWT tokens with refresh tokens stored in Redis.
+
+> **⚠️ Updated 2026-06-05 — users moved off MySQL/CDC.** This doc originally described users living in MySQL `core_business.users` and syncing to the cache via Debezium (`cdc.users`). That path has been **removed**: `tracking_cache.cached_users` is now the **source of truth**, written directly by the auth module. There is no MySQL `users` table, no `commands.users`, and no `cdc.users` topic. The MySQL DDL shown below is retained only for historical context.
 
 ## What Was Implemented
 
@@ -15,7 +17,11 @@ Successfully implemented a complete JWT authentication system with role-based ac
 
 ### 2. Database Schema
 
-#### MySQL (`core_business.users`)
+#### PostgreSQL — source of truth (`tracking_cache.cached_users`)
+The auth module reads/writes this table directly via TypeORM on the `cacheDb` connection. Defined in `infrastructure/cache-db/init/02-cached-users.sql`, which also seeds the default admin accounts.
+
+#### MySQL (`core_business.users`) — *removed (historical)*
+> No longer exists. Kept here only to document the original shape.
 ```sql
 CREATE TABLE users (
   id          VARCHAR(36) PRIMARY KEY,
@@ -32,17 +38,13 @@ CREATE TABLE users (
 );
 ```
 
-Seeded with default admin users:
+Seeded with default admin users (now in `02-cached-users.sql`, not MySQL):
 - `admin@tenant1.com` / `admin123` (tenant-1)
 - `admin@tenant2.com` / `admin123` (tenant-2)
 
-#### Cache DB (`tracking_cache.cached_users`)
-Synced from MySQL via CDC for fast JWT validation.
-
-### 3. Kafka CDC Integration
-- Added `users` table to Debezium connector
-- Created `cdc.users` topic (3 partitions)
-- Implemented CDC handler in `CdcConsumerService`
+### 3. User persistence (no CDC)
+- `register()` / `login()` / `validateUser()` operate directly on `cached_users` via `@InjectRepository(CachedUser, 'cacheDb')`.
+- **No** Kafka command (`commands.users`), **no** Debezium `cdc.users` topic, **no** CDC handler — users are not part of the MySQL→cache sync loop (unlike accounts/customers/products/drivers).
 
 ### 4. Configuration
 Added auth config section in `configuration.ts`:
@@ -159,7 +161,7 @@ TRACCAR_API_KEY: ${TRACCAR_API_KEY:-traccar-shared-key}
 
 ### 12. Documentation Updates
 - Added comprehensive "Authentication" section in README.md
-- Updated Kafka topics table (added `cdc.users`)
+- Updated Kafka topics table (originally added `cdc.users`; later removed — see 2026-06-05 note above)
 - Updated database schema docs
 - Updated Phase 5 checklist
 - Added WebSocket auth flow documentation

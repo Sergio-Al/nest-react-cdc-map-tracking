@@ -18,7 +18,6 @@ const CDC_TOPICS = new Set([
   'cdc.customers',
   'cdc.products',
   'cdc.orders',
-  'cdc.users',
 ]);
 
 /**

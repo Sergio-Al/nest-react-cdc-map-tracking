@@ -76,7 +76,6 @@ export class CdcMetricsService {
     this.logger.log(`Initialized CDC metrics (Kafka broker: ${broker})`);
 
     // Initialize default tables
-    this.initializeTable('cdc.users', 'users_cache');
     this.initializeTable('cdc.accounts', 'accounts_cache');
     this.initializeTable('cdc.customers', 'customers_cache');
     this.initializeTable('cdc.products', 'products_cache');

@@ -30,14 +30,4 @@ export const timescaleDbOptions = (config: ConfigService) => ({
   password: config.get<string>('timescale.password'),
 });
 
-// ── MySQL connection options (for manual DataSource) ────────
-export const mysqlDbOptions = (config: ConfigService) => ({
-  type: 'mysql' as const,
-  host: config.get<string>('mysql.host'),
-  port: config.get<number>('mysql.port'),
-  database: config.get<string>('mysql.database'),
-  username: config.get<string>('mysql.username'),
-  password: config.get<string>('mysql.password'),
-});
-
 
