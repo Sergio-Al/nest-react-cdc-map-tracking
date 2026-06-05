@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Users, Phone, Hash, Truck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, Check, Users, Phone, Hash, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -9,13 +9,17 @@ import {
   DialogFormFooter,
   DenseDialogHeader,
 } from '@/components/ui/dense-form';
-import type { CreateDriverDto } from '@/hooks/api/useDrivers';
+import type { CreateDriverDto, UpdateDriverDto } from '@/hooks/api/useDrivers';
+import type { Driver } from '@/types/driver.types';
 
 interface CreateDriverDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenantId: string;
-  onSubmit: (dto: CreateDriverDto) => void;
+  /** When set, the dialog is in edit mode and prefills from this driver. */
+  driver?: Driver | null;
+  onCreate: (dto: CreateDriverDto) => void;
+  onUpdate: (id: string, dto: UpdateDriverDto) => void;
   isLoading?: boolean;
 }
 
@@ -25,9 +29,12 @@ export function CreateDriverDialog({
   open,
   onOpenChange,
   tenantId,
-  onSubmit,
+  driver,
+  onCreate,
+  onUpdate,
   isLoading,
 }: CreateDriverDialogProps) {
+  const isEdit = !!driver;
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [vehiclePlate, setVehiclePlate] = useState('');
@@ -37,40 +44,50 @@ export function CreateDriverDialog({
 
   const vehicleTypes = VEHICLE_TYPE_IDS.map((id) => ({ id, label: t(`dialog.types.${id}`) }));
 
-  const reset = () => {
-    setName('');
-    setPhone('');
-    setVehiclePlate('');
-    setVehicleType('van');
-    setDeviceId('');
-  };
+  // Sync form fields whenever the dialog opens or the target driver changes.
+  useEffect(() => {
+    if (!open) return;
+    setName(driver?.name ?? '');
+    setPhone(driver?.phone ?? '');
+    setVehiclePlate(driver?.vehiclePlate ?? '');
+    setVehicleType(driver?.vehicleType ?? 'van');
+    setDeviceId(driver?.deviceId ?? '');
+  }, [open, driver]);
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    onSubmit({
-      tenantId,
-      name: name.trim(),
-      phone: phone.trim() || undefined,
-      vehiclePlate: vehiclePlate.trim() || undefined,
-      vehicleType,
-      deviceId: deviceId.trim() || undefined,
-      status: 'offline',
-    });
-    reset();
+    if (isEdit && driver) {
+      onUpdate(driver.id, {
+        name: name.trim(),
+        phone: phone.trim() || null,
+        vehiclePlate: vehiclePlate.trim() || null,
+        vehicleType,
+        deviceId: deviceId.trim() || null,
+      });
+    } else {
+      onCreate({
+        tenantId,
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        vehiclePlate: vehiclePlate.trim() || undefined,
+        vehicleType,
+        deviceId: deviceId.trim() || undefined,
+        status: 'offline',
+      });
+    }
     onOpenChange(false);
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset();
-        onOpenChange(o);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[440px] gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">{t('dialog.title')}</DialogTitle>
-        <DenseDialogHeader icon={<Users className="h-3.5 w-3.5" />} title={t('dialog.title')} />
+        <DialogTitle className="sr-only">
+          {isEdit ? t('dialog.editTitle') : t('dialog.title')}
+        </DialogTitle>
+        <DenseDialogHeader
+          icon={<Users className="h-3.5 w-3.5" />}
+          title={isEdit ? t('dialog.editTitle') : t('dialog.title')}
+        />
 
         <div className="flex max-h-[70vh] flex-col gap-[14px] overflow-y-auto px-5 py-4">
           <Field label={t('dialog.name')} required>
@@ -119,8 +136,10 @@ export function CreateDriverDialog({
         <DialogFormFooter
           onCancel={() => onOpenChange(false)}
           onSubmit={handleSubmit}
-          submitLabel={t('dialog.create')}
-          submitIcon={<Plus className="h-[13px] w-[13px]" />}
+          submitLabel={isEdit ? t('dialog.save') : t('dialog.create')}
+          submitIcon={
+            isEdit ? <Check className="h-[13px] w-[13px]" /> : <Plus className="h-[13px] w-[13px]" />
+          }
           canSubmit={!!name.trim()}
           isLoading={isLoading}
         />

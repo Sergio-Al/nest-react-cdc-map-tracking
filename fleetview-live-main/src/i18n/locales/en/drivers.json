@@ -19,6 +19,7 @@
   },
   "dialog": {
     "title": "New Driver",
+    "editTitle": "Edit Driver",
     "name": "Name",
     "namePlaceholder": "Full name",
     "phone": "Phone",
@@ -27,6 +28,7 @@
     "deviceId": "Device ID",
     "vehicleType": "Vehicle type",
     "create": "Create",
+    "save": "Save",
     "cancel": "Cancel",
     "types": {
       "van": "Van",
@@ -37,7 +39,11 @@
   },
   "toasts": {
     "created": "Driver \"{{name}}\" created",
-    "createFailed": "Failed to create driver"
+    "createFailed": "Failed to create driver",
+    "updated": "Driver \"{{name}}\" updated",
+    "updateFailed": "Failed to update driver",
+    "deactivated": "Driver \"{{name}}\" deactivated",
+    "deactivateFailed": "Failed to deactivate driver"
   },
   "detail": {
     "empty": {

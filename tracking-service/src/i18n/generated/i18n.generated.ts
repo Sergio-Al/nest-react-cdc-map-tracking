@@ -49,6 +49,8 @@ export type I18nTranslations = {
         "drivers": {
             "fromToRequired": string;
             "fromToInvalid": string;
+            "notFound": string;
+            "deviceInUse": string;
         };
         "osrm": {
             "matricesFailed": string;

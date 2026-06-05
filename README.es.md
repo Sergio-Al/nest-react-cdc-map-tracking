@@ -44,11 +44,11 @@ Dispositivos GPS (1000)
 │  Tópicos:                                                    │
 │  • gps.positions / gps.positions.enriched / gps.events       │
 │  • visits.events                                             │
-│  • commands.customers / commands.drivers  (tópicos comando)  │
-│  • cdc.customers / cdc.drivers / cdc.accounts / ...          │
+│  • commands.customers  (tópico comando)                      │
+│  • cdc.customers / cdc.accounts / cdc.products / cdc.orders  │
 └──────┬──────────────────────────────────────┬────────────────┘
        │                                      │
-       │  commands.customers / drivers         │  cdc.* / gps.* / visits.*
+       │  commands.customers                   │  cdc.* / gps.* / visits.*
        ▼                                      ▼
 ┌──────────────────────┐    ┌─────────────────────────────────────────────┐
 │ INTEGRATION SERVICE  │    │         TRACKING SERVICE (NestJS)            │
@@ -56,7 +56,7 @@ Dispositivos GPS (1000)
 │                      │    │  ┌─────────────┐  ┌──────────────────────┐  │
 │ • Consumidor Kafka   │    │  │  Traccar     │  │ Consumidores Kafka   │  │
 │ • commands.customers │    │  │  Webhook     │  │ • Posiciones GPS     │  │
-│ • commands.drivers   │    │  │  Controller  │  │ • Sincronización CDC │  │
+│ • drivers: dormant   │    │  │  Controller  │  │ • Sincronización CDC │  │
 │ • Escribe en MySQL   │    │  └──────┬───────┘  │ • Eventos de visitas │  │
 │ • Reintentos + DLQ   │    │         │          └──────────┬───────────┘  │
 │ • /healthz :8090     │    │         ▼                     ▼              │
@@ -72,8 +72,8 @@ Dispositivos GPS (1000)
      Debezium CDC           │ ┌─────┐ ┌────────┐ ┌──────────┐ ┌───────┐  │
            │                │ │Redis│ │Cache PG│ │Timescale │ │  WS   │  │
            ▼                │ └─────┘ └────────┘ └──────────┘ └───────┘  │
-    cdc.customers /         └─────────────────────────────────────────────┘
-    cdc.drivers ──▶ CdcConsumerService ──▶ PostgreSQL cache
+    cdc.* (sin drivers)     └─────────────────────────────────────────────┘
+    drivers son PG-owned (escritura directa; sin cdc.drivers)
 ```
 
 ---
@@ -92,10 +92,10 @@ Dispositivos GPS (1000)
 | BD Histórica | TimescaleDB | latest-pg16 | Series de tiempo, historial de posiciones, analíticas |
 | Caché / Pub-Sub | Redis | 7-alpine | Posiciones recientes, caché de 3 niveles |
 | Motor de Ruteo | OSRM | latest | Matriz de distancias/duraciones viales (La Paz, Bolivia) |
-| Servicio de Integración | Go | 1.23 | Consumidor Kafka → MySQL (clientes, conductores) |
+| Servicio de Integración | NestJS | 10+ | Consumidor Kafka → MySQL (clientes) |
 | Optimizador de Rutas | OR-Tools (Python) | 9.x | Solver VRP via sidecar FastAPI |
 | WebSocket | Socket.io | 4+ | Push en tiempo real al dashboard |
-| Lenguaje | TypeScript / Go | 5+ / 1.23 | Servicios backend |
+| Lenguaje | TypeScript | 5+ | Servicios backend |
 | Contenedores | Docker + Docker Compose | Latest | Entorno de desarrollo |
 
 ---
@@ -118,7 +118,7 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Configuración de binlog (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tablas + datos semilla (accounts, customers, products, orders)
-│   │       └── 03-drivers.sql        # Tabla drivers (PK UUID, consumida por integration-service)
+│   │       └── 03-drivers.sql        # Tabla drivers MySQL (legacy; ahora PG-owned, se conserva para sync de entrada dormido)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Esquema del caché (sync, drivers, routes, visits, positions)
@@ -156,7 +156,7 @@ streaming-tracking-logistic/
 │       ├── modules/kafka/            # Producer, consumer (grupo), servicio DLQ
 │       ├── modules/integration/
 │       │   ├── customers.handler.ts  # Handler de commands.customers
-│       │   ├── drivers.handler.ts    # Handler de commands.drivers
+│       │   ├── drivers.handler.ts    # Handler de commands.drivers (DORMIDO — drivers ahora PG-owned)
 │       │   └── entities/             # Entidades MySQL customers + drivers
 │       ├── modules/metrics/          # Contadores estilo Prometheus
 │       └── modules/health/           # Endpoints /healthz + /metrics
@@ -414,7 +414,7 @@ npm run start:dev
 
 El servicio de tracking estará disponible en `http://localhost:3000`.
 
-El **integration-service** (NestJS, en `integration-service-nest/`) corre como contenedor Docker y se inicia automáticamente con `docker compose up -d`. Consume `commands.customers` y `commands.drivers` de Kafka y escribe en MySQL. Para verificar que está corriendo:
+El **integration-service** (NestJS, en `integration-service-nest/`) corre como contenedor Docker y se inicia automáticamente con `docker compose up -d`. Consume `commands.customers` de Kafka y escribe en MySQL. (Su handler de `commands.drivers` queda **dormido** — los conductores ahora son PostgreSQL-owned y los escribe directamente `tracking-service`.) Para verificar que está corriendo:
 
 ```bash
 curl http://localhost:8090/healthz
@@ -477,25 +477,32 @@ Dispositivo GPS → Traccar → Webhook HTTP → NestJS (TraccarController)
         └── Kafka [gps.positions.enriched]
 ```
 
-### Flujo de Escritura de Comandos (Creación de clientes y conductores)
+### Flujo de Escritura de Comandos (Creación de clientes)
 
 ```
-POST /api/customers o /api/drivers
-    → NestJS produce a Kafka [commands.customers / commands.drivers]
+POST /api/customers
+    → NestJS produce a Kafka [commands.customers]
     → HTTP 202 Accepted { correlationId }
     → Integration Service (NestJS) consume el comando
         ├── INSERT en MySQL (con 3× reintentos + backoff exponencial)
-        └── Si falla → DLQ (commands.customers.dlq / commands.drivers.dlq)
-    → Debezium captura cambio en MySQL → cdc.customers / cdc.drivers
+        └── Si falla → DLQ (commands.customers.dlq)
+    → Debezium captura cambio en MySQL → cdc.customers
     → CdcConsumerService sincroniza a caché PostgreSQL
 ```
+
+> **Los conductores NO usan este flujo.** Los conductores son PostgreSQL-owned:
+> `POST /api/drivers` escribe la tabla `drivers` directamente y retorna **`201 Created`**
+> con el conductor (síncrono, sin Kafka, sin MySQL, sin CDC). `DriversService` actualiza
+> el mapa de enriquecimiento device→driver por sí mismo. El `DriversHandler` del
+> `integration-service` y los tópicos `commands.drivers`/`cdc.drivers` quedan
+> retirados/dormidos — ver el módulo Drivers más abajo.
 
 ### Flujo de Sincronización CDC (MySQL → Caché Local)
 
 ```
 MySQL (INSERT/UPDATE/DELETE) → Binlog
     → Debezium captura cambios
-    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders, cdc.drivers]
+    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders]
     → NestJS CdcConsumerService
         ├── Upsert/Delete en PostgreSQL caché
         ├── Invalidar caché Redis
@@ -557,7 +564,7 @@ Fallback: MySQL directo
 - **CustomerCacheService**: Implementa caché de 3 niveles (Memoria → Redis → PG → fallback MySQL). Soporta búsqueda por ID, por tenant, y consultas geográficas.
 
 ### `drivers/` — Gestión de Conductores
-- **DriversService/Controller**: La creación de conductores publica al tópico Kafka `commands.drivers` (asíncrono, retorna HTTP 202). Las lecturas vienen del caché PostgreSQL local.
+- **DriversService/Controller**: Los conductores son **PostgreSQL-owned** (fuente de verdad) — las escrituras van directo a la tabla `drivers`, sin Kafka/MySQL/CDC. Crear (`201`), actualizar, desactivar (soft: `DELETE` → `status='inactive'` + limpia el dispositivo) y emparejar dispositivo (`PATCH /drivers/:id/device`). `DriversService` mantiene el mapa device→driver de enriquecimiento vía `refreshDriverMapping`/`removeDriverMapping`. Un índice único parcial global `uq_drivers_device_id` impide que dos conductores compartan un dispositivo. (El `DriversHandler` del `integration-service` queda dormido para una futura sincronización de entrada MySQL→PG con gate.)
 - **DriverPosition**: Entidad snapshot de la última posición conocida por conductor.
 
 ### `vehicles/` — Gestión de Vehículos
@@ -687,8 +694,10 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 |---|---|---|
 | GET | `/api/drivers` | Listar todos los conductores |
 | GET | `/api/drivers/:id` | Obtener conductor por ID |
-| POST | `/api/drivers` | Crear conductor |
+| POST | `/api/drivers` | Crear conductor (escritura directa a PG, retorna `201`) |
 | PATCH | `/api/drivers/:id` | Actualizar conductor |
+| DELETE | `/api/drivers/:id` | Desactivar conductor (soft: `status='inactive'`, limpia dispositivo) |
+| PATCH | `/api/drivers/:id/device` | Emparejar/desemparejar dispositivo (`deviceId`); managers o el propio conductor |
 | GET | `/api/drivers/:id/history?from=&to=` | Historial de posiciones del conductor (TimescaleDB) |
 
 ### Rutas
@@ -927,7 +936,6 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 | `visits.events` | 3 | VisitsService | WsBroadcastService | Ciclo de vida de visitas |
 | `cdc.accounts` | 3 | Debezium | CdcConsumerService | Cambios en cuentas |
 | `cdc.customers` | 3 | Debezium | CdcConsumerService | Cambios en clientes |
-| `cdc.drivers` | 3 | Debezium | CdcConsumerService | Cambios en conductores |
 | `cdc.products` | 3 | Debezium | CdcConsumerService | Cambios en productos |
 | `cdc.orders` | 3 | Debezium | CdcConsumerService | Cambios en pedidos |
 | `gps.positions.dlq` | 3 | DlqService | DlqAdminService | Enriquecimientos de posiciones crudas fallidos |
@@ -1203,7 +1211,7 @@ docker exec redis redis-cli -a redis_secret \
 - [x] Filtrado por rango de fechas en endpoint de rutas (retrocompatible)
 - [x] Página de reportes con 4 pestañas: Rutas, Visitas, Posiciones, Estadísticas
 - [x] Exportación CSV para todas las pestañas de reportes
-- [x] Sincronización CDC para conductores (tópico `cdc.drivers`)
+- [x] Conductores PostgreSQL-owned (escritura directa, actualizar, desactivar, emparejar dispositivo; sacados de MySQL/CDC)
 
 ---
 
@@ -1265,7 +1273,7 @@ El proyecto incluye scripts de pruebas de carga con **k6** para validar el rendi
 
 - [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado
 - Todos los servicios de Docker Compose ejecutándose
-- Conductores de prueba de carga sembrados: `docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seed-load-test-drivers.sql`
+- Conductores de prueba de carga sembrados (directo al caché PG; reinicia `tracking-service` después para que el mapa de enriquecimiento los cargue): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seed-load-test-drivers.sql`
 
 ### Scripts de Prueba
 

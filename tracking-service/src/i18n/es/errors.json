@@ -41,7 +41,9 @@
   },
   "drivers": {
     "fromToRequired": "Los parámetros \"from\" y \"to\" son obligatorios (ISO 8601)",
-    "fromToInvalid": "\"from\" y \"to\" deben ser fechas ISO 8601 válidas"
+    "fromToInvalid": "\"from\" y \"to\" deben ser fechas ISO 8601 válidas",
+    "notFound": "Conductor {{id}} no encontrado",
+    "deviceInUse": "El dispositivo {{deviceId}} ya está vinculado a otro conductor"
   },
   "osrm": {
     "matricesFailed": "No se pudo obtener la información de ruteo de OSRM. ¿Está corriendo el servicio OSRM?",

@@ -1,9 +1,14 @@
-import { Controller, Get, Param, Query, BadRequestException, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller, Get, Param, Query, BadRequestException, ForbiddenException,
+  Post, Patch, Delete, Body, HttpCode, HttpStatus, ParseUUIDPipe,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DriversService } from './drivers.service';
 import { TimescaleService } from '../timescale/timescale.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
+import { UpdateDriverDto } from './dto/update-driver.dto';
+import { PairDeviceDto } from './dto/pair-device.dto';
 
 @Controller('drivers')
 export class DriversController {
@@ -58,9 +63,43 @@ export class DriversController {
 
   @Roles('admin', 'dispatcher')
   @Post()
-  @HttpCode(HttpStatus.ACCEPTED)
-  async createDriver(@Body() dto: CreateDriverDto) {
+  @HttpCode(HttpStatus.CREATED)
+  async createDriver(@Body() dto: CreateDriverDto, @CurrentUser() user: any) {
+    dto.tenantId = user.tenantId; // enforce tenant from JWT
     return this.driversService.createDriver(dto);
+  }
+
+  @Roles('admin', 'dispatcher')
+  @Patch(':id')
+  updateDriver(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateDriverDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.driversService.updateDriver(id, user.tenantId, dto);
+  }
+
+  @Roles('admin', 'dispatcher')
+  @Delete(':id')
+  deactivateDriver(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.driversService.deactivateDriver(id, user.tenantId);
+  }
+
+  // Managers may pair anyone; a driver may pair only their own device.
+  @Roles('admin', 'dispatcher', 'driver')
+  @Patch(':id/device')
+  pairDevice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PairDeviceDto,
+    @CurrentUser() user: any,
+  ) {
+    if (user.role === 'driver' && user.driverId !== id) {
+      throw new ForbiddenException({ errorCode: 'auth.insufficientPermissions' });
+    }
+    return this.driversService.pairDevice(id, user.tenantId, dto.deviceId);
   }
 
 }

@@ -41,7 +41,9 @@
   },
   "drivers": {
     "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",
-    "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates"
+    "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates",
+    "notFound": "Driver {{id}} not found",
+    "deviceInUse": "Device {{deviceId}} is already paired to another driver"
   },
   "osrm": {
     "matricesFailed": "Failed to get routing data from OSRM. Is the OSRM service running?",

@@ -15,6 +15,11 @@ const MAX_RETRIES = 3; // 4 attempts total, matching the Go handler
  * Port of `internal/consumer/drivers.go`. Consumes `commands.drivers`, INSERTs
  * into MySQL `drivers` (id is the client-supplied CHAR(36) UUID), retries DB
  * failures with exponential backoff (300ms base), and DLQs on parse/op/exhaustion.
+ *
+ * DORMANT: drivers are now PostgreSQL-owned and written directly by
+ * tracking-service, so `commands.drivers` is no longer produced and this handler
+ * sits idle. It is intentionally kept (still self-registers) as the re-enable
+ * path for a future GATED MySQL→PG driver inbound-sync. Do not delete.
  */
 @Injectable()
 export class DriversHandler implements OnModuleInit {
@@ -29,6 +34,8 @@ export class DriversHandler implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    // DORMANT (see class doc): subscribes to an idle topic until the gated
+    // inbound-sync ships. Harmless — no commands.drivers are produced now.
     this.consumer.registerHandler({
       topic: TOPIC,
       handler: (payload) => this.handle(payload),

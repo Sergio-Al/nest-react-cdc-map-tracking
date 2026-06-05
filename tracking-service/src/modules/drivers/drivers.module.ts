@@ -3,9 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DriversController } from './drivers.controller';
 import { DriversService } from './drivers.service';
 import { Driver, DriverPosition } from './entities';
+import { EnrichmentModule } from '../enrichment/enrichment.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Driver, DriverPosition], 'cacheDb')],
+  imports: [
+    TypeOrmModule.forFeature([Driver, DriverPosition], 'cacheDb'),
+    EnrichmentModule,
+  ],
   controllers: [DriversController],
   providers: [DriversService],
   exports: [DriversService],

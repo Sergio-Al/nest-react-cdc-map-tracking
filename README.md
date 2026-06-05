@@ -44,19 +44,19 @@ GPS Devices (1000)
 │  Topics:                                                     │
 │  • gps.positions / gps.positions.enriched / gps.events       │
 │  • visits.events                                             │
-│  • commands.customers / commands.drivers  (command topics)    │
-│  • cdc.customers / cdc.drivers / cdc.accounts / ...          │
+│  • commands.customers  (command topic)                       │
+│  • cdc.customers / cdc.accounts / cdc.products / cdc.orders  │
 └──────┬──────────────────────────────────────┬────────────────┘
        │                                      │
-       │  commands.customers / drivers         │  cdc.* / gps.* / visits.*
+       │  commands.customers                   │  cdc.* / gps.* / visits.*
        ▼                                      ▼
 ┌──────────────────────┐    ┌─────────────────────────────────────────────┐
 │ INTEGRATION SERVICE  │    │         TRACKING SERVICE (NestJS)            │
-│ (Go microservice)    │    │                                             │
+│ (NestJS service)     │    │                                             │
 │                      │    │  ┌─────────────┐  ┌──────────────────────┐  │
 │ • Kafka consumer     │    │  │  Traccar     │  │ Kafka Consumers      │  │
 │ • commands.customers │    │  │  Webhook     │  │ • GPS Positions      │  │
-│ • commands.drivers   │    │  │  Controller  │  │ • CDC Sync           │  │
+│ • drivers: dormant   │    │  │  Controller  │  │ • CDC Sync           │  │
 │ • Writes to MySQL    │    │  └──────┬───────┘  │ • Visit Events       │  │
 │ • Retry + DLQ        │    │         │          └──────────┬───────────┘  │
 │ • /healthz :8090     │    │         ▼                     ▼              │
@@ -72,8 +72,8 @@ GPS Devices (1000)
      Debezium CDC           │ ┌─────┐ ┌────────┐ ┌──────────┐ ┌───────┐  │
            │                │ │Redis│ │Cache PG│ │Timescale │ │  WS   │  │
            ▼                │ └─────┘ └────────┘ └──────────┘ └───────┘  │
-    cdc.customers /         └─────────────────────────────────────────────┘
-    cdc.drivers ──▶ CdcConsumerService ──▶ PostgreSQL cache
+    cdc.* (no drivers)      └─────────────────────────────────────────────┘
+    drivers are PG-owned (direct PG writes; no cdc.drivers)
 ```
 
 ---
@@ -92,10 +92,10 @@ GPS Devices (1000)
 | Historical DB | TimescaleDB | latest-pg16 | Time-series, position history, analytics |
 | Cache / Pub-Sub | Redis | 7-alpine | Latest positions, 3-level cache |
 | Routing Engine | OSRM | latest | Road distance/duration matrix (La Paz, Bolivia) |
-| Integration Service | Go | 1.23 | Kafka → MySQL command consumer (customers, drivers) |
+| Integration Service | NestJS | 10+ | Kafka → MySQL command consumer (customers) |
 | Route Optimizer | OR-Tools (Python) | 9.x | VRP solver via FastAPI sidecar |
 | WebSocket | Socket.io | 4+ | Real-time push to dashboard |
-| Language | TypeScript / Go | 5+ / 1.23 | Backend services |
+| Language | TypeScript | 5+ | Backend services |
 | Containers | Docker + Docker Compose | Latest | Development environment |
 
 ---
@@ -118,7 +118,7 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Binlog configuration (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tables + seed data (accounts, customers, products, orders)
-│   │       └── 03-drivers.sql        # Drivers table (UUID PK, consumed by integration-service)
+│   │       └── 03-drivers.sql        # MySQL drivers table (legacy; drivers now PG-owned, kept for dormant inbound-sync)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Cache schema (sync, drivers, routes, visits, positions)
@@ -156,7 +156,7 @@ streaming-tracking-logistic/
 │       ├── modules/kafka/            # Producer, consumer (group), DLQ service
 │       ├── modules/integration/
 │       │   ├── customers.handler.ts  # commands.customers handler
-│       │   ├── drivers.handler.ts    # commands.drivers handler
+│       │   ├── drivers.handler.ts    # commands.drivers handler (DORMANT — drivers now PG-owned)
 │       │   └── entities/             # MySQL customers + drivers entities
 │       ├── modules/metrics/          # Prometheus-style counters
 │       └── modules/health/           # /healthz + /metrics endpoints
@@ -414,7 +414,7 @@ npm run start:dev
 
 The tracking service will be available at `http://localhost:3000`.
 
-The **integration-service** (NestJS, in `integration-service-nest/`) runs as a Docker container and starts automatically with `docker compose up -d`. It consumes `commands.customers` and `commands.drivers` from Kafka and writes to MySQL. To verify it is running:
+The **integration-service** (NestJS, in `integration-service-nest/`) runs as a Docker container and starts automatically with `docker compose up -d`. It consumes `commands.customers` from Kafka and writes to MySQL. (Its `commands.drivers` handler is kept **dormant** — drivers are now PostgreSQL-owned and written directly by `tracking-service`.) To verify it is running:
 
 ```bash
 curl http://localhost:8090/healthz
@@ -477,25 +477,31 @@ GPS Device → Traccar → HTTP Webhook → NestJS (TraccarController)
         └── Kafka [gps.positions.enriched]
 ```
 
-### Command Write Flow (Customer & Driver creation)
+### Command Write Flow (Customer creation)
 
 ```
-POST /api/customers or /api/drivers
-    → NestJS produces to Kafka [commands.customers / commands.drivers]
+POST /api/customers
+    → NestJS produces to Kafka [commands.customers]
     → HTTP 202 Accepted { correlationId }
     → Integration Service (NestJS) consumes command
         ├── INSERT into MySQL (with 3× retry + exponential backoff)
-        └── On failure → DLQ (commands.customers.dlq / commands.drivers.dlq)
-    → Debezium captures MySQL change → cdc.customers / cdc.drivers
+        └── On failure → DLQ (commands.customers.dlq)
+    → Debezium captures MySQL change → cdc.customers
     → CdcConsumerService syncs to PostgreSQL cache
 ```
+
+> **Drivers do NOT use this flow.** Drivers are PostgreSQL-owned: `POST /api/drivers`
+> writes the `drivers` table directly and returns **`201 Created`** with the driver
+> (synchronous, no Kafka, no MySQL, no CDC). `DriversService` updates the enrichment
+> device→driver map itself. The `integration-service` `DriversHandler` and the
+> `commands.drivers`/`cdc.drivers` topics are retired/dormant — see the Drivers module below.
 
 ### CDC Sync Flow (MySQL → Local Cache)
 
 ```
 MySQL (INSERT/UPDATE/DELETE) → Binlog
     → Debezium captures changes
-    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders, cdc.drivers]
+    → Kafka [cdc.accounts, cdc.customers, cdc.products, cdc.orders]
     → NestJS CdcConsumerService
         ├── Upsert/Delete in PostgreSQL cache
         ├── Invalidate Redis cache
@@ -551,7 +557,7 @@ Fallback: Direct MySQL query
 - **CustomerCacheService**: Implements 3-level cache (Memory → Redis → PG → MySQL fallback). Supports lookup by ID, by tenant, and geo queries.
 
 ### `drivers/` — Driver Management
-- **DriversService/Controller**: Driver creation publishes to `commands.drivers` Kafka topic (async, returns HTTP 202). Reads from local PostgreSQL cache.
+- **DriversService/Controller**: Drivers are **PostgreSQL-owned** (source of truth) — writes go directly to the `drivers` table, no Kafka/MySQL/CDC. Create (`201`), update, soft-deactivate (`DELETE` → `status='inactive'` + clears device), and device pairing (`PATCH /drivers/:id/device`). `DriversService` keeps the enrichment device→driver map current via `refreshDriverMapping`/`removeDriverMapping`. A global partial-unique index `uq_drivers_device_id` prevents two drivers sharing a device. (The `integration-service` `DriversHandler` is kept dormant for a future gated MySQL→PG inbound-sync.)
 - **DriverPosition**: Snapshot entity of the latest known position per driver.
 
 ### `vehicles/` — Vehicle Management
@@ -692,8 +698,10 @@ TRACCAR_API_KEY=traccar-shared-key
 |---|---|---|
 | GET | `/api/drivers` | List all drivers |
 | GET | `/api/drivers/:id` | Get driver by ID |
-| POST | `/api/drivers` | Create driver |
+| POST | `/api/drivers` | Create driver (direct PG write, returns `201`) |
 | PATCH | `/api/drivers/:id` | Update driver |
+| DELETE | `/api/drivers/:id` | Soft-deactivate driver (`status='inactive'`, clears device) |
+| PATCH | `/api/drivers/:id/device` | Pair/unpair a device (`deviceId`); managers or the driver themselves |
 | GET | `/api/drivers/:id/history?from=&to=` | Driver position history (TimescaleDB) |
 
 ### Routes
@@ -932,7 +940,6 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 | `visits.events` | 3 | VisitsService | WsBroadcastService | Visit lifecycle events |
 | `cdc.accounts` | 3 | Debezium | CdcConsumerService | Account changes |
 | `cdc.customers` | 3 | Debezium | CdcConsumerService | Customer changes |
-| `cdc.drivers` | 3 | Debezium | CdcConsumerService | Driver changes |
 | `cdc.products` | 3 | Debezium | CdcConsumerService | Product changes |
 | `cdc.orders` | 3 | Debezium | CdcConsumerService | Order changes |
 | `gps.positions.dlq` | 3 | DlqService | DlqAdminService | Failed raw position enrichments |
@@ -1158,7 +1165,7 @@ The project includes **k6** load testing scripts to validate system performance 
 
 - [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) installed
 - All Docker Compose services running
-- Load test drivers seeded: `docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seed-load-test-drivers.sql`
+- Load test drivers seeded (directly into the PG cache; restart `tracking-service` afterward so the enrichment map loads them): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seed-load-test-drivers.sql`
 
 ### Test Scripts
 
@@ -1262,7 +1269,7 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/cleanup-loa
 - [x] Date range filtering on routes endpoint (backward-compatible)
 - [x] Reports page with 4 tabs: Routes, Visits, Positions, Statistics
 - [x] CSV export for all report tabs
-- [x] CDC sync for drivers (`cdc.drivers` topic)
+- [x] Drivers PostgreSQL-owned (direct writes, update, soft-deactivate, device pairing; cut from MySQL/CDC)
 
 ---
 

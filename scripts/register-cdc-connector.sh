@@ -29,7 +29,7 @@ curl -sf -X POST "${CONNECT_URL}/connectors" \
       "database.server.id": "184054",
       "topic.prefix": "cdc",
       "database.include.list": "core_business",
-      "table.include.list": "core_business.accounts,core_business.customers,core_business.drivers,core_business.products,core_business.orders",
+      "table.include.list": "core_business.accounts,core_business.customers,core_business.products,core_business.orders",
       "schema.history.internal.kafka.bootstrap.servers": "kafka:9092",
       "schema.history.internal.kafka.topic": "_schema-history",
       "include.schema.changes": "false",
@@ -59,6 +59,8 @@ echo ""
 echo "🎉 Done! CDC changes from MySQL will appear on these Kafka topics:"
 echo "   • cdc.accounts"
 echo "   • cdc.customers"
-echo "   • cdc.drivers"
 echo "   • cdc.products"
 echo "   • cdc.orders"
+# NOTE: drivers are PostgreSQL-owned (written directly by tracking-service);
+# they were intentionally removed from this CDC loop. Do not re-add
+# core_business.drivers unless re-enabling the gated MySQL→PG inbound sync.

@@ -19,6 +19,7 @@
   },
   "dialog": {
     "title": "Nuevo conductor",
+    "editTitle": "Editar conductor",
     "name": "Nombre",
     "namePlaceholder": "Nombre completo",
     "phone": "Teléfono",
@@ -27,6 +28,7 @@
     "deviceId": "ID de dispositivo",
     "vehicleType": "Tipo de vehículo",
     "create": "Crear",
+    "save": "Guardar",
     "cancel": "Cancelar",
     "types": {
       "van": "Furgoneta",
@@ -37,7 +39,11 @@
   },
   "toasts": {
     "created": "Conductor \"{{name}}\" creado",
-    "createFailed": "No se pudo crear el conductor"
+    "createFailed": "No se pudo crear el conductor",
+    "updated": "Conductor \"{{name}}\" actualizado",
+    "updateFailed": "No se pudo actualizar el conductor",
+    "deactivated": "Conductor \"{{name}}\" desactivado",
+    "deactivateFailed": "No se pudo desactivar el conductor"
   },
   "detail": {
     "empty": {

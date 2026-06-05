@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react';
 import { Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { useDrivers, useCreateDriver, useInitialPositions } from '@/hooks/api/useDrivers';
+import {
+  useDrivers,
+  useCreateDriver,
+  useUpdateDriver,
+  useDeactivateDriver,
+  useInitialPositions,
+} from '@/hooks/api/useDrivers';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocket } from '@/hooks/useSocket';
 import { CreateDriverDialog } from '@/components/drivers/CreateDriverDialog';
@@ -12,7 +18,8 @@ import { FilterBar, useDatasetFilters } from '@/components/filters';
 import { TableShell, Td } from '@/components/ui/table-shell';
 import { DRIVER_FIELDS, DRIVER_VIEWS } from '@/components/reports/reportFilters';
 import { cn } from '@/lib/utils';
-import type { CreateDriverDto } from '@/hooks/api/useDrivers';
+import type { CreateDriverDto, UpdateDriverDto } from '@/hooks/api/useDrivers';
+import type { Driver } from '@/types/driver.types';
 
 function initials(name: string): string {
   return name.split(' ').map((n) => n[0]).filter(Boolean).slice(0, 2).join('');
@@ -26,12 +33,15 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function DriversPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDriver, setEditDriver] = useState<Driver | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const user = useAuthStore((s) => s.user);
   const { isConnected } = useSocket();
   const { data: drivers = [], isLoading } = useDrivers();
   const createDriver = useCreateDriver();
+  const updateDriver = useUpdateDriver();
+  const deactivateDriver = useDeactivateDriver();
   const { t } = useTranslation('drivers');
 
   // Seed `useMapStore.positions` from REST so the detail panel mini-map has data
@@ -54,6 +64,25 @@ export default function DriversPage() {
       toast.success(t('toasts.created', { name: dto.name }));
     } catch {
       toast.error(t('toasts.createFailed'));
+    }
+  };
+
+  const handleUpdate = async (id: string, dto: UpdateDriverDto) => {
+    try {
+      await updateDriver.mutateAsync({ id, dto });
+      toast.success(t('toasts.updated', { name: dto.name ?? '' }));
+    } catch {
+      toast.error(t('toasts.updateFailed'));
+    }
+  };
+
+  const handleDeactivate = async (driver: Driver) => {
+    try {
+      await deactivateDriver.mutateAsync(driver.id);
+      toast.success(t('toasts.deactivated', { name: driver.name }));
+      if (selectedId === driver.id) setSelectedId(null);
+    } catch {
+      toast.error(t('toasts.deactivateFailed'));
     }
   };
 
@@ -162,17 +191,33 @@ export default function DriversPage() {
           })}
         </TableShell>
 
-        <DriverDetailPanel driver={selected} onClose={() => setSelectedId(null)} />
+        <DriverDetailPanel
+          driver={selected}
+          canManage={isManager}
+          onEdit={(d) => setEditDriver(d)}
+          onDeactivate={handleDeactivate}
+          isDeactivating={deactivateDriver.isPending}
+          onClose={() => setSelectedId(null)}
+        />
       </div>
 
       <Footer isConnected={isConnected} />
 
       <CreateDriverDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        open={dialogOpen || !!editDriver}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDialogOpen(false);
+            setEditDriver(null);
+          } else {
+            setDialogOpen(true);
+          }
+        }}
         tenantId={user?.tenantId ?? ''}
-        onSubmit={handleCreate}
-        isLoading={createDriver.isPending}
+        driver={editDriver}
+        onCreate={handleCreate}
+        onUpdate={handleUpdate}
+        isLoading={createDriver.isPending || updateDriver.isPending}
       />
     </div>
   );

@@ -14,6 +14,10 @@ type Tab = 'overview' | 'vehicle';
 interface Props {
   driver: Driver | null;
   onClose: () => void;
+  canManage?: boolean;
+  onEdit?: (driver: Driver) => void;
+  onDeactivate?: (driver: Driver) => void;
+  isDeactivating?: boolean;
 }
 
 function initials(name: string): string {
@@ -26,7 +30,14 @@ const STATUS_STYLES: Record<string, string> = {
   offline: 'border-border bg-mc-surface text-mc-text-muted',
 };
 
-export function DriverDetailPanel({ driver, onClose }: Props) {
+export function DriverDetailPanel({
+  driver,
+  onClose,
+  canManage = false,
+  onEdit,
+  onDeactivate,
+  isDeactivating = false,
+}: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const { t, i18n } = useTranslation('drivers');
   const { t: tDashboard } = useTranslation('dashboard');
@@ -78,27 +89,28 @@ export function DriverDetailPanel({ driver, onClose }: Props) {
         </span>
       }
       actions={
-        // Edit / Deactivate hooks (PATCH /drivers/:id, DELETE) don't exist yet — disabled with tooltip.
-        <>
-          <button
-            type="button"
-            disabled
-            title={t('detail.actions.notAvailable')}
-            className="flex h-8 cursor-not-allowed items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim"
-          >
-            <Pencil className="h-[13px] w-[13px]" />
-            <span>{t('detail.actions.edit')}</span>
-          </button>
-          <button
-            type="button"
-            disabled
-            title={t('detail.actions.notAvailable')}
-            className="flex h-8 cursor-not-allowed items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim"
-          >
-            <PowerOff className="h-[13px] w-[13px]" />
-            <span>{t('detail.actions.deactivate')}</span>
-          </button>
-        </>
+        // Manager-only: edit opens the form dialog, deactivate soft-disables the driver.
+        canManage ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onEdit?.(driver)}
+              className="flex h-8 cursor-pointer items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-foreground transition-colors hover:border-mc-border-strong hover:bg-mc-surface"
+            >
+              <Pencil className="h-[13px] w-[13px]" />
+              <span>{t('detail.actions.edit')}</span>
+            </button>
+            <button
+              type="button"
+              disabled={isDeactivating || driver.status === 'inactive'}
+              onClick={() => onDeactivate?.(driver)}
+              className="flex h-8 items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim transition-colors hover:border-mc-danger/40 hover:text-mc-danger disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <PowerOff className="h-[13px] w-[13px]" />
+              <span>{t('detail.actions.deactivate')}</span>
+            </button>
+          </>
+        ) : null
       }
       tabs={tabs}
       activeTabId={activeTab}

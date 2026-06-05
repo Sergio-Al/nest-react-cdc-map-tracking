@@ -107,3 +107,53 @@ export function useCreateDriver() {
     },
   });
 }
+
+export interface UpdateDriverDto {
+  name?: string;
+  phone?: string | null;
+  vehiclePlate?: string | null;
+  vehicleType?: string;
+  status?: string;
+  deviceId?: string | null;
+}
+
+export function useUpdateDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, dto }: { id: string; dto: UpdateDriverDto }) => {
+      const response = await api.patch<Driver>(`/drivers/${id}`, dto);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+}
+
+/** Soft-deactivate a driver (marks inactive + clears device pairing). */
+export function useDeactivateDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete<Driver>(`/drivers/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+}
+
+/** Bind (or clear, with null) a phone's device_id to a driver. */
+export function usePairDriverDevice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, deviceId }: { id: string; deviceId: string | null }) => {
+      const response = await api.patch<Driver>(`/drivers/${id}/device`, { deviceId });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+}

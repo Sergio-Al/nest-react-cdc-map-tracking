@@ -8,13 +8,16 @@ import {
   CachedProduct,
   SyncState,
 } from './entities';
-import { Driver } from '../drivers/entities';
 import { CdcMetricsService } from './cdc-metrics.service';
-import { EnrichmentService } from '../enrichment/enrichment.service';
 
 /**
  * CDC Consumer – listens to Debezium Kafka topics and syncs
  * MySQL source-of-truth data into the local PostgreSQL cache.
+ *
+ * NOTE: `drivers` was cut out of this loop — drivers are now
+ * PostgreSQL-owned and written directly by DriversService, which also
+ * keeps the enrichment device→driver map current. Do not re-add a
+ * `cdc.drivers` entry here.
  *
  * Debezium messages (with ExtractNewRecordState transform) look like:
  *   - INSERT/UPDATE: { "id": 1, "name": "Acme", ..., "__op": "c|u", "__table": "accounts", "__source_ts_ms": ... }
@@ -33,7 +36,6 @@ export class CdcConsumerService implements OnModuleInit {
   constructor(
     private readonly kafkaConsumer: KafkaConsumerService,
     private readonly cdcMetrics: CdcMetricsService,
-    private readonly enrichment: EnrichmentService,
 
     @InjectRepository(CachedAccount, 'cacheDb')
     private readonly accountRepo: Repository<CachedAccount>,
@@ -43,9 +45,6 @@ export class CdcConsumerService implements OnModuleInit {
 
     @InjectRepository(CachedProduct, 'cacheDb')
     private readonly productRepo: Repository<CachedProduct>,
-
-    @InjectRepository(Driver, 'cacheDb')
-    private readonly driverRepo: Repository<Driver>,
 
     @InjectRepository(SyncState, 'cacheDb')
     private readonly syncStateRepo: Repository<SyncState>,
@@ -96,20 +95,6 @@ export class CdcConsumerService implements OnModuleInit {
           syncedAt: new Date(),
         }),
       },
-      'cdc.drivers': {
-        repo: this.driverRepo,
-        tableName: 'drivers',
-        mapFn: (d: Record<string, any>) => ({
-          id: d.id,
-          tenantId: d.tenant_id,
-          name: d.name,
-          deviceId: d.device_id ?? null,
-          phone: d.phone ?? null,
-          vehiclePlate: d.vehicle_plate ?? null,
-          vehicleType: d.vehicle_type ?? 'van',
-          status: d.status ?? 'offline',
-        }),
-      },
     };
   }
 
@@ -156,23 +141,12 @@ export class CdcConsumerService implements OnModuleInit {
       const id = data.id;
       if (id) {
         await repo.delete({ id });
-        if (topic === 'cdc.drivers') this.enrichment.removeDriverMapping(id);
         this.logger.debug(`[${tableName}] DELETED id=${id}`);
       }
     } else {
       // UPSERT (INSERT or UPDATE)
       const entity = mapFn(data);
       await repo.upsert(entity, ['id']);
-      // Keep the in-memory device→driver map current so device_id changes take
-      // effect for live GPS enrichment without restarting the service.
-      if (topic === 'cdc.drivers') {
-        this.enrichment.refreshDriverMapping(
-          entity.deviceId ?? null,
-          entity.id,
-          entity.tenantId,
-          entity.name,
-        );
-      }
       this.logger.debug(`[${tableName}] UPSERTED id=${entity.id} (op=${op})`);
     }
 
