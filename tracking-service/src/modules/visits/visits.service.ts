@@ -5,6 +5,7 @@ import { PlannedVisit } from './entities/planned-visit.entity';
 import { CreateVisitDto, UpdateVisitStatusDto } from './dto/visit.dto';
 import { RoutesService } from '../routes/routes.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
+import { OrdersService } from '../orders/orders.service';
 
 @Injectable()
 export class VisitsService {
@@ -16,6 +17,7 @@ export class VisitsService {
     @Inject(forwardRef(() => RoutesService))
     private readonly routesService: RoutesService,
     private readonly kafkaProducer: KafkaProducerService,
+    private readonly ordersService: OrdersService,
   ) {}
 
   async create(dto: CreateVisitDto): Promise<PlannedVisit> {
@@ -24,6 +26,7 @@ export class VisitsService {
       routeId: dto.routeId,
       driverId: dto.driverId,
       customerId: dto.customerId,
+      orderId: dto.orderId ?? null,
       sequenceNumber: dto.sequenceNumber,
       visitType: dto.visitType || 'delivery',
       scheduledDate: dto.scheduledDate,
@@ -116,6 +119,13 @@ export class VisitsService {
     // Publish visit event to Kafka
     await this.publishVisitEvent(saved, previousStatus);
 
+    // If this completed visit fulfills an order, flip the order's status. The
+    // write path follows the tenant's mode (standalone → direct PG; integrated →
+    // commands.orders → MySQL → CDC). order_id presence is the gate.
+    if (saved.status === 'completed' && saved.orderId != null) {
+      await this.completeOrderForVisit(saved);
+    }
+
     // Advance the parent route's status from this visit's progress
     // (covers both manual updates and geofence auto-arrival).
     await this.routesService.syncStatusFromVisits(saved.routeId);
@@ -155,6 +165,31 @@ export class VisitsService {
     if (visit.status === 'arrived' || visit.status === 'in_progress') {
       visit.departedAt = new Date();
       await this.visitRepo.save(visit);
+    }
+  }
+
+  /**
+   * Mark the visit's order completed. Delegates to OrdersService, which routes by
+   * tenant mode: standalone updates orders_cache directly; integrated emits a
+   * narrow status-only command (commands.orders → MySQL → CDC → orders_cache).
+   * We assert delivery completion only — never ERP-owned fields (amount, lines).
+   */
+  private async completeOrderForVisit(visit: PlannedVisit): Promise<void> {
+    if (visit.orderId == null) return;
+    try {
+      await this.ordersService.setOrderStatus(visit.tenantId, visit.orderId, 'completed', {
+        completedAt: visit.completedAt,
+        driverId: visit.driverId,
+        visitId: visit.id,
+      });
+      this.logger.log(
+        `Order ${visit.orderId} marked completed (visit=${visit.id}, tenant=${visit.tenantId})`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to complete order=${visit.orderId} for visit=${visit.id}`,
+        error,
+      );
     }
   }
 

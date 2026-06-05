@@ -5,6 +5,7 @@ import { TenantSettings } from './entities/tenant-settings.entity';
 import { UserSettings } from './entities/user-settings.entity';
 import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 import { UpdateTenantSettingsDto } from './dto/update-tenant-settings.dto';
+import { EntitlementsService } from '../subscriptions/entitlements.service';
 
 /** Flat, fully-resolved preferences the app consumes. */
 export interface EffectiveSettings {
@@ -37,6 +38,7 @@ export class SettingsService {
     private readonly tenantRepo: Repository<TenantSettings>,
     @InjectRepository(UserSettings, 'cacheDb')
     private readonly userRepo: Repository<UserSettings>,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   /** user value ?? tenant value ?? system default (theme/density: user-only). */
@@ -73,6 +75,19 @@ export class SettingsService {
     return this.tenantRepo.findOne({ where: { tenantId } });
   }
 
+  /**
+   * Resolve the per-tenant order write mode. Falls back to the system default
+   * (standalone, app-create allowed) when the tenant has no settings row.
+   */
+  async getOrderMode(
+    tenantId: string,
+  ): Promise<{ ingestMode: 'standalone' | 'integrated'; allowAppOrderCreate: boolean }> {
+    const tenant = await this.tenantRepo.findOne({ where: { tenantId } });
+    const ingestMode = tenant?.ingestMode === 'integrated' ? 'integrated' : 'standalone';
+    const allowAppOrderCreate = tenant?.allowAppOrderCreate ?? true;
+    return { ingestMode, allowAppOrderCreate };
+  }
+
   async updateUser(
     userId: string,
     tenantId: string,
@@ -92,6 +107,12 @@ export class SettingsService {
     dto: UpdateTenantSettingsDto,
   ): Promise<TenantSettings> {
     if (dto.timezone) this.assertValidTimezone(dto.timezone);
+    // Integration-connect gate: turning integrated mode ON requires a plan that
+    // permits it (the upsell capability). Throws 403 integrationNotAllowed.
+    // Switching back to standalone is always allowed (not gated).
+    if (dto.ingestMode === 'integrated') {
+      await this.entitlements.assertCanIntegrate(tenantId);
+    }
     const existing = await this.tenantRepo.findOne({ where: { tenantId } });
     const row = existing ?? this.tenantRepo.create({ tenantId });
     Object.assign(row, dto);

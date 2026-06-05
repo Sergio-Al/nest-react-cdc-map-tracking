@@ -3,11 +3,17 @@ import {
   Get,
   Query,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { TimescaleService } from '../timescale/timescale.service';
+import { FeatureGuard } from '../subscriptions/guards/feature.guard';
+import { RequiresFeature } from '../subscriptions/decorators/requires-feature.decorator';
 
+// Reporting/analytics endpoints — gated behind the 'reports' plan feature.
+@UseGuards(FeatureGuard)
+@RequiresFeature('reports')
 @Controller('history')
 export class HistoryController {
   constructor(private readonly timescaleService: TimescaleService) {}

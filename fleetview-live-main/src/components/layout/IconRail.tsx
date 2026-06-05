@@ -18,9 +18,10 @@ import { useAuthStore } from "@/stores/auth.store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { cn } from "@/lib/utils";
-import { navItems, canSee, isActiveRoute } from "./nav";
+import { navItems, canSee, hasFeature, isActiveRoute } from "./nav";
 import type { NavItem } from "./nav";
 import { toast } from "sonner";
+import { useEntitlements } from "@/hooks/api/useEntitlements";
 
 function initials(name?: string | null): string {
   if (!name) return "U";
@@ -75,9 +76,15 @@ export function IconRail() {
   const { pathname } = useLocation();
   const { user, logout } = useAuthStore();
   const { t } = useTranslation("nav");
+  const { data: entitlements } = useEntitlements();
+  const features = entitlements?.features;
 
-  const primary = navItems.filter((i) => i.group === "primary" && canSee(i, user?.role));
-  const secondary = navItems.filter((i) => i.group === "secondary" && canSee(i, user?.role));
+  const primary = navItems.filter(
+    (i) => i.group === "primary" && canSee(i, user?.role) && hasFeature(i, features),
+  );
+  const secondary = navItems.filter(
+    (i) => i.group === "secondary" && canSee(i, user?.role) && hasFeature(i, features),
+  );
 
   const handleLogout = async () => {
     try {

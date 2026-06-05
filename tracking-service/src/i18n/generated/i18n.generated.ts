@@ -52,6 +52,15 @@ export type I18nTranslations = {
             "notFound": string;
             "deviceInUse": string;
         };
+        "orders": {
+            "notFound": string;
+            "appCreateDisabled": string;
+        };
+        "subscriptions": {
+            "seatLimitReached": string;
+            "featureNotInPlan": string;
+            "integrationNotAllowed": string;
+        };
         "osrm": {
             "matricesFailed": string;
             "geometryFailed": string;

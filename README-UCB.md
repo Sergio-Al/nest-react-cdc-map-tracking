@@ -282,6 +282,8 @@ bash scripts/register-cdc-connector.sh
 
 Esto configura Debezium para capturar cambios de las tablas `accounts`, `customers`, `products` y `orders` de MySQL y publicarlos en los tópicos `cdc.*` de Kafka.
 
+El script hace un upsert de la configuración del conector vía `PUT …/connectors/mysql-cdc-v4/config`, por lo que es **idempotente** — volver a ejecutarlo sobre un conector ya registrado lo actualiza en su lugar y termina con código 0 (sin `409 Conflict`). Sin este conector en ejecución, las lecturas en modo integrado quedan vacías: las escrituras llegan a MySQL pero nunca se sincronizan con la caché PostgreSQL. Verifica con `curl -s localhost:8083/connectors/mysql-cdc-v4/status` (se espera que `connector.state` y la tarea estén ambos en `RUNNING`).
+
 ### 7. Instalar dependencias del servicio NestJS
 
 ```bash

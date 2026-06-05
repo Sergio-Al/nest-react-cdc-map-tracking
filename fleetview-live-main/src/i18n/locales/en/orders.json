@@ -1,0 +1,87 @@
+{
+  "page": {
+    "title": "Orders",
+    "subtitle": "Manage your order catalog · {{count}} total",
+    "newOrder": "New Order"
+  },
+  "banner": {
+    "syncing": "<strong>{{names}}</strong> — syncing via CDC, will appear in a few seconds."
+  },
+  "gate": {
+    "disabled": "Order creation is managed by the integration system for this tenant."
+  },
+  "status": {
+    "pending": "pending",
+    "confirmed": "confirmed",
+    "in_transit": "in transit",
+    "completed": "completed",
+    "cancelled": "cancelled"
+  },
+  "table": {
+    "order": "Order #",
+    "customer": "Customer",
+    "status": "Status",
+    "total": "Total",
+    "deliveryDate": "Delivery date",
+    "created": "Created",
+    "empty": "No orders match these filters."
+  },
+  "dialog": {
+    "title": "New Order",
+    "customer": "Customer",
+    "customerPlaceholder": "Select a customer…",
+    "orderNumber": "Order number",
+    "orderNumberPlaceholder": "e.g. ORD-001",
+    "status": "Status",
+    "totalAmount": "Total amount",
+    "totalAmountPlaceholder": "0.00",
+    "deliveryDate": "Delivery date",
+    "notes": "Notes",
+    "notesPlaceholder": "Optional notes…",
+    "create": "Create",
+    "cancel": "Cancel",
+    "statusOptions": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "in_transit": "In transit",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "detail": {
+    "empty": {
+      "title": "No order selected",
+      "subtitle": "Pick an order from the list to see its details and update its status."
+    },
+    "tabs": {
+      "overview": "Overview"
+    },
+    "sections": {
+      "orderInfo": "Order info",
+      "notes": "Notes",
+      "noNotes": "No notes"
+    },
+    "fields": {
+      "customer": "Customer",
+      "orderNumber": "Order number",
+      "status": "Status",
+      "total": "Total",
+      "deliveryDate": "Delivery date",
+      "created": "Created",
+      "updated": "Updated",
+      "synced": "Synced"
+    },
+    "actions": {
+      "updateStatus": "Update status",
+      "saving": "Saving…"
+    }
+  },
+  "toasts": {
+    "queued": "Order queued — will appear shortly via CDC sync",
+    "created": "Order created successfully",
+    "createFailed": "Failed to create order",
+    "updateQueued": "Status update queued — will sync shortly",
+    "updated": "Order updated successfully",
+    "updateFailed": "Failed to update order"
+  }
+}

@@ -162,7 +162,10 @@ streaming-tracking-logistic/
 │       └── modules/health/           # Endpoints /healthz + /metrics
 │
 ├── scripts/
-│   ├── register-cdc-connector.sh     # Registra el conector Debezium en Kafka Connect
+│   ├── register-cdc-connector.sh     # Registra/actualiza el conector Debezium (upsert PUT idempotente)
+│   ├── smoke-orders-dual-mode.sh     # Prueba e2e: pedidos modo standalone (PG) vs integrado (CDC)
+│   ├── seed-visit-completions.sql    # Siembra visitas completadas para demos de reportes/historial
+│   ├── migrate-daily-stats-tz.sql    # Rellena driver_daily_stats agrupado por zona horaria
 │   ├── seed-load-test-drivers.sql    # Genera 1,000 conductores de prueba (LOAD0001-LOAD1000)
 │   └── cleanup-load-test-drivers.sql # Elimina conductores de prueba de carga y sus posiciones
 │
@@ -354,6 +357,10 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 > docker exec -i cache-db psql -U tracking -d tracking_cache \
 >   < infrastructure/cache-db/init/08-settings.sql
 >
+> # Planes de suscripción + suscripciones por inquilino (plano de control SaaS) y semilla del catálogo de planes
+> docker exec -i cache-db psql -U tracking -d tracking_cache \
+>   < infrastructure/cache-db/init/11-subscriptions.sql
+>
 > # Reconstruir driver_daily_stats para agrupar en la zona horaria del despliegue (DEFAULT_TZ)
 > docker exec -i timescale psql -U timescale -d tracking_history \
 >   < scripts/migrate-daily-stats-tz.sql
@@ -367,6 +374,8 @@ bash scripts/register-cdc-connector.sh
 ```
 
 Esto configura Debezium para capturar cambios de las tablas `accounts`, `customers`, `products` y `orders` de MySQL y publicarlos en los tópicos `cdc.*` de Kafka.
+
+El script hace un upsert de la configuración del conector vía `PUT …/connectors/mysql-cdc-v4/config`, por lo que es **idempotente** — volver a ejecutarlo sobre un conector ya registrado lo actualiza en su lugar y termina con código 0 (sin `409 Conflict`). Sin este conector en ejecución, las lecturas en modo integrado quedan vacías: las escrituras llegan a MySQL pero nunca se sincronizan con la caché PostgreSQL. Verifica con `curl -s localhost:8083/connectors/mysql-cdc-v4/status` (se espera que `connector.state` y la tarea estén ambos en `RUNNING`).
 
 ### 7. Instalar dependencias del servicio NestJS
 
@@ -580,6 +589,13 @@ Fallback: MySQL directo
 
 ### `settings/` — Preferencias de Usuario e Inquilino
 - **SettingsService/Controller**: Preferencias por inquilino (valores por defecto) y por usuario (zona horaria, idioma, formato de fecha/número, unidades, rango de reporte predeterminado, tema, densidad). Almacenadas en `tenant_settings` / `user_settings` — **tablas propias escritas directamente al caché PG** (no sincronizadas desde MySQL). `getEffective()` resuelve `override de usuario → valor por defecto del inquilino → valor por defecto del sistema`. Las preferencias efectivas también se devuelven en el login y en `/api/auth/profile`.
+
+### `subscriptions/` — Planes y Entitlements (plano de control SaaS)
+- **EntitlementsService**: Resuelve el plan + la suscripción de un inquilino en entitlements concretos y aplica los límites del plan. Tablas **PG-owned** `subscription_plans` (catálogo) + `tenant_subscriptions` (una fila por inquilino), escritas directamente al caché (no CDC) — así un inquilino standalone funciona sin Kafka/CDC. Un inquilino sin fila de suscripción cae a los valores por defecto del plan gratuito Starter. Gates conectados:
+  - **Límite de cupos** — `assertCanAddDriver` en `DriversService.create` devuelve **402** cuando los conductores activos (`status <> 'inactive'`) alcanzan `COALESCE(seats_purchased, plan.max_drivers)`.
+  - **Upsell de integración** — `assertCanIntegrate` impide cambiar `tenant_settings.ingest_mode` a `integrated` (vía `PUT /api/tenant/settings`) salvo que el plan tenga `integration_allowed` (**403**).
+  - **Gate de funciones** — `@RequiresFeature` + `FeatureGuard` protegen `POST /api/routes/:id/optimize` (`route_optimization`) y los endpoints de reportes `GET /api/history/{stats,visits}` (`reports`) (**403** si falta).
+- **SubscriptionsController**: `GET /api/me/entitlements` (flags de funciones para el frontend — el dashboard oculta/deshabilita la UI restringida a partir de esto) y `GET /api/tenant/subscription` (admin). *El ciclo de facturación (webhooks de Stripe, registro/prueba) aún no está conectado.*
 
 ### `visits/` — Visitas Planificadas
 - **VisitsService/Controller**: Crear visitas, gestionar ciclo de vida (`pending` → `arrived` → `in_progress` → `completed` → `departed`), llegada/salida automática, publicación de eventos, eliminar visitas pendientes.
@@ -970,6 +986,7 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 - `driver_positions` — Snapshot de la última posición por conductor
 - `sync_state` — Estado de sincronización CDC
 - `tenant_settings`, `user_settings` — Preferencias por inquilino (defaults) y por usuario (zona horaria, idioma, unidades, tema, …), escritas directamente (no CDC)
+- `subscription_plans`, `tenant_subscriptions` — Plano de control SaaS: catálogo de planes + suscripción por inquilino. Aplica gates de cupos/funciones/upsell de integración (ver el módulo `subscriptions/`); PG-owned, funciona sin Kafka/CDC
 
 ### TimescaleDB (`tracking_history`)
 

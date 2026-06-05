@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { Driver, DriverPosition } from './entities';
 import { EnrichmentService } from '../enrichment/enrichment.service';
+import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 
@@ -30,6 +31,7 @@ export class DriversService {
     private readonly positionRepo: Repository<DriverPosition>,
 
     private readonly enrichment: EnrichmentService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async findAll(tenantId?: string): Promise<Driver[]> {
@@ -56,6 +58,8 @@ export class DriversService {
 
   /** Create a driver directly in PG (synchronous). Returns the created row. */
   async createDriver(dto: CreateDriverDto): Promise<Driver> {
+    // Seat gate: a driver = a billable seat. Throws 402 when at/over the plan cap.
+    await this.entitlements.assertCanAddDriver(dto.tenantId);
     if (dto.deviceId) {
       await this.assertDeviceFree(dto.deviceId, null);
     }

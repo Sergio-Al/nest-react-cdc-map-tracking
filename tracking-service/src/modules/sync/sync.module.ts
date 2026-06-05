@@ -7,6 +7,7 @@ import {
   CachedAccount,
   CachedCustomer,
   CachedProduct,
+  CachedOrder,
   SyncState,
 } from './entities';
 import { WebsocketModule } from '../websocket/websocket.module';
@@ -17,6 +18,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
       CachedAccount,
       CachedCustomer,
       CachedProduct,
+      CachedOrder,
       SyncState,
     ], 'cacheDb'),
     forwardRef(() => WebsocketModule),

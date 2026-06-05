@@ -31,6 +31,13 @@ export class PlannedVisit {
   @Index()
   customerId!: number;
 
+  // Link to the order this visit fulfills (orders_cache.id). Null for stops with
+  // no order; its presence gates the order-status update on completion. The update
+  // path follows the tenant's mode (standalone → direct PG; integrated → CDC).
+  @Column({ name: 'order_id', type: 'bigint', nullable: true })
+  @Index()
+  orderId!: number | null;
+
   @Column({ name: 'sequence_number', type: 'int' })
   sequenceNumber!: number;
 

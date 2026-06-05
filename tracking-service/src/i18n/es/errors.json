@@ -45,6 +45,15 @@
     "notFound": "Conductor {{id}} no encontrado",
     "deviceInUse": "El dispositivo {{deviceId}} ya está vinculado a otro conductor"
   },
+  "orders": {
+    "notFound": "Pedido {{id}} no encontrado",
+    "appCreateDisabled": "La creación de pedidos desde la app está deshabilitada para este inquilino; los pedidos se gestionan en su sistema integrado"
+  },
+  "subscriptions": {
+    "seatLimitReached": "Se alcanzó el límite de conductores ({{limit}}). Mejore su plan o agregue cupos para añadir más conductores",
+    "featureNotInPlan": "La función '{{feature}}' no está incluida en su plan actual",
+    "integrationNotAllowed": "La integración con sistemas no está disponible en su plan actual; mejore su plan para habilitarla"
+  },
   "osrm": {
     "matricesFailed": "No se pudo obtener la información de ruteo de OSRM. ¿Está corriendo el servicio OSRM?",
     "geometryFailed": "No se pudo obtener la geometría de la ruta desde OSRM."

@@ -27,6 +27,15 @@ export class TenantSettings {
   @Column({ name: 'default_report_preset', type: 'varchar', length: 10, default: '14d' })
   defaultReportPreset!: string;
 
+  // Per-tenant write mode for business entities (orders). standalone = PG is source
+  // of truth (direct, synchronous); integrated = MySQL/CDC backbone.
+  @Column({ name: 'ingest_mode', type: 'varchar', length: 20, default: 'standalone' })
+  ingestMode!: string;
+
+  // Integrated-mode only: whether the dashboard may create/update orders.
+  @Column({ name: 'allow_app_order_create', type: 'boolean', default: true })
+  allowAppOrderCreate!: boolean;
+
   @Column({ type: 'jsonb', nullable: true })
   extra!: Record<string, unknown> | null;
 

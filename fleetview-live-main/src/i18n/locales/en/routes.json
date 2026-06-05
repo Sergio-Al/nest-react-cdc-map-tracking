@@ -29,6 +29,7 @@
     "addStop": "Add a stop",
     "actions": {
       "optimize": "Optimize",
+      "optimizeLocked": "Route optimization is not available on your current plan. Upgrade to unlock.",
       "save": "Save",
       "stop": "Stop"
     },

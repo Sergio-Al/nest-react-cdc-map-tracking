@@ -22,6 +22,7 @@ import { RouteSelector } from './RouteSelector';
 import { useRouteBuilderStore } from '@/stores/routeBuilder.store';
 import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
 import { useAuthStore } from '@/stores/auth.store';
+import { useHasFeature } from '@/hooks/api/useEntitlements';
 import { useRouteVisits, useCustomers } from '@/hooks/api/useRouteBuilder';
 import { useRoutes } from '@/hooks/api/useRoutes';
 import { useDrivers } from '@/hooks/api/useDrivers';
@@ -313,6 +314,7 @@ export function RouteBuilderSidebar({ listRoutes }: RouteBuilderSidebarProps = {
   } = useRouteBuilderActions();
   const userRole = useAuthStore((s) => s.user?.role);
   const canManageStatus = userRole === 'admin' || userRole === 'dispatcher';
+  const canOptimize = useHasFeature('route_optimization');
 
   // Sync server visits → local order while there are no unsaved edits.
   useEffect(() => {
@@ -458,8 +460,9 @@ export function RouteBuilderSidebar({ listRoutes }: RouteBuilderSidebarProps = {
           <div className="mt-3 flex gap-2">
             <Button
               className="h-9 flex-1 gap-1.5"
-              onClick={optimize}
-              disabled={isOptimizing || localVisits.length < 2}
+              onClick={canOptimize ? optimize : undefined}
+              disabled={isOptimizing || localVisits.length < 2 || !canOptimize}
+              title={!canOptimize ? t('sidebar.actions.optimizeLocked') : undefined}
             >
               {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               {t('sidebar.actions.optimize')}

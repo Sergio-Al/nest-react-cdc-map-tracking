@@ -43,7 +43,7 @@ export class CustomersHandler implements OnModuleInit {
     let data: CustomerData;
     try {
       cmd = this.parseEnvelope(raw);
-      if (cmd.op !== 'create') {
+      if (cmd.op !== 'create' && cmd.op !== 'update') {
         throw new PermanentCommandError(`unhandled op: ${cmd.op}`);
       }
       data = this.parseData(cmd);
@@ -57,15 +57,30 @@ export class CustomersHandler implements OnModuleInit {
       return;
     }
 
-    const geofence = data.geofenceRadiusMeters ?? 100;
-    const customerType = data.customerType ?? 'regular';
-
     let lastErr: Error | undefined;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       if (attempt > 0) {
         await this.sleep(300 * Math.pow(2, attempt - 1));
       }
       try {
+        if (cmd.op === 'update') {
+          const result = await this.repo.update(
+            { id: String(data.id), tenantId: data.tenantId },
+            this.buildUpdateFields(data),
+          );
+          // Missing row is permanent — retrying won't help.
+          if (!result.affected) {
+            const reason = `customer not found: id=${data.id} tenant=${data.tenantId}`;
+            this.logger.error(`${TOPIC}: ${reason} (correlationId=${cmd.correlationId})`);
+            await this.dlq.sendToDlq(TOPIC, message.key, raw, reason);
+            return;
+          }
+          this.logger.log(
+            `customer updated in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, id=${data.id})`,
+          );
+          return;
+        }
+
         await this.repo.insert({
           tenantId: data.tenantId,
           name: data.name,
@@ -75,8 +90,8 @@ export class CustomersHandler implements OnModuleInit {
           zone: data.zone ?? null,
           latitude: data.latitude ?? null,
           longitude: data.longitude ?? null,
-          geofenceRadiusMeters: geofence,
-          customerType,
+          geofenceRadiusMeters: data.geofenceRadiusMeters ?? 100,
+          customerType: data.customerType ?? 'regular',
         });
         this.logger.log(
           `customer created in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, name=${data.name})`,
@@ -86,7 +101,7 @@ export class CustomersHandler implements OnModuleInit {
         lastErr = err as Error;
         this.metrics.addDbError();
         this.logger.warn(
-          `DB insert failed, retrying (attempt ${attempt + 1}, correlationId=${cmd.correlationId}): ${lastErr.message}`,
+          `DB ${cmd.op} failed, retrying (attempt ${attempt + 1}, correlationId=${cmd.correlationId}): ${lastErr.message}`,
         );
       }
     }
@@ -106,10 +121,33 @@ export class CustomersHandler implements OnModuleInit {
     if (!data || typeof data !== 'object') {
       throw new PermanentCommandError('invalid data: not an object');
     }
-    if (!data.tenantId || !data.name) {
-      throw new PermanentCommandError('invalid data: tenantId and name are required');
+    if (!data.tenantId) {
+      throw new PermanentCommandError('invalid data: tenantId is required');
+    }
+    if (cmd.op === 'update') {
+      if (data.id == null) {
+        throw new PermanentCommandError('invalid data: id is required for update');
+      }
+    } else if (!data.name) {
+      throw new PermanentCommandError('invalid data: name is required for create');
     }
     return data;
+  }
+
+  /** Build a partial UPDATE payload from only the fields present in the command. */
+  private buildUpdateFields(data: CustomerData): Record<string, unknown> {
+    const fields: Record<string, unknown> = {};
+    if (data.name !== undefined) fields.name = data.name;
+    if (data.phone !== undefined) fields.phone = data.phone;
+    if (data.email !== undefined) fields.email = data.email;
+    if (data.address !== undefined) fields.address = data.address;
+    if (data.zone !== undefined) fields.zone = data.zone;
+    if (data.latitude !== undefined) fields.latitude = data.latitude;
+    if (data.longitude !== undefined) fields.longitude = data.longitude;
+    if (data.geofenceRadiusMeters !== undefined)
+      fields.geofenceRadiusMeters = data.geofenceRadiusMeters;
+    if (data.customerType !== undefined) fields.customerType = data.customerType;
+    return fields;
   }
 
   private sleep(ms: number): Promise<void> {

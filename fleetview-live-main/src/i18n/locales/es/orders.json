@@ -1,0 +1,87 @@
+{
+  "page": {
+    "title": "Pedidos",
+    "subtitle": "Gestiona el catálogo de pedidos · {{count}} en total",
+    "newOrder": "Nuevo pedido"
+  },
+  "banner": {
+    "syncing": "<strong>{{names}}</strong> — sincronizando vía CDC, aparecerá en unos segundos."
+  },
+  "gate": {
+    "disabled": "La creación de pedidos es gestionada por el sistema de integración para este inquilino."
+  },
+  "status": {
+    "pending": "pendiente",
+    "confirmed": "confirmado",
+    "in_transit": "en tránsito",
+    "completed": "completado",
+    "cancelled": "cancelado"
+  },
+  "table": {
+    "order": "N.° pedido",
+    "customer": "Cliente",
+    "status": "Estado",
+    "total": "Total",
+    "deliveryDate": "Fecha de entrega",
+    "created": "Creado",
+    "empty": "Ningún pedido coincide con estos filtros."
+  },
+  "dialog": {
+    "title": "Nuevo pedido",
+    "customer": "Cliente",
+    "customerPlaceholder": "Selecciona un cliente…",
+    "orderNumber": "Número de pedido",
+    "orderNumberPlaceholder": "p.ej. PED-001",
+    "status": "Estado",
+    "totalAmount": "Monto total",
+    "totalAmountPlaceholder": "0.00",
+    "deliveryDate": "Fecha de entrega",
+    "notes": "Notas",
+    "notesPlaceholder": "Notas opcionales…",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "statusOptions": {
+      "pending": "Pendiente",
+      "confirmed": "Confirmado",
+      "in_transit": "En tránsito",
+      "completed": "Completado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "detail": {
+    "empty": {
+      "title": "Ningún pedido seleccionado",
+      "subtitle": "Elige un pedido de la lista para ver sus detalles y actualizar su estado."
+    },
+    "tabs": {
+      "overview": "Resumen"
+    },
+    "sections": {
+      "orderInfo": "Información del pedido",
+      "notes": "Notas",
+      "noNotes": "Sin notas"
+    },
+    "fields": {
+      "customer": "Cliente",
+      "orderNumber": "Número de pedido",
+      "status": "Estado",
+      "total": "Total",
+      "deliveryDate": "Fecha de entrega",
+      "created": "Creado",
+      "updated": "Actualizado",
+      "synced": "Sincronizado"
+    },
+    "actions": {
+      "updateStatus": "Actualizar estado",
+      "saving": "Guardando…"
+    }
+  },
+  "toasts": {
+    "queued": "Pedido en cola — aparecerá en breve vía sincronización CDC",
+    "created": "Pedido creado con éxito",
+    "createFailed": "No se pudo crear el pedido",
+    "updateQueued": "Actualización de estado en cola — sincronizará en breve",
+    "updated": "Pedido actualizado con éxito",
+    "updateFailed": "No se pudo actualizar el pedido"
+  }
+}

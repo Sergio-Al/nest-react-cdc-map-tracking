@@ -13,6 +13,10 @@ export class CreateVisitDto {
   @IsInt()
   customerId!: number;
 
+  @IsOptional()
+  @IsInt()
+  orderId?: number;
+
   @IsInt()
   sequenceNumber!: number;
 

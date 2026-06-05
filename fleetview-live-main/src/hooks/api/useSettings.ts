@@ -24,6 +24,8 @@ export interface TenantSettingsRaw {
   numberFormat: string;
   units: string;
   defaultReportPreset: string;
+  ingestMode?: 'standalone' | 'integrated' | string;
+  allowAppOrderCreate?: boolean;
 }
 
 interface MeSettingsResponse {
@@ -38,7 +40,10 @@ export type UserSettingsPatch = Partial<
     'timezone' | 'locale' | 'dateFormat' | 'numberFormat' | 'units' | 'defaultReportPreset' | 'theme' | 'density'
   >
 >;
-export type TenantSettingsPatch = Omit<UserSettingsPatch, 'theme' | 'density'>;
+export type TenantSettingsPatch = Omit<UserSettingsPatch, 'theme' | 'density'> & {
+  ingestMode?: string;
+  allowAppOrderCreate?: boolean;
+};
 
 export function useSettings() {
   const setSettings = useAuthStore((s) => s.setSettings);

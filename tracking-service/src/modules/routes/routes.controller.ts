@@ -8,9 +8,12 @@ import {
   Query,
   ParseUUIDPipe,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { FeatureGuard } from '../subscriptions/guards/feature.guard';
+import { RequiresFeature } from '../subscriptions/decorators/requires-feature.decorator';
 import { RoutesService } from './routes.service';
 import { RouteOptimizerService } from './route-optimizer.service';
 import { TimescaleService } from '../timescale/timescale.service';
@@ -79,6 +82,8 @@ export class RoutesController {
   }
 
   @Roles('admin', 'dispatcher')
+  @UseGuards(FeatureGuard)
+  @RequiresFeature('route_optimization')
   @Post(':id/optimize')
   optimize(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.routeOptimizer.optimizeRoute(id);

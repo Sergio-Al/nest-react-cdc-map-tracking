@@ -341,5 +341,10 @@
       "body": "Tarjetas de frenado brusco, exceso de velocidad y tiempo inactivo aparecerán cuando los eventos de seguridad sean capturados."
     },
     "badge": "próximamente"
+  },
+  "locked": {
+    "title": "Mejora tu plan para acceder a Reportes",
+    "body": "Analítica operacional, rankings y exportaciones están disponibles en el plan Starter+ y superiores.",
+    "badge": "plan requerido"
   }
 }

@@ -29,6 +29,7 @@
     "addStop": "Añadir parada",
     "actions": {
       "optimize": "Optimizar",
+      "optimizeLocked": "La optimización de rutas no está disponible en tu plan actual. Mejora tu plan para desbloquear.",
       "save": "Guardar",
       "stop": "Parada"
     },

@@ -18,7 +18,8 @@ import { useDashboardStore } from "@/stores/dashboard.store";
 import { useMapStore } from "@/stores/map.store";
 import { useDrivers } from "@/hooks/api/useDrivers";
 import { getMockRouteSummary } from "@/lib/mock/driverMock";
-import { navItems, canSee } from "./nav";
+import { navItems, canSee, hasFeature } from "./nav";
+import { useEntitlements } from "@/hooks/api/useEntitlements";
 
 /**
  * App-wide ⌘K command palette. Opens on ⌘K / Ctrl+K / ⌘/ (or via the store, e.g.
@@ -62,8 +63,13 @@ export function CommandPalette() {
       navigate("/");
     });
 
+  const { data: entitlements } = useEntitlements();
+  const features = entitlements?.features;
+
   const canCreateRoute = canSee({ roles: ["admin", "dispatcher"] }, role);
-  const visibleNav = navItems.filter((item) => canSee(item, role));
+  const visibleNav = navItems.filter(
+    (item) => canSee(item, role) && hasFeature(item, features),
+  );
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>

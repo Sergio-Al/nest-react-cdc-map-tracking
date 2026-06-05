@@ -121,6 +121,8 @@ export default function SettingsPage() {
     if (tenant) setTForm({
       timezone: tenant.timezone, locale: tenant.locale, units: tenant.units,
       defaultReportPreset: tenant.defaultReportPreset, dateFormat: tenant.dateFormat,
+      ingestMode: tenant.ingestMode ?? 'standalone',
+      allowAppOrderCreate: tenant.allowAppOrderCreate ?? true,
     });
   }, [tenant]);
 
@@ -134,7 +136,9 @@ export default function SettingsPage() {
     .some((k) => form[k] !== settings[k]);
   const tenantDirty = !!tenant && (
     tForm.timezone !== tenant.timezone || tForm.locale !== tenant.locale ||
-    tForm.units !== tenant.units || tForm.defaultReportPreset !== tenant.defaultReportPreset
+    tForm.units !== tenant.units || tForm.defaultReportPreset !== tenant.defaultReportPreset ||
+    tForm.ingestMode !== (tenant.ingestMode ?? 'standalone') ||
+    tForm.allowAppOrderCreate !== (tenant.allowAppOrderCreate ?? true)
   );
   const dirty = userDirty || tenantDirty;
 
@@ -143,6 +147,8 @@ export default function SettingsPage() {
     if (tenant) setTForm({
       timezone: tenant.timezone, locale: tenant.locale, units: tenant.units,
       defaultReportPreset: tenant.defaultReportPreset, dateFormat: tenant.dateFormat,
+      ingestMode: tenant.ingestMode ?? 'standalone',
+      allowAppOrderCreate: tenant.allowAppOrderCreate ?? true,
     });
   };
 
@@ -237,6 +243,26 @@ export default function SettingsPage() {
               <Frow label={t('fields.units')}>
                 <SettingsSelect value={tForm.units ?? 'metric'} onChange={(v) => setT({ units: v })}
                   options={[{ value: 'metric', label: t('units.metric') }, { value: 'imperial', label: t('units.imperial') }]} />
+              </Frow>
+              <Frow label={t('fields.ingestMode')} help={t('help.ingestMode')}>
+                <Segmented
+                  value={tForm.ingestMode ?? 'standalone'}
+                  onChange={(v) => setT({ ingestMode: v })}
+                  options={[
+                    { value: 'standalone', label: t('ingestMode.standalone') },
+                    { value: 'integrated', label: t('ingestMode.integrated') },
+                  ]}
+                />
+              </Frow>
+              <Frow label={t('fields.allowAppOrderCreate')} help={t('help.allowAppOrderCreate')}>
+                <Segmented
+                  value={String(tForm.allowAppOrderCreate ?? true)}
+                  onChange={(v) => setT({ allowAppOrderCreate: v === 'true' })}
+                  options={[
+                    { value: 'true', label: 'On' },
+                    { value: 'false', label: 'Off' },
+                  ]}
+                />
               </Frow>
             </Card>
           )}

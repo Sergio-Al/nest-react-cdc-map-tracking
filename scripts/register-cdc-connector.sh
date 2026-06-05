@@ -14,12 +14,14 @@ until curl -sf "${CONNECT_URL}/connectors" > /dev/null 2>&1; do
 done
 echo "✔ Kafka Connect is ready"
 
-echo "📡 Registering MySQL CDC connector..."
-curl -sf -X POST "${CONNECT_URL}/connectors" \
+echo "📡 Registering MySQL CDC connector (upsert)..."
+# PUT /connectors/<name>/config is an upsert: it creates the connector if absent
+# and updates it in place if it already exists — so re-running this script is
+# safe and never 409s (unlike POST /connectors). Body is the bare config object,
+# without the {name, config} envelope that POST requires.
+curl -sf -X PUT "${CONNECT_URL}/connectors/mysql-cdc-v4/config" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "mysql-cdc-v4",
-    "config": {
       "connector.class": "io.debezium.connector.mysql.MySqlConnector",
       "tasks.max": "1",
       "database.hostname": "mysql",
@@ -46,11 +48,10 @@ curl -sf -X POST "${CONNECT_URL}/connectors" \
       "key.converter.schemas.enable": "false",
       "value.converter": "org.apache.kafka.connect.json.JsonConverter",
       "value.converter.schemas.enable": "false"
-    }
   }' | python3 -m json.tool
 
 echo ""
-echo "✔ Connector registered. Checking status..."
+echo "✔ Connector registered/updated. Checking status..."
 sleep 3
 
 curl -sf "${CONNECT_URL}/connectors/mysql-cdc-v4/status" | python3 -m json.tool

@@ -34,7 +34,17 @@
     "units": "Unidades",
     "defaultRange": "Rango de reporte predeterminado",
     "theme": "Tema",
-    "density": "Densidad"
+    "density": "Densidad",
+    "ingestMode": "Modo de integración",
+    "allowAppOrderCreate": "Permitir creación de pedidos en la app"
+  },
+  "help": {
+    "ingestMode": "Autónomo: los pedidos se escriben directamente en PostgreSQL. Integrado: los pedidos provienen del ERP vía Kafka/CDC.",
+    "allowAppOrderCreate": "Cuando el modo integrado está activo, permite a los despachadores crear pedidos desde el panel."
+  },
+  "ingestMode": {
+    "standalone": "Autónomo",
+    "integrated": "Integrado"
   },
   "units": {
     "metric": "Métrico (km)",

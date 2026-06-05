@@ -6,6 +6,7 @@ import {
   CachedCustomer,
   CachedAccount,
   CachedProduct,
+  CachedOrder,
   SyncState,
 } from './entities';
 import { CdcMetricsService } from './cdc-metrics.service';
@@ -45,6 +46,9 @@ export class CdcConsumerService implements OnModuleInit {
 
     @InjectRepository(CachedProduct, 'cacheDb')
     private readonly productRepo: Repository<CachedProduct>,
+
+    @InjectRepository(CachedOrder, 'cacheDb')
+    private readonly orderRepo: Repository<CachedOrder>,
 
     @InjectRepository(SyncState, 'cacheDb')
     private readonly syncStateRepo: Repository<SyncState>,
@@ -95,6 +99,23 @@ export class CdcConsumerService implements OnModuleInit {
           syncedAt: new Date(),
         }),
       },
+      'cdc.orders': {
+        repo: this.orderRepo,
+        tableName: 'orders_cache',
+        mapFn: (d) => ({
+          id: d.id,
+          tenantId: d.tenant_id,
+          customerId: d.customer_id,
+          orderNumber: d.order_number,
+          status: d.status ?? 'pending',
+          totalAmount: d.total_amount ?? 0,
+          // Debezium (time.precision.mode=connect, schemaless JSON) encodes a
+          // DATE as an integer day-count since epoch; normalize to YYYY-MM-DD.
+          deliveryDate: this.normalizeCdcDate(d.delivery_date),
+          notes: d.notes ?? null,
+          syncedAt: new Date(),
+        }),
+      },
     };
   }
 
@@ -121,6 +142,19 @@ export class CdcConsumerService implements OnModuleInit {
       });
       this.logger.log(`Registered CDC handler for topic: ${topic}`);
     }
+  }
+
+  /**
+   * Debezium (time.precision.mode=connect) sends a SQL DATE as an integer count
+   * of days since the Unix epoch under schemaless JSON. Convert that to a
+   * 'YYYY-MM-DD' string; pass through strings/nulls unchanged.
+   */
+  private normalizeCdcDate(value: unknown): string | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number') {
+      return new Date(value * 86_400_000).toISOString().slice(0, 10);
+    }
+    return String(value).slice(0, 10);
   }
 
   private async processCdcMessage(

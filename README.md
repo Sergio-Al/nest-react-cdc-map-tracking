@@ -162,7 +162,10 @@ streaming-tracking-logistic/
 │       └── modules/health/           # /healthz + /metrics endpoints
 │
 ├── scripts/
-│   ├── register-cdc-connector.sh     # Registers the Debezium connector with Kafka Connect
+│   ├── register-cdc-connector.sh     # Registers/updates the Debezium connector (idempotent PUT upsert)
+│   ├── smoke-orders-dual-mode.sh     # End-to-end smoke test: standalone (PG) vs integrated (CDC) orders
+│   ├── seed-visit-completions.sql    # Seeds completed visits for report/history demos
+│   ├── migrate-daily-stats-tz.sql    # Backfills timezone-bucketed driver_daily_stats
 │   ├── seed-load-test-drivers.sql    # Generates 1,000 test drivers (LOAD0001-LOAD1000)
 │   └── cleanup-load-test-drivers.sql # Removes load test drivers and their positions
 │
@@ -354,6 +357,10 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 > docker exec -i cache-db psql -U tracking -d tracking_cache \
 >   < infrastructure/cache-db/init/08-settings.sql
 >
+> # Subscription plans + per-tenant subscriptions (SaaS control plane) and plan catalog seed
+> docker exec -i cache-db psql -U tracking -d tracking_cache \
+>   < infrastructure/cache-db/init/11-subscriptions.sql
+>
 > # Rebuild driver_daily_stats to bucket in the deployment timezone (DEFAULT_TZ)
 > docker exec -i timescale psql -U timescale -d tracking_history \
 >   < scripts/migrate-daily-stats-tz.sql
@@ -367,6 +374,8 @@ bash scripts/register-cdc-connector.sh
 ```
 
 This configures Debezium to capture changes from the `accounts`, `customers`, `products`, and `orders` MySQL tables and publish them to the `cdc.*` Kafka topics.
+
+The script upserts the connector config via `PUT …/connectors/mysql-cdc-v4/config`, so it is **idempotent** — re-running it on an already-registered connector updates it in place and exits 0 (no `409 Conflict`). Without this connector running, integrated-mode reads stay empty: writes reach MySQL but never sync to the PostgreSQL cache. Verify with `curl -s localhost:8083/connectors/mysql-cdc-v4/status` (expect `connector.state` and the task both `RUNNING`).
 
 ### 7. Install NestJS service dependencies
 
@@ -573,6 +582,13 @@ Fallback: Direct MySQL query
 
 ### `settings/` — User & Tenant Preferences
 - **SettingsService/Controller**: Tenant-default + per-user preferences (timezone, locale, date/number format, units, default report range, theme, density). Stored in `tenant_settings` / `user_settings` — **owned tables written directly to the PG cache** (not synced from MySQL). `getEffective()` resolves `user override → tenant default → system default`. Effective settings are also returned on login and `/api/auth/profile`.
+
+### `subscriptions/` — Plans & Entitlements (SaaS control plane)
+- **EntitlementsService**: Resolves a tenant's plan + subscription into concrete entitlements and enforces the plan limits. **PG-owned** tables `subscription_plans` (catalog) + `tenant_subscriptions` (one row/tenant), written directly to the cache (not CDC) — so a standalone tenant works with no Kafka/CDC alive. A tenant with no subscription row falls back to free Starter defaults. Gates wired in:
+  - **Seat cap** — `assertCanAddDriver` in `DriversService.create` returns **402** when active drivers (`status <> 'inactive'`) reach `COALESCE(seats_purchased, plan.max_drivers)`.
+  - **Integration upsell** — `assertCanIntegrate` blocks flipping `tenant_settings.ingest_mode` to `integrated` (via `PUT /api/tenant/settings`) unless the plan's `integration_allowed` is set (**403**).
+  - **Feature gating** — `@RequiresFeature` + `FeatureGuard` gate `POST /api/routes/:id/optimize` (`route_optimization`) and the reports endpoints `GET /api/history/{stats,visits}` (`reports`) (**403** when absent).
+- **SubscriptionsController**: `GET /api/me/entitlements` (frontend feature flags — the dashboard hides/disables gated UI from this) and `GET /api/tenant/subscription` (admin). *Billing lifecycle (Stripe webhooks, signup/trial) is not yet wired.*
 
 ### `visits/` — Planned Visits
 - **VisitsService/Controller**: Create visits, manage lifecycle (`pending` → `arrived` → `in_progress` → `completed` → `departed`), automatic arrival/departure, event publishing, delete pending visits.
@@ -970,6 +986,7 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 - `drivers` — Drivers (device_id links to Traccar)
 - `vehicles` — Fleet vehicles (plate, type, brand, model, year, color, capacity_kg, status, optional driver_id FK)
 - `tenant_settings`, `user_settings` — Tenant-default + per-user preferences (timezone, locale, units, theme, …), written directly (not CDC)
+- `subscription_plans`, `tenant_subscriptions` — SaaS control plane: plan catalog + per-tenant subscription. Gates seats/features/the integration upsell (see the `subscriptions/` module); PG-owned so it works with no Kafka/CDC
 - `routes` — Planned delivery routes (+ `total_distance_meters`, `total_estimated_seconds`, `optimized_at`, `optimization_method`)
 - `planned_visits` — Stops within a route (+ `estimated_arrival_time`, `estimated_travel_seconds`, `estimated_distance_meters`)
 - `driver_positions` — Latest position snapshot per driver

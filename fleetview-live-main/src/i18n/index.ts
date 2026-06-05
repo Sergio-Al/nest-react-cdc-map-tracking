@@ -11,6 +11,7 @@ import enErrors from "./locales/en/errors.json";
 import enHistory from "./locales/en/history.json";
 import enMonitoring from "./locales/en/monitoring.json";
 import enNav from "./locales/en/nav.json";
+import enOrders from "./locales/en/orders.json";
 import enReports from "./locales/en/reports.json";
 import enRoutes from "./locales/en/routes.json";
 import enSettings from "./locales/en/settings.json";
@@ -25,6 +26,7 @@ import esErrors from "./locales/es/errors.json";
 import esHistory from "./locales/es/history.json";
 import esMonitoring from "./locales/es/monitoring.json";
 import esNav from "./locales/es/nav.json";
+import esOrders from "./locales/es/orders.json";
 import esReports from "./locales/es/reports.json";
 import esRoutes from "./locales/es/routes.json";
 import esSettings from "./locales/es/settings.json";
@@ -46,6 +48,7 @@ const resources = {
     history: enHistory,
     monitoring: enMonitoring,
     nav: enNav,
+    orders: enOrders,
     reports: enReports,
     routes: enRoutes,
     settings: enSettings,
@@ -61,6 +64,7 @@ const resources = {
     history: esHistory,
     monitoring: esMonitoring,
     nav: esNav,
+    orders: esOrders,
     reports: esReports,
     routes: esRoutes,
     settings: esSettings,

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsIn, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsBoolean, MaxLength } from 'class-validator';
 
 const PRESETS = ['today', 'yesterday', '7d', '14d', '30d', 'mtd', 'qtd', 'ytd'];
 
@@ -31,4 +31,12 @@ export class UpdateTenantSettingsDto {
   @IsOptional()
   @IsIn(PRESETS)
   defaultReportPreset?: string;
+
+  @IsOptional()
+  @IsIn(['standalone', 'integrated'])
+  ingestMode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  allowAppOrderCreate?: boolean;
 }

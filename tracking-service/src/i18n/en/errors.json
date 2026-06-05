@@ -45,6 +45,15 @@
     "notFound": "Driver {{id}} not found",
     "deviceInUse": "Device {{deviceId}} is already paired to another driver"
   },
+  "orders": {
+    "notFound": "Order {{id}} not found",
+    "appCreateDisabled": "Order creation from the app is disabled for this tenant; orders are managed by your integrated system"
+  },
+  "subscriptions": {
+    "seatLimitReached": "Driver seat limit reached ({{limit}}). Upgrade your plan or add seats to add more drivers",
+    "featureNotInPlan": "The '{{feature}}' feature is not included in your current plan",
+    "integrationNotAllowed": "System integration is not available on your current plan; upgrade to enable it"
+  },
   "osrm": {
     "matricesFailed": "Failed to get routing data from OSRM. Is the OSRM service running?",
     "geometryFailed": "Failed to get route geometry from OSRM."

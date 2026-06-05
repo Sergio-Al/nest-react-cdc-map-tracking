@@ -34,7 +34,17 @@
     "units": "Units",
     "defaultRange": "Default report range",
     "theme": "Theme",
-    "density": "Density"
+    "density": "Density",
+    "ingestMode": "Integration mode",
+    "allowAppOrderCreate": "Allow in-app order creation"
+  },
+  "help": {
+    "ingestMode": "Standalone: orders are written directly to PostgreSQL. Integrated: orders come from the ERP via Kafka/CDC.",
+    "allowAppOrderCreate": "When integrated mode is active, allow dispatchers to create orders from the dashboard."
+  },
+  "ingestMode": {
+    "standalone": "Standalone",
+    "integrated": "Integrated"
   },
   "units": {
     "metric": "Metric (km)",

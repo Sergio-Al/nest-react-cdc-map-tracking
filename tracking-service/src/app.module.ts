@@ -15,12 +15,14 @@ import { TimescaleModule } from './modules/timescale/timescale.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { RoutesModule } from './modules/routes/routes.module';
 import { VisitsModule } from './modules/visits/visits.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { DlqModule } from './modules/dlq/dlq.module';
 import { HistoryModule } from './modules/history/history.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
 
 
@@ -54,12 +56,14 @@ import { AppI18nModule } from './i18n/app-i18n.module';
     CustomersModule,
     RoutesModule,
     VisitsModule,
+    OrdersModule,
     EnrichmentModule,
     WebsocketModule,
     DlqModule,
     HistoryModule,
     VehiclesModule,
     SettingsModule,
+    SubscriptionsModule,
     HealthModule,
   ],
 })

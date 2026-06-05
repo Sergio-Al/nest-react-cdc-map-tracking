@@ -341,5 +341,10 @@
       "body": "Harsh-braking, speeding and idling scorecards will appear here once safety events are captured."
     },
     "badge": "coming soon"
+  },
+  "locked": {
+    "title": "Upgrade your plan to access Reports",
+    "body": "Operational analytics, leaderboards and exports are available on the Starter+ plan and above.",
+    "badge": "plan required"
   }
 }
