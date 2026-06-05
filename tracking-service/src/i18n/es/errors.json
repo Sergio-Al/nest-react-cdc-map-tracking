@@ -52,7 +52,13 @@
   "subscriptions": {
     "seatLimitReached": "Se alcanzó el límite de conductores ({{limit}}). Mejore su plan o agregue cupos para añadir más conductores",
     "featureNotInPlan": "La función '{{feature}}' no está incluida en su plan actual",
-    "integrationNotAllowed": "La integración con sistemas no está disponible en su plan actual; mejore su plan para habilitarla"
+    "integrationNotAllowed": "La integración con sistemas no está disponible en su plan actual; mejore su plan para habilitarla",
+    "billingNotConfigured": "La facturación no está configurada en este servidor",
+    "webhookNoBody": "Falta el cuerpo de la solicitud",
+    "webhookSignatureInvalid": "Firma de Stripe inválida o ausente",
+    "planNotFound": "El plan '{{plan}}' no existe",
+    "planNotPurchasable": "El plan '{{plan}}' no está disponible para compra autogestionada",
+    "noBillingCustomer": "Aún no hay cuenta de facturación — inicie primero un checkout"
   },
   "osrm": {
     "matricesFailed": "No se pudo obtener la información de ruteo de OSRM. ¿Está corriendo el servicio OSRM?",

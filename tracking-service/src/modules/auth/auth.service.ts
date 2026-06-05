@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, ConflictException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,11 +8,14 @@ import { randomUUID } from 'crypto';
 import { CachedUser } from '../sync/entities/cached-user.entity';
 import { RedisService } from '../redis/redis.service';
 import { SettingsService } from '../settings/settings.service';
+import { SubscriptionLifecycleService } from '../subscriptions/subscription-lifecycle.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(CachedUser, 'cacheDb')
     private userRepository: Repository<CachedUser>,
@@ -20,6 +23,7 @@ export class AuthService {
     private configService: ConfigService,
     private redisService: RedisService,
     private settingsService: SettingsService,
+    private subscriptionLifecycle: SubscriptionLifecycleService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -48,6 +52,17 @@ export class AuthService {
     });
 
     await this.userRepository.save(user);
+
+    // Owner signup creates the workspace → open the reverse trial. Idempotent
+    // (no-op if the tenant already has a subscription) and best-effort: a
+    // billing hiccup must never block account creation.
+    if (dto.role === 'admin') {
+      try {
+        await this.subscriptionLifecycle.startTrial(dto.tenantId);
+      } catch (err) {
+        this.logger.warn(`startTrial failed for tenant=${dto.tenantId}: ${(err as Error).message}`);
+      }
+    }
 
     // Return user without password
     const { password, ...result } = user;

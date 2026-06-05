@@ -13,6 +13,7 @@ import { ApiKeyGuard } from './guards/api-key.guard';
 import { CachedUser } from '../sync/entities/cached-user.entity';
 import { RedisModule } from '../redis/redis.module';
 import { SettingsModule } from '../settings/settings.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { SettingsModule } from '../settings/settings.module';
     }),
     RedisModule,
     SettingsModule,
+    SubscriptionsModule,
   ],
   controllers: [AuthController],
   providers: [

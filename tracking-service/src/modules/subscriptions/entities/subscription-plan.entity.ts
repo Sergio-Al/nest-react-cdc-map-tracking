@@ -30,6 +30,11 @@ export class SubscriptionPlan {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   features!: string[];
 
+  // Maps this plan to a Stripe Price so the webhook can resolve plan_code from
+  // a subscription's line item. NULL until the Stripe products are created.
+  @Column({ name: 'stripe_price_id', type: 'varchar', length: 64, nullable: true })
+  stripePriceId!: string | null;
+
   @Column({ name: 'is_public', type: 'boolean', default: true })
   isPublic!: boolean;
 

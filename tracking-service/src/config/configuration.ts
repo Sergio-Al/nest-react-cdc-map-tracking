@@ -48,4 +48,20 @@ export default () => ({
     osrmUrl: process.env.OSRM_URL || 'http://localhost:5003',
     orToolsUrl: process.env.OR_TOOLS_URL || 'http://localhost:5002',
   },
+
+  // Stripe billing. secretKey/webhookSecret empty in local dev (billing
+  // endpoints then return 503). secretKey: server API key; webhookSecret: the
+  // signing secret for /api/subscriptions/webhook (whsec_…). trial* govern the
+  // reverse-trial; checkout/portal URLs are where Stripe redirects back to.
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    trialDays: parseInt(process.env.TRIAL_DAYS || '14', 10),
+    trialPlan: process.env.TRIAL_PLAN || 'growth',
+    checkoutSuccessUrl:
+      process.env.STRIPE_CHECKOUT_SUCCESS_URL || 'http://localhost:5173/settings?checkout=success',
+    checkoutCancelUrl:
+      process.env.STRIPE_CHECKOUT_CANCEL_URL || 'http://localhost:5173/settings?checkout=cancel',
+    portalReturnUrl: process.env.STRIPE_PORTAL_RETURN_URL || 'http://localhost:5173/settings',
+  },
 });

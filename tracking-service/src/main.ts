@@ -8,7 +8,11 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true captures the unparsed request buffer on `req.rawBody` (in
+  // addition to normal JSON parsing) — required for Stripe webhook signature
+  // verification, which must hash the exact bytes Stripe sent. No effect on
+  // other routes.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);

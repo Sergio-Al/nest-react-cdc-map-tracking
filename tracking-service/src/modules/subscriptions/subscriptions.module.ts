@@ -6,6 +6,10 @@ import { Driver } from '../drivers/entities/driver.entity';
 import { EntitlementsService } from './entitlements.service';
 import { FeatureGuard } from './guards/feature.guard';
 import { SubscriptionsController } from './subscriptions.controller';
+import { StripeService } from './stripe.service';
+import { BillingService } from './billing.service';
+import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
+import { WebhookController } from './webhook.controller';
 
 /**
  * SaaS control plane: plan catalog + per-tenant subscription, and the
@@ -22,8 +26,14 @@ import { SubscriptionsController } from './subscriptions.controller';
   imports: [
     TypeOrmModule.forFeature([SubscriptionPlan, TenantSubscription, Driver], 'cacheDb'),
   ],
-  controllers: [SubscriptionsController],
-  providers: [EntitlementsService, FeatureGuard],
-  exports: [EntitlementsService, FeatureGuard],
+  controllers: [SubscriptionsController, WebhookController],
+  providers: [
+    EntitlementsService,
+    FeatureGuard,
+    StripeService,
+    BillingService,
+    SubscriptionLifecycleService,
+  ],
+  exports: [EntitlementsService, FeatureGuard, SubscriptionLifecycleService],
 })
 export class SubscriptionsModule {}

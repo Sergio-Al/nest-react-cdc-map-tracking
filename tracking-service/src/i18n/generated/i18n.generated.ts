@@ -60,6 +60,12 @@ export type I18nTranslations = {
             "seatLimitReached": string;
             "featureNotInPlan": string;
             "integrationNotAllowed": string;
+            "billingNotConfigured": string;
+            "webhookNoBody": string;
+            "webhookSignatureInvalid": string;
+            "planNotFound": string;
+            "planNotPurchasable": string;
+            "noBillingCustomer": string;
         };
         "osrm": {
             "matricesFailed": string;

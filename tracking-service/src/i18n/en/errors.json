@@ -52,7 +52,13 @@
   "subscriptions": {
     "seatLimitReached": "Driver seat limit reached ({{limit}}). Upgrade your plan or add seats to add more drivers",
     "featureNotInPlan": "The '{{feature}}' feature is not included in your current plan",
-    "integrationNotAllowed": "System integration is not available on your current plan; upgrade to enable it"
+    "integrationNotAllowed": "System integration is not available on your current plan; upgrade to enable it",
+    "billingNotConfigured": "Billing is not configured on this server",
+    "webhookNoBody": "Missing request body",
+    "webhookSignatureInvalid": "Invalid or missing Stripe signature",
+    "planNotFound": "Plan '{{plan}}' does not exist",
+    "planNotPurchasable": "Plan '{{plan}}' is not available for self-serve checkout",
+    "noBillingCustomer": "No billing account yet — start a checkout first"
   },
   "osrm": {
     "matricesFailed": "Failed to get routing data from OSRM. Is the OSRM service running?",
