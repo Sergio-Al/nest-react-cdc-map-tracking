@@ -3,6 +3,7 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
 import enAuth from "./locales/en/auth.json";
+import enBilling from "./locales/en/billing.json";
 import enCommon from "./locales/en/common.json";
 import enCustomers from "./locales/en/customers.json";
 import enDashboard from "./locales/en/dashboard.json";
@@ -18,6 +19,7 @@ import enSettings from "./locales/en/settings.json";
 import enVehicles from "./locales/en/vehicles.json";
 
 import esAuth from "./locales/es/auth.json";
+import esBilling from "./locales/es/billing.json";
 import esCommon from "./locales/es/common.json";
 import esCustomers from "./locales/es/customers.json";
 import esDashboard from "./locales/es/dashboard.json";
@@ -40,6 +42,7 @@ export const LANGUAGE_STORAGE_KEY = "fleetview.language";
 const resources = {
   en: {
     auth: enAuth,
+    billing: enBilling,
     common: enCommon,
     customers: enCustomers,
     dashboard: enDashboard,
@@ -56,6 +59,7 @@ const resources = {
   },
   es: {
     auth: esAuth,
+    billing: esBilling,
     common: esCommon,
     customers: esCustomers,
     dashboard: esDashboard,

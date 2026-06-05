@@ -9,6 +9,7 @@ import {
 } from '@/hooks/api/useSettings';
 import type { TenantSettingsPatch } from '@/hooks/api/useSettings';
 import type { EffectiveSettings } from '@/types/auth.types';
+import { BillingCard } from '@/components/settings/BillingCard';
 
 const DATE_FORMATS = ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd'];
 const PRESETS = ['today', 'yesterday', '7d', '14d', '30d', 'mtd', 'qtd', 'ytd'];
@@ -105,6 +106,7 @@ function Segmented({
 
 export default function SettingsPage() {
   const { t } = useTranslation('settings');
+  const { t: tBilling } = useTranslation('billing');
   const settings = useAuthStore((s) => s.settings);
   const isAdmin = useAuthStore((s) => s.user?.role) === 'admin';
 
@@ -265,6 +267,14 @@ export default function SettingsPage() {
                 />
               </Frow>
             </Card>
+          )}
+
+          {/* Billing & Plan (admin only) */}
+          {isAdmin && (
+            <BillingCard
+              cardTitle={tBilling('title')}
+              cardDesc={tBilling('desc')}
+            />
           )}
 
           {/* Sticky save bar */}

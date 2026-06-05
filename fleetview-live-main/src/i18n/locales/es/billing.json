@@ -1,0 +1,51 @@
+{
+  "title": "Facturación y Plan",
+  "desc": "Gestiona tu suscripción, asientos y método de pago.",
+
+  "currentPlan": "Plan actual",
+  "status": {
+    "trialing": "Prueba",
+    "active": "Activo",
+    "past_due": "Pago pendiente",
+    "canceled": "Cancelado",
+    "free": "Gratis"
+  },
+
+  "banner": {
+    "trialing": "Prueba — {{days}} días restantes",
+    "trialingZero": "Prueba — vence hoy",
+    "pastDue": "Pago fallido — actualiza tu forma de pago",
+    "active": "Próxima renovación: {{date}}"
+  },
+
+  "cta": {
+    "addPayment": "Agregar método de pago",
+    "manageBilling": "Gestionar facturación",
+    "startTrial": "Iniciar prueba gratuita"
+  },
+
+  "seats": {
+    "label": "Uso de conductores",
+    "value": "{{active}} de {{max}}",
+    "unlimited": "{{active}} de Ilimitados"
+  },
+
+  "plans": {
+    "title": "Planes disponibles",
+    "current": "Plan actual",
+    "free": "Gratis",
+    "perSeatPerMonth": "{{price}}/asiento/mes",
+    "drivers": "{{n}} conductores",
+    "unlimitedDrivers": "Conductores ilimitados",
+    "choosePlan": "Elegir plan",
+    "upgrade": "Actualizar",
+    "comingSoon": "Próximamente",
+    "contactUs": "Contactar ventas"
+  },
+
+  "errors": {
+    "checkoutFailed": "No se pudo iniciar el pago. Inténtalo de nuevo.",
+    "portalFailed": "No se pudo abrir el portal de facturación.",
+    "trialFailed": "No se pudo iniciar la prueba."
+  }
+}

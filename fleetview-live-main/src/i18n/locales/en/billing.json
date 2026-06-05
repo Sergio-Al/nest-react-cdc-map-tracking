@@ -1,0 +1,51 @@
+{
+  "title": "Billing & Plan",
+  "desc": "Manage your subscription, seats, and payment method.",
+
+  "currentPlan": "Current plan",
+  "status": {
+    "trialing": "Trialing",
+    "active": "Active",
+    "past_due": "Past due",
+    "canceled": "Canceled",
+    "free": "Free"
+  },
+
+  "banner": {
+    "trialing": "Trial — {{days}} days left",
+    "trialingZero": "Trial — expires today",
+    "pastDue": "Payment failed — update your billing details",
+    "active": "Next renewal: {{date}}"
+  },
+
+  "cta": {
+    "addPayment": "Add payment method",
+    "manageBilling": "Manage billing",
+    "startTrial": "Start free trial"
+  },
+
+  "seats": {
+    "label": "Driver usage",
+    "value": "{{active}} of {{max}}",
+    "unlimited": "{{active}} of Unlimited"
+  },
+
+  "plans": {
+    "title": "Available plans",
+    "current": "Current plan",
+    "free": "Free",
+    "perSeatPerMonth": "{{price}}/seat/mo",
+    "drivers": "{{n}} drivers",
+    "unlimitedDrivers": "Unlimited drivers",
+    "choosePlan": "Choose plan",
+    "upgrade": "Upgrade",
+    "comingSoon": "Coming soon",
+    "contactUs": "Contact sales"
+  },
+
+  "errors": {
+    "checkoutFailed": "Could not start checkout. Please try again.",
+    "portalFailed": "Could not open the billing portal.",
+    "trialFailed": "Could not start the trial."
+  }
+}

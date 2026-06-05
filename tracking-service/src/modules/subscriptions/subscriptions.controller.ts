@@ -19,6 +19,12 @@ export class SubscriptionsController {
     return this.entitlements.getEntitlements(user.tenantId);
   }
 
+  /** Public plan catalog for the pricing/upgrade UI. */
+  @Get('subscriptions/plans')
+  listPlans() {
+    return this.entitlements.listPlans();
+  }
+
   /** Admin view of the tenant's resolved plan + seat usage. */
   @Roles('admin')
   @Get('tenant/subscription')

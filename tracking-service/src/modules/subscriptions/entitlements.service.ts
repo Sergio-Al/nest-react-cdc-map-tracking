@@ -8,13 +8,29 @@ import { Driver } from '../drivers/entities/driver.entity';
 /** Fully-resolved entitlements the app/guards consume. */
 export interface Entitlements {
   planCode: string;
+  planName: string;
+  pricePerSeatCents: number;
   status: string;
   features: string[];
   maxDrivers: number | null; // effective seat cap (NULL = unlimited)
   activeDrivers: number;
+  seatsPurchased: number | null;
+  trialEndsAt: string | null; // ISO; for the trial countdown
+  currentPeriodEnd: string | null; // ISO; next renewal
   integrationAllowed: boolean;
   integrationMode: 'standalone' | 'integrated';
   integrationStatus: string;
+}
+
+/** One entry in the public plan catalog (for the pricing/upgrade UI). */
+export interface PlanCatalogEntry {
+  code: string;
+  name: string;
+  pricePerSeatCents: number;
+  maxDrivers: number | null;
+  integrationAllowed: boolean;
+  features: string[];
+  purchasable: boolean; // has a Stripe price mapped
 }
 
 /**
@@ -31,9 +47,14 @@ export class EntitlementsService {
   // Fallback when a tenant has no subscription row yet (pre-billing self-serve).
   private static readonly FREE_DEFAULTS = {
     planCode: 'starter',
+    planName: 'Starter',
+    pricePerSeatCents: 0,
     status: 'free',
     features: ['playback'] as string[],
     maxDrivers: 3 as number | null,
+    seatsPurchased: null as number | null,
+    trialEndsAt: null as string | null,
+    currentPeriodEnd: null as string | null,
     integrationAllowed: false,
     integrationMode: 'standalone' as const,
     integrationStatus: 'disconnected',
@@ -62,14 +83,37 @@ export class EntitlementsService {
     const maxDrivers = sub.seatsPurchased ?? plan.maxDrivers ?? null;
     return {
       planCode: plan.code,
+      planName: plan.name,
+      pricePerSeatCents: plan.pricePerSeatCents,
       status: sub.status,
       features: plan.features ?? [],
       maxDrivers,
       activeDrivers,
+      seatsPurchased: sub.seatsPurchased ?? null,
+      trialEndsAt: sub.trialEndsAt ? sub.trialEndsAt.toISOString() : null,
+      currentPeriodEnd: sub.currentPeriodEnd ? sub.currentPeriodEnd.toISOString() : null,
       integrationAllowed: plan.integrationAllowed,
       integrationMode: sub.integrationMode === 'integrated' ? 'integrated' : 'standalone',
       integrationStatus: sub.integrationStatus,
     };
+  }
+
+  /** Public plan catalog for the pricing/upgrade UI, cheapest first. */
+  async listPlans(): Promise<PlanCatalogEntry[]> {
+    const plans = await this.planRepo.find({
+      where: { isPublic: true },
+      order: { sortOrder: 'ASC' },
+    });
+    return plans.map((p) => ({
+      code: p.code,
+      name: p.name,
+      pricePerSeatCents: p.pricePerSeatCents,
+      maxDrivers: p.maxDrivers,
+      integrationAllowed: p.integrationAllowed,
+      features: p.features ?? [],
+      // Only price-mapped plans can actually be checked out.
+      purchasable: !!p.stripePriceId,
+    }));
   }
 
   /** A seat = one active (non-inactive) driver. Soft-delete sets status='inactive'. */
