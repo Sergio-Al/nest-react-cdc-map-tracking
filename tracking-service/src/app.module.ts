@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { BullModule } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import configuration from './config/configuration';
 import { cacheDbConfig } from './config/database.config';
 import { AuthModule } from './modules/auth/auth.module';
@@ -44,6 +46,18 @@ import { AppI18nModule } from './i18n/app-i18n.module';
 
     // ── Rate limiting (scoped per-route via @Throttle, not global) ─
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+
+    // ── BullMQ (background jobs, e.g. Traccar device sync) on the shared Redis ─
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>('redis.host'),
+          port: config.get<number>('redis.port'),
+          password: config.get<string>('redis.password'),
+        },
+      }),
+    }),
 
     // ── Cache DB (Local PostgreSQL) ────────────────────
     TypeOrmModule.forRootAsync(cacheDbConfig),

@@ -5,12 +5,14 @@ import { DriversService } from './drivers.service';
 import { Driver, DriverPosition } from './entities';
 import { EnrichmentModule } from '../enrichment/enrichment.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { TraccarModule } from '../traccar/traccar.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Driver, DriverPosition], 'cacheDb'),
     EnrichmentModule,
     SubscriptionsModule,
+    TraccarModule,
   ],
   controllers: [DriversController],
   providers: [DriversService],

@@ -550,9 +550,10 @@ Fallback: Direct MySQL query
 - **KafkaProducerService**: Produces individual and batch messages to any topic.
 - **KafkaConsumerService**: Registers handlers per topic with `fromBeginning` option. Manages a single consumer with multiple subscriptions.
 
-### `traccar/` — GPS Data Ingestion
+### `traccar/` — GPS Data Ingestion + Device Provisioning
 - **TraccarController**: Receives positions and events via HTTP webhook from Traccar.
 - **TraccarIngestionService**: Publishes raw positions to `gps.positions` and events to `gps.events`.
+- **Device auto-provisioning (outbound)**: Traccar only accepts positions for devices that already exist (keyed by `uniqueId`), where `uniqueId === driver.device_id`. The control plane creates/syncs that Traccar device automatically when a device is assigned to a driver — no manual step in the Traccar UI. `TraccarAdminService` (native-`fetch` REST client + Basic auth, wrapped in an **opossum circuit breaker**) does device CRUD; `TraccarProvisioningService` enqueues `ensure`/`disable` jobs on a **BullMQ** queue (`traccar-sync`, on the shared Redis, retry + exponential backoff) consumed by `TraccarSyncProcessor`. `DriversService` enqueues on create / update / pair-device / deactivate. Driver CRUD never blocks on Traccar (jobs are async and self-healing); on deactivate/unpair the device is **disabled, not deleted** (re-enabled on re-pair). Config via `TRACCAR_URL` / `TRACCAR_ADMIN_EMAIL` / `TRACCAR_ADMIN_PASSWORD`; set `TRACCAR_PROVISIONING_ENABLED=false` to disable. The device side (Traccar Client / future driver app) only needs to send positions with the assigned `uniqueId`.
 
 ### `enrichment/` — Position Enrichment
 - **EnrichmentService**: Consumes `gps.positions`, joins with driver/route/visit/customer data, calculates distance and ETA to next destination, detects geofence entry, triggers automatic arrivals.
@@ -691,6 +692,11 @@ JWT_SECRET=change-me-in-production-please
 JWT_EXPIRES_IN=15m
 REFRESH_EXPIRES_IN=7d
 TRACCAR_API_KEY=traccar-shared-key
+# Traccar admin REST client (device auto-provisioning). Local default :8082.
+TRACCAR_URL=http://localhost:8082
+TRACCAR_ADMIN_EMAIL=admin@example.com
+TRACCAR_ADMIN_PASSWORD=admin
+TRACCAR_PROVISIONING_ENABLED=true
 ```
 
 ### Health

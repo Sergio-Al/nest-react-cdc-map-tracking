@@ -551,9 +551,10 @@ Fallback: MySQL directo
 - **KafkaProducerService**: Produce mensajes individuales y en lote a cualquier tópico.
 - **KafkaConsumerService**: Registra handlers por tópico con opción `fromBeginning`. Gestiona un único consumidor con múltiples suscripciones.
 
-### `traccar/` — Ingestión de Datos GPS
+### `traccar/` — Ingestión de Datos GPS + Aprovisionamiento de Dispositivos
 - **TraccarController**: Recibe posiciones y eventos via webhook HTTP desde Traccar.
 - **TraccarIngestionService**: Publica posiciones crudas en `gps.positions` y eventos en `gps.events`.
+- **Aprovisionamiento automático de dispositivos (saliente)**: Traccar solo acepta posiciones de dispositivos que ya existen (identificados por `uniqueId`), donde `uniqueId === driver.device_id`. El plano de control crea/sincroniza ese dispositivo de Traccar automáticamente cuando se asigna un dispositivo a un conductor — sin pasos manuales en la UI de Traccar. `TraccarAdminService` (cliente REST con `fetch` nativo + Basic auth, envuelto en un **circuit breaker opossum**) hace el CRUD de dispositivos; `TraccarProvisioningService` encola trabajos `ensure`/`disable` en una cola **BullMQ** (`traccar-sync`, sobre el Redis compartido, con reintentos + backoff exponencial) consumidos por `TraccarSyncProcessor`. `DriversService` encola en crear / actualizar / emparejar-dispositivo / desactivar. El CRUD de conductores nunca se bloquea por Traccar (los trabajos son asíncronos y se autorreparan); al desactivar/desemparejar el dispositivo se **deshabilita, no se elimina** (se reactiva al volver a emparejar). Configuración vía `TRACCAR_URL` / `TRACCAR_ADMIN_EMAIL` / `TRACCAR_ADMIN_PASSWORD`; usa `TRACCAR_PROVISIONING_ENABLED=false` para desactivarlo. El lado del dispositivo (Traccar Client / futura app del conductor) solo necesita enviar posiciones con el `uniqueId` asignado.
 
 ### `enrichment/` — Enriquecimiento de Posiciones
 - **EnrichmentService**: Consume `gps.positions`, cruza con datos de conductor/ruta/visita/cliente, calcula distancia y ETA al próximo destino, detecta entrada a geofence, marca llegadas automáticas.

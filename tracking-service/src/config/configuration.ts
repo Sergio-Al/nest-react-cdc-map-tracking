@@ -49,6 +49,16 @@ export default () => ({
     orToolsUrl: process.env.OR_TOOLS_URL || 'http://localhost:5002',
   },
 
+  // Traccar REST admin client — used to auto-provision a Traccar device
+  // (uniqueId === driver.device_id) when a device is assigned to a driver.
+  // tracking-service runs locally, so the default URL is localhost:8082.
+  traccar: {
+    url: process.env.TRACCAR_URL || 'http://localhost:8082',
+    adminEmail: process.env.TRACCAR_ADMIN_EMAIL || 'admin@example.com',
+    adminPassword: process.env.TRACCAR_ADMIN_PASSWORD || 'admin',
+    provisioningEnabled: (process.env.TRACCAR_PROVISIONING_ENABLED ?? 'true') !== 'false',
+  },
+
   // Stripe billing. secretKey/webhookSecret empty in local dev (billing
   // endpoints then return 503). secretKey: server API key; webhookSecret: the
   // signing secret for /api/subscriptions/webhook (whsec_…). trial* govern the

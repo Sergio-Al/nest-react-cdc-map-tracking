@@ -9,6 +9,7 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { Driver, DriverPosition } from './entities';
 import { EnrichmentService } from '../enrichment/enrichment.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
+import { TraccarProvisioningService } from '../traccar/traccar-provisioning.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 
@@ -32,6 +33,7 @@ export class DriversService {
 
     private readonly enrichment: EnrichmentService,
     private readonly entitlements: EntitlementsService,
+    private readonly traccar: TraccarProvisioningService,
   ) {}
 
   async findAll(tenantId?: string): Promise<Driver[]> {
@@ -79,6 +81,11 @@ export class DriversService {
       saved.tenantId,
       saved.name,
     );
+    // Provision the matching Traccar device (async, retried) so positions for
+    // this uniqueId are accepted without a manual Traccar-UI step.
+    if (saved.deviceId) {
+      await this.traccar.ensureDevice(saved.deviceId, saved.name);
+    }
     this.logger.log(`Driver created: ${saved.id} name=${saved.name}`);
     return saved;
   }
@@ -91,6 +98,7 @@ export class DriversService {
   ): Promise<Driver> {
     const driver = await this.getOwned(id, tenantId);
 
+    const previousDeviceId = driver.deviceId;
     const deviceChanged =
       dto.deviceId !== undefined && dto.deviceId !== driver.deviceId;
     if (deviceChanged && dto.deviceId) {
@@ -113,6 +121,14 @@ export class DriversService {
         saved.name,
       );
     }
+    // Keep Traccar in sync: disable the old device, (re-)provision the new one.
+    // A name-only change refreshes the existing device's name.
+    if (deviceChanged) {
+      if (previousDeviceId) await this.traccar.disableDevice(previousDeviceId);
+      if (saved.deviceId) await this.traccar.ensureDevice(saved.deviceId, saved.name);
+    } else if (dto.name !== undefined && saved.deviceId) {
+      await this.traccar.ensureDevice(saved.deviceId, saved.name);
+    }
     return saved;
   }
 
@@ -123,10 +139,13 @@ export class DriversService {
    */
   async deactivateDriver(id: string, tenantId: string): Promise<Driver> {
     const driver = await this.getOwned(id, tenantId);
+    const previousDeviceId = driver.deviceId;
     driver.status = 'inactive';
     driver.deviceId = null;
     const saved = await this.driverRepo.save(driver);
     this.enrichment.removeDriverMapping(id);
+    // Disable (not delete) the Traccar device so history is preserved.
+    if (previousDeviceId) await this.traccar.disableDevice(previousDeviceId);
     this.logger.log(`Driver deactivated: ${id}`);
     return saved;
   }
@@ -138,6 +157,7 @@ export class DriversService {
     deviceId: string | null,
   ): Promise<Driver> {
     const driver = await this.getOwned(id, tenantId);
+    const previousDeviceId = driver.deviceId;
     if (deviceId) {
       await this.assertDeviceFree(deviceId, id);
     }
@@ -154,6 +174,14 @@ export class DriversService {
       saved.tenantId,
       saved.name,
     );
+    // Sync Traccar: disable the previous device if it changed/cleared, and
+    // ensure the new one exists + is enabled.
+    if (previousDeviceId && previousDeviceId !== saved.deviceId) {
+      await this.traccar.disableDevice(previousDeviceId);
+    }
+    if (saved.deviceId) {
+      await this.traccar.ensureDevice(saved.deviceId, saved.name);
+    }
     this.logger.log(`Driver ${id} device set to ${deviceId ?? 'none'}`);
     return saved;
   }
