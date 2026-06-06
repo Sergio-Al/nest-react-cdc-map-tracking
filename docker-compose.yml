@@ -381,8 +381,17 @@ services:
       MYSQL_USER: ${MYSQL_USER:-app_user}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secret}
       HTTP_PORT: 8090
+      # Pino disk logging — rotate at LOG_MAX_SIZE or every LOG_ROTATE_INTERVAL_MS
+      # (3 days), keep LOG_RETAIN_COUNT files. Files land in /app/logs (mounted below).
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_MAX_SIZE: ${LOG_MAX_SIZE:-1m}
+      LOG_ROTATE_INTERVAL_MS: ${LOG_ROTATE_INTERVAL_MS:-259200000}
+      LOG_RETAIN_COUNT: ${LOG_RETAIN_COUNT:-20}
     ports:
       - "8090:8090"
+    # Persist rotating log files to the host so they survive container restarts.
+    volumes:
+      - ./integration-service-nest/logs:/app/logs
     networks:
       - tracking-net
 

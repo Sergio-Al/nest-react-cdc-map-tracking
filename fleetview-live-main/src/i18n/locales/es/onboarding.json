@@ -1,0 +1,80 @@
+{
+  "close": "Cerrar",
+  "skip": "Omitir introducción",
+  "back": "Atrás",
+  "getStarted": "Comenzar",
+  "continue": "Continuar",
+  "enter": "Entrar a FleetTrack",
+  "replay": "Ver introducción de nuevo",
+  "dotLabel": "Ir a la función {{step}}",
+
+  "welcome": {
+    "eyebrow": "Te damos la bienvenida a",
+    "title": "FleetTrack",
+    "subtitle": "Control de misión para tu flota: posiciones en vivo, planificación de rutas y todo el ciclo de visitas en un solo espacio de trabajo. Esto es lo que puedes hacer.",
+    "features": {
+      "map": { "title": "Mapa de flota en vivo", "desc": "Ve a cada conductor moverse, en tiempo real." },
+      "visits": { "title": "Visitas planificadas", "desc": "Cada parada rastreada de inicio a fin." },
+      "routes": { "title": "Optimización de rutas", "desc": "El mejor orden de paradas, menos distancia." },
+      "reports": { "title": "Reportes y analítica", "desc": "Rankings, KPIs y exportación a CSV." },
+      "history": { "title": "Historial y reproducción", "desc": "Rebobina cualquier conductor o ruta." },
+      "billing": { "title": "Incorporación y facturación", "desc": "Tu espacio en segundos, planes que escalan." }
+    }
+  },
+
+  "spotlights": {
+    "map": {
+      "domain": "Rastreo en tiempo real",
+      "title": "Ve a cada conductor moverse, en vivo",
+      "desc": "Un mapa en tiempo real de toda la flota: marcadores, velocidad, ruta y estado transmitidos de forma continua por WebSockets. Haz clic en cualquier conductor para ver su posición, ETA y un minimapa. La pantalla principal para los despachadores.",
+      "card": { "status": "En ruta", "speed": "vel", "eta": "ETA" }
+    },
+    "visits": {
+      "domain": "Operaciones de flota",
+      "title": "Cada parada, rastreada de inicio a fin",
+      "desc": "Cada parada es una visita planificada que avanza por pendiente → llegó → en progreso → completada → salió. El geocercado marca automáticamente la llegada y la salida, y al completar una visita el estado de su pedido vinculado cambia de forma automática.",
+      "flag": "geocerca · llegada automática",
+      "steps": {
+        "pending": "pendiente",
+        "arrived": "llegó",
+        "inProgress": "en progreso",
+        "completed": "completada",
+        "departed": "salió"
+      }
+    },
+    "routes": {
+      "domain": "Planificación de rutas",
+      "title": "El mejor orden, la menor distancia",
+      "desc": "Arma la ruta del día con las paradas de los clientes y luego optimiza la secuencia usando distancias reales de carretera y un solucionador de rutas de vehículos. La ruta se reordena con la distancia y la duración calculadas en un solo clic.",
+      "save": "−33% de distancia",
+      "asPlanned": "Como se planificó",
+      "optimized": "Optimizada"
+    },
+    "reports": {
+      "domain": "Analítica y visibilidad",
+      "title": "Analítica operativa, de principio a fin",
+      "desc": "Un espacio de reportes con KPIs de resumen, desglose de rutas, rankings de conductores y visitas, y rangos de fechas según la zona horaria. Exporta cualquier vista a CSV directamente desde el encabezado.",
+      "kpis": { "onTime": "A tiempo", "visits": "Visitas", "avgStop": "Prom. / parada" },
+      "days": { "mon": "Lun", "tue": "Mar", "wed": "Mié", "thu": "Jue", "fri": "Vie", "sat": "Sáb", "sun": "Dom" }
+    },
+    "history": {
+      "domain": "Analítica y visibilidad",
+      "title": "Rebobina cualquier conductor o ruta",
+      "desc": "Reproduce posiciones históricas y líneas de tiempo de visitas desde el almacén de series temporales. Elige un conductor o una ruta y un rango de fechas, luego desplázate por el recorrido grabado y cada evento de visita a lo largo del camino."
+    },
+    "billing": {
+      "domain": "Incorporación y facturación",
+      "title": "Un espacio de trabajo en segundos",
+      "desc": "El registro autoservicio crea un espacio de trabajo y una prueba inversa de 14 días, sin tarjeta. Los planes escalan con tu flota, los asientos y las funciones se aplican automáticamente, y Stripe gestiona el pago cuando estés listo.",
+      "trialDays": "días restantes",
+      "trialIn": "de tu prueba",
+      "trialNoCard": "No se necesita tarjeta de crédito",
+      "seatsLabel": "Asientos de conductor usados",
+      "plans": {
+        "starter": { "name": "Inicial", "tag": "gratis" },
+        "growth": { "name": "Crecimiento", "tag": "+ optimizar" },
+        "business": { "name": "Empresarial", "tag": "+ API" }
+      }
+    }
+  }
+}

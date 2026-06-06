@@ -1,0 +1,80 @@
+{
+  "close": "Close",
+  "skip": "Skip intro",
+  "back": "Back",
+  "getStarted": "Get started",
+  "continue": "Continue",
+  "enter": "Enter FleetTrack",
+  "replay": "Replay intro",
+  "dotLabel": "Go to feature {{step}}",
+
+  "welcome": {
+    "eyebrow": "Welcome to",
+    "title": "FleetTrack",
+    "subtitle": "Mission control for your fleet — live positions, route planning, and the full visit lifecycle in one workspace. Here's what you can do.",
+    "features": {
+      "map": { "title": "Live Fleet Map", "desc": "See every driver moving, in real time." },
+      "visits": { "title": "Planned Visits", "desc": "Every stop tracked end to end." },
+      "routes": { "title": "Route Optimization", "desc": "Best stop order, least distance." },
+      "reports": { "title": "Reports & Analytics", "desc": "Leaderboards, KPIs, CSV exports." },
+      "history": { "title": "History & Playback", "desc": "Rewind any driver or route." },
+      "billing": { "title": "Onboarding & Billing", "desc": "Workspace in seconds, plans that scale." }
+    }
+  },
+
+  "spotlights": {
+    "map": {
+      "domain": "Real-time Tracking",
+      "title": "See every driver moving, live",
+      "desc": "A real-time map of the whole fleet — markers, speed, route, and status streamed continuously over WebSockets. Click any driver for position, ETA, and a mini-map. The home screen for dispatchers.",
+      "card": { "status": "En route", "speed": "spd", "eta": "ETA" }
+    },
+    "visits": {
+      "domain": "Fleet Operations",
+      "title": "Every stop, tracked end to end",
+      "desc": "Each stop is a planned visit moving through pending → arrived → in progress → completed → departed. Geofencing auto-marks arrival and departure, and completing a visit flips its linked order's status automatically.",
+      "flag": "geofence · auto-arrival",
+      "steps": {
+        "pending": "pending",
+        "arrived": "arrived",
+        "inProgress": "in progress",
+        "completed": "completed",
+        "departed": "departed"
+      }
+    },
+    "routes": {
+      "domain": "Route Planning",
+      "title": "Best order, least distance",
+      "desc": "Build the day's route from customer stops, then optimize the sequence using real road distances and a vehicle-routing solver. The route re-sequences with computed distance and duration in one click.",
+      "save": "−33% distance",
+      "asPlanned": "As planned",
+      "optimized": "Optimized"
+    },
+    "reports": {
+      "domain": "Analytics & Visibility",
+      "title": "Operational analytics, end to end",
+      "desc": "A reporting workspace with Overview KPIs, route drilldowns, driver and visit leaderboards, and timezone-aware date ranges. Export any view to CSV straight from the header.",
+      "kpis": { "onTime": "On-time", "visits": "Visits", "avgStop": "Avg / stop" },
+      "days": { "mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun" }
+    },
+    "history": {
+      "domain": "Analytics & Visibility",
+      "title": "Rewind any driver or route",
+      "desc": "Replay historical positions and visit timelines from the time-series store. Pick a driver or route and a date range, then scrub the recorded path and every visit event along the way."
+    },
+    "billing": {
+      "domain": "Onboarding & Billing",
+      "title": "A workspace in seconds",
+      "desc": "Self-serve signup spins up a workspace and a 14-day reverse trial — no card needed. Plans scale with your fleet, seats and features are enforced automatically, and Stripe handles checkout when you're ready.",
+      "trialDays": "days left",
+      "trialIn": "in your trial",
+      "trialNoCard": "No credit card needed",
+      "seatsLabel": "Driver seats used",
+      "plans": {
+        "starter": { "name": "Starter", "tag": "free" },
+        "growth": { "name": "Growth", "tag": "+ optimize" },
+        "business": { "name": "Business", "tag": "+ API" }
+      }
+    }
+  }
+}

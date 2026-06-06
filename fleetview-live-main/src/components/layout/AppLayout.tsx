@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { IconRail } from '@/components/layout/IconRail';
 import { CommandPalette } from '@/components/layout/CommandPalette';
 import { SettingsEffects } from '@/components/settings/SettingsEffects';
+import { WelcomeOnboarding } from '@/components/onboarding/WelcomeOnboarding';
 
 export function AppLayout() {
   return (
@@ -12,6 +13,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       <CommandPalette />
+      <WelcomeOnboarding />
     </div>
   );
 }

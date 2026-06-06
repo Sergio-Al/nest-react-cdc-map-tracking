@@ -19,6 +19,8 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+tracking-service/logs/
+integration-service-nest/logs/
 
 # Docker volumes
 infrastructure/*/data/

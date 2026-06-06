@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { I18nValidationPipe, I18nValidationExceptionFilter } from 'nestjs-i18n';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -12,7 +13,11 @@ async function bootstrap() {
   // addition to normal JSON parsing) — required for Stripe webhook signature
   // verification, which must hash the exact bytes Stripe sent. No effect on
   // other routes.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  // bufferLogs: true holds startup logs until the Pino logger is attached below,
+  // then flushes them through it. After useLogger(), every existing
+  // `new Logger(context)` call site across the app routes through Pino.
+  const app = await NestFactory.create(AppModule, { rawBody: true, bufferLogs: true });
+  app.useLogger(app.get(PinoLogger));
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);

@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
 import configuration from './config/configuration';
 import { cacheDbConfig } from './config/database.config';
 import { AuthModule } from './modules/auth/auth.module';
@@ -36,6 +37,60 @@ import { AppI18nModule } from './i18n/app-i18n.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
+    }),
+
+    // ── Structured logging (Pino → console + rotating disk file) ─
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const log = config.get<{
+          level: string;
+          dir: string;
+          file: string;
+          maxSize: string;
+          rotateIntervalMs: number;
+          retainCount: number;
+          pretty: boolean;
+        }>('logging')!;
+
+        // Always persist to a rotating file; in dev also mirror to a pretty console.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const targets: any[] = [
+          {
+            target: 'pino-roll',
+            level: log.level,
+            options: {
+              file: `${log.dir}/${log.file}`,
+              size: log.maxSize, // rotate at e.g. 1MB
+              frequency: log.rotateIntervalMs, // …or every 3 days, whichever first
+              mkdir: true, // auto-create the logs/ directory
+              dateFormat: 'yyyy-MM-dd',
+              limit: { count: log.retainCount }, // keep newest N, delete oldest
+            },
+          },
+        ];
+        if (log.pretty) {
+          targets.push({
+            target: 'pino-pretty',
+            level: log.level,
+            options: { colorize: true, singleLine: true, translateTime: 'SYS:standard' },
+          });
+        }
+
+        return {
+          pinoHttp: {
+            level: log.level,
+            autoLogging: false, // no per-request HTTP access logs
+            redact: [
+              'req.headers.authorization',
+              'req.headers.cookie',
+              'req.body.password',
+              '*.password',
+            ],
+            transport: { targets },
+          },
+        };
+      },
     }),
 
     // ── Internationalization (Accept-Language → es/en) ─

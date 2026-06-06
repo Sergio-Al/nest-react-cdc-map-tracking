@@ -8,6 +8,21 @@ export default () => ({
   // infrastructure/timescale/init/01-init.sql.
   defaultTz: process.env.DEFAULT_TZ || 'America/La_Paz',
 
+  // Local disk logging via Pino (nestjs-pino + pino-roll). Files are written to
+  // `dir` (relative to the process CWD = tracking-service/) and rotated when they
+  // reach `maxSize` OR every `rotateIntervalMs`, whichever comes first; only the
+  // newest `retainCount` rotated files are kept (oldest auto-deleted). In dev a
+  // pretty console transport is added on top of the file; prod writes JSON only.
+  logging: {
+    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+    dir: process.env.LOG_DIR || 'logs',
+    file: process.env.LOG_FILE || 'tracking-service.log',
+    maxSize: process.env.LOG_MAX_SIZE || '1m',
+    rotateIntervalMs: parseInt(process.env.LOG_ROTATE_INTERVAL_MS || '259200000', 10), // 3 days
+    retainCount: parseInt(process.env.LOG_RETAIN_COUNT || '20', 10),
+    pretty: (process.env.NODE_ENV || 'development') !== 'production',
+  },
+
   kafka: {
     broker: process.env.KAFKA_BROKER || 'localhost:9094',
     clientId: process.env.KAFKA_CLIENT_ID || 'tracking-service',
