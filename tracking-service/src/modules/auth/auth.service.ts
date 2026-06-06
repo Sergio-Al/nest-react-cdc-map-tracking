@@ -74,6 +74,56 @@ export class AuthService {
     return this.generateTokenPair(user);
   }
 
+  /**
+   * Create a `role:'driver'` login account linked to a driver record. The
+   * caller (DriversService) supplies the tenant from the admin's JWT and the
+   * driver's id/name; the admin enters email + password. One login per driver.
+   */
+  async createDriverLogin(input: {
+    tenantId: string;
+    driverId: string;
+    name: string;
+    email: string;
+    password: string;
+  }) {
+    const byEmail = await this.userRepository.findOne({
+      where: { email: input.email, tenantId: input.tenantId },
+    });
+    if (byEmail) {
+      throw new ConflictException({ errorCode: 'auth.userAlreadyExists' });
+    }
+    const byDriver = await this.userRepository.findOne({
+      where: { tenantId: input.tenantId, driverId: input.driverId },
+    });
+    if (byDriver) {
+      throw new ConflictException({ errorCode: 'auth.driverLoginExists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(input.password, 10);
+    const user = this.userRepository.create({
+      id: randomUUID(),
+      email: input.email,
+      password: hashedPassword,
+      name: input.name,
+      role: 'driver',
+      tenantId: input.tenantId,
+      driverId: input.driverId,
+      isActive: true,
+    });
+    await this.userRepository.save(user);
+    const { password, ...result } = user;
+    return result;
+  }
+
+  /** Set of driver ids that already have a login, for the given tenant. */
+  async driverIdsWithLogin(tenantId: string): Promise<Set<string>> {
+    const rows = await this.userRepository.find({
+      where: { tenantId, role: 'driver' },
+      select: ['driverId'],
+    });
+    return new Set(rows.map((r) => r.driverId).filter((d): d is string => !!d));
+  }
+
   /** Workspace-id availability for the signup form's live check. */
   async checkWorkspace(id: string): Promise<Availability> {
     const slug = (id || '').toLowerCase();

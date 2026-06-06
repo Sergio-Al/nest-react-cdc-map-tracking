@@ -144,6 +144,35 @@ export function useDeactivateDriver() {
   });
 }
 
+export interface CreateDriverLoginDto {
+  id: string;
+  email: string;
+  password: string;
+}
+
+export interface DriverLoginUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'driver';
+  tenantId: string;
+  driverId: string;
+}
+
+/** Create a `role:'driver'` user account linked to this driver. */
+export function useCreateDriverLogin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, email, password }: CreateDriverLoginDto) => {
+      const response = await api.post<DriverLoginUser>(`/drivers/${id}/login`, { email, password });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    },
+  });
+}
+
 /** Bind (or clear, with null) a phone's device_id to a driver. */
 export function usePairDriverDevice() {
   const queryClient = useQueryClient();

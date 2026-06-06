@@ -10,6 +10,7 @@
     "userNotFoundOrInactive": "User not found or inactive",
     "userNotFound": "User not found",
     "userAlreadyExists": "User with this email already exists in this tenant",
+    "driverLoginExists": "This driver already has a login account",
     "insufficientPermissions": "Insufficient permissions",
     "tokenInvalid": "Invalid session token",
     "workspaceTaken": "Workspace '{{id}}' is already taken",

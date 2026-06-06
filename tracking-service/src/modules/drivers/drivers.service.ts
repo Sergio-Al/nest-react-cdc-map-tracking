@@ -10,8 +10,10 @@ import { Driver, DriverPosition } from './entities';
 import { EnrichmentService } from '../enrichment/enrichment.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { TraccarProvisioningService } from '../traccar/traccar-provisioning.service';
+import { AuthService } from '../auth/auth.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
+import { CreateDriverLoginDto } from './dto/create-driver-login.dto';
 
 /**
  * Drivers are PostgreSQL-owned (source of truth). Writes go straight to the
@@ -34,13 +36,29 @@ export class DriversService {
     private readonly enrichment: EnrichmentService,
     private readonly entitlements: EntitlementsService,
     private readonly traccar: TraccarProvisioningService,
+    private readonly authService: AuthService,
   ) {}
 
-  async findAll(tenantId?: string): Promise<Driver[]> {
-    if (tenantId) {
-      return this.driverRepo.find({ where: { tenantId } });
+  async findAll(tenantId?: string): Promise<Array<Driver & { hasLogin?: boolean }>> {
+    if (!tenantId) {
+      return this.driverRepo.find();
     }
-    return this.driverRepo.find();
+    const drivers = await this.driverRepo.find({ where: { tenantId } });
+    // Annotate whether each driver has a login account (role:'driver' user).
+    const withLogin = await this.authService.driverIdsWithLogin(tenantId);
+    return drivers.map((d) => ({ ...d, hasLogin: withLogin.has(d.id) }));
+  }
+
+  /** Create a driver login account (admin/dispatcher). Tenant from the caller. */
+  async createLogin(id: string, tenantId: string, dto: CreateDriverLoginDto) {
+    const driver = await this.getOwned(id, tenantId); // 404s if not in tenant
+    return this.authService.createDriverLogin({
+      tenantId,
+      driverId: id,
+      name: driver.name,
+      email: dto.email,
+      password: dto.password,
+    });
   }
 
   async findOne(id: string): Promise<Driver | null> {

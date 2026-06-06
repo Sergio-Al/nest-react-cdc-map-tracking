@@ -6,6 +6,7 @@ import { Driver, DriverPosition } from './entities';
 import { EnrichmentModule } from '../enrichment/enrichment.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { TraccarModule } from '../traccar/traccar.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { TraccarModule } from '../traccar/traccar.module';
     EnrichmentModule,
     SubscriptionsModule,
     TraccarModule,
+    AuthModule,
   ],
   controllers: [DriversController],
   providers: [DriversService],

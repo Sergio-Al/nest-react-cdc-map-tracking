@@ -17,6 +17,7 @@ export type I18nTranslations = {
             "userNotFoundOrInactive": string;
             "userNotFound": string;
             "userAlreadyExists": string;
+            "driverLoginExists": string;
             "insufficientPermissions": string;
             "tokenInvalid": string;
             "workspaceTaken": string;

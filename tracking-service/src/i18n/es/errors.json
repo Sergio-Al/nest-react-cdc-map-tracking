@@ -10,6 +10,7 @@
     "userNotFoundOrInactive": "Usuario no encontrado o inactivo",
     "userNotFound": "Usuario no encontrado",
     "userAlreadyExists": "Ya existe un usuario con este correo en este tenant",
+    "driverLoginExists": "Este conductor ya tiene una cuenta de acceso",
     "insufficientPermissions": "Permisos insuficientes",
     "tokenInvalid": "Token de sesión inválido",
     "workspaceTaken": "El espacio de trabajo '{{id}}' ya está en uso",

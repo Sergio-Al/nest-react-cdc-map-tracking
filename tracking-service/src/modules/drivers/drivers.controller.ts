@@ -9,6 +9,7 @@ import { TimescaleService } from '../timescale/timescale.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { PairDeviceDto } from './dto/pair-device.dto';
+import { CreateDriverLoginDto } from './dto/create-driver-login.dto';
 
 @Controller('drivers')
 export class DriversController {
@@ -86,6 +87,19 @@ export class DriversController {
     @CurrentUser() user: any,
   ) {
     return this.driversService.deactivateDriver(id, user.tenantId);
+  }
+
+  // Create a login account for a driver. Tenant is taken from the admin's JWT
+  // (server-authoritative), not the body.
+  @Roles('admin', 'dispatcher')
+  @Post(':id/login')
+  @HttpCode(HttpStatus.CREATED)
+  createLogin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateDriverLoginDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.driversService.createLogin(id, user.tenantId, dto);
   }
 
   // Managers may pair anyone; a driver may pair only their own device.

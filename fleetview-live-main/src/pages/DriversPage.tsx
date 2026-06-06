@@ -8,10 +8,13 @@ import {
   useUpdateDriver,
   useDeactivateDriver,
   useInitialPositions,
+  useCreateDriverLogin,
 } from '@/hooks/api/useDrivers';
+import { translateApiError } from '@/lib/apiError';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSocket } from '@/hooks/useSocket';
 import { CreateDriverDialog } from '@/components/drivers/CreateDriverDialog';
+import { CreateDriverLoginDialog } from '@/components/drivers/CreateDriverLoginDialog';
 import { DriverDetailPanel } from '@/components/drivers/DriverDetailPanel';
 import { Footer } from '@/components/dashboard/Footer';
 import { FilterBar, useDatasetFilters } from '@/components/filters';
@@ -35,6 +38,7 @@ export default function DriversPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDriver, setEditDriver] = useState<Driver | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loginDialogDriver, setLoginDialogDriver] = useState<Driver | null>(null);
 
   const user = useAuthStore((s) => s.user);
   const { isConnected } = useSocket();
@@ -42,6 +46,7 @@ export default function DriversPage() {
   const createDriver = useCreateDriver();
   const updateDriver = useUpdateDriver();
   const deactivateDriver = useDeactivateDriver();
+  const createDriverLogin = useCreateDriverLogin();
   const { t } = useTranslation('drivers');
 
   // Seed `useMapStore.positions` from REST so the detail panel mini-map has data
@@ -83,6 +88,19 @@ export default function DriversPage() {
       if (selectedId === driver.id) setSelectedId(null);
     } catch {
       toast.error(t('toasts.deactivateFailed'));
+    }
+  };
+
+  const handleCreateLogin = async ({ email, password }: { email: string; password: string }) => {
+    if (!loginDialogDriver) return;
+    try {
+      await createDriverLogin.mutateAsync({ id: loginDialogDriver.id, email, password });
+      toast.success(t('toasts.loginCreated', { name: loginDialogDriver.name }));
+      setLoginDialogDriver(null);
+    } catch (err) {
+      toast.error(
+        translateApiError(err, t('toasts.loginCreateFailed')),
+      );
     }
   };
 
@@ -198,6 +216,7 @@ export default function DriversPage() {
           onDeactivate={handleDeactivate}
           isDeactivating={deactivateDriver.isPending}
           onClose={() => setSelectedId(null)}
+          onCreateLogin={(d) => setLoginDialogDriver(d)}
         />
       </div>
 
@@ -217,6 +236,14 @@ export default function DriversPage() {
         onCreate={handleCreate}
         onUpdate={handleUpdate}
         isLoading={createDriver.isPending || updateDriver.isPending}
+      />
+
+      <CreateDriverLoginDialog
+        open={!!loginDialogDriver}
+        onOpenChange={(o) => { if (!o) setLoginDialogDriver(null); }}
+        driver={loginDialogDriver}
+        onSubmit={handleCreateLogin}
+        isLoading={createDriverLogin.isPending}
       />
     </div>
   );

@@ -43,7 +43,9 @@
     "updated": "Driver \"{{name}}\" updated",
     "updateFailed": "Failed to update driver",
     "deactivated": "Driver \"{{name}}\" deactivated",
-    "deactivateFailed": "Failed to deactivate driver"
+    "deactivateFailed": "Failed to deactivate driver",
+    "loginCreated": "Login created for {{name}}",
+    "loginCreateFailed": "Failed to create login"
   },
   "detail": {
     "empty": {
@@ -61,7 +63,9 @@
     "actions": {
       "edit": "Edit",
       "deactivate": "Deactivate",
-      "notAvailable": "Backend endpoint not yet available"
+      "notAvailable": "Backend endpoint not yet available",
+      "createLogin": "Create login",
+      "hasLogin": "Has login"
     },
     "sections": {
       "lastPosition": "Last-known position",
@@ -73,5 +77,18 @@
       "noVehicle": "No vehicle assigned",
       "goToVehicles": "go to vehicles →"
     }
+  },
+  "loginDialog": {
+    "title": "Create login for {{name}}",
+    "subtitle": "Enter the credentials {{name}} will use to sign in to the platform.",
+    "email": "Email address",
+    "emailPlaceholder": "driver@company.com",
+    "password": "Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "passwordMinLength": "Password must be at least 8 characters",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "submit": "Create login",
+    "submitting": "Creating…"
   }
 }

@@ -9,6 +9,7 @@ export interface Driver {
   status: string;
   createdAt: string;
   updatedAt: string;
+  hasLogin?: boolean;
 }
 
 export interface DriverPosition {

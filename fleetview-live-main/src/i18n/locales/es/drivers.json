@@ -43,7 +43,9 @@
     "updated": "Conductor \"{{name}}\" actualizado",
     "updateFailed": "No se pudo actualizar el conductor",
     "deactivated": "Conductor \"{{name}}\" desactivado",
-    "deactivateFailed": "No se pudo desactivar el conductor"
+    "deactivateFailed": "No se pudo desactivar el conductor",
+    "loginCreated": "Acceso creado para {{name}}",
+    "loginCreateFailed": "No se pudo crear el acceso"
   },
   "detail": {
     "empty": {
@@ -61,7 +63,9 @@
     "actions": {
       "edit": "Editar",
       "deactivate": "Desactivar",
-      "notAvailable": "Endpoint del backend aún no disponible"
+      "notAvailable": "Endpoint del backend aún no disponible",
+      "createLogin": "Crear acceso",
+      "hasLogin": "Tiene acceso"
     },
     "sections": {
       "lastPosition": "Última posición",
@@ -73,5 +77,18 @@
       "noVehicle": "Sin vehículo asignado",
       "goToVehicles": "ir a vehículos →"
     }
+  },
+  "loginDialog": {
+    "title": "Crear acceso para {{name}}",
+    "subtitle": "Ingresa las credenciales que usará {{name}} para iniciar sesión en la plataforma.",
+    "email": "Correo electrónico",
+    "emailPlaceholder": "conductor@empresa.com",
+    "password": "Contraseña",
+    "passwordPlaceholder": "Mínimo 8 caracteres",
+    "passwordMinLength": "La contraseña debe tener al menos 8 caracteres",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
+    "submit": "Crear acceso",
+    "submitting": "Creando…"
   }
 }

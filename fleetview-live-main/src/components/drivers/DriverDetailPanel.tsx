@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, PowerOff, Phone, Hash, Truck, ExternalLink, MapPin } from 'lucide-react';
+import { Pencil, PowerOff, Phone, Hash, Truck, ExternalLink, MapPin, KeyRound, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DirectoryDetailPanel, type DirectoryDetailTab } from '@/components/ui/directory-detail-panel';
@@ -18,6 +18,7 @@ interface Props {
   onEdit?: (driver: Driver) => void;
   onDeactivate?: (driver: Driver) => void;
   isDeactivating?: boolean;
+  onCreateLogin?: (driver: Driver) => void;
 }
 
 function initials(name: string): string {
@@ -37,6 +38,7 @@ export function DriverDetailPanel({
   onEdit,
   onDeactivate,
   isDeactivating = false,
+  onCreateLogin,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const { t, i18n } = useTranslation('drivers');
@@ -100,6 +102,21 @@ export function DriverDetailPanel({
               <Pencil className="h-[13px] w-[13px]" />
               <span>{t('detail.actions.edit')}</span>
             </button>
+            {driver.hasLogin ? (
+              <span className="flex h-8 items-center gap-[6px] rounded-mc border border-[oklch(0.72_0.16_150/0.35)] bg-[oklch(0.72_0.16_150/0.08)] px-3 text-[12px] font-medium text-[oklch(0.45_0.16_150)] dark:text-[oklch(0.78_0.18_150)]">
+                <ShieldCheck className="h-[13px] w-[13px]" />
+                <span>{t('detail.actions.hasLogin')}</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onCreateLogin?.(driver)}
+                className="flex h-8 items-center gap-[6px] rounded-mc border border-border bg-mc-elev px-3 text-[12px] font-medium text-mc-text-dim transition-colors hover:border-mc-accent/40 hover:text-mc-accent"
+              >
+                <KeyRound className="h-[13px] w-[13px]" />
+                <span>{t('detail.actions.createLogin')}</span>
+              </button>
+            )}
             <button
               type="button"
               disabled={isDeactivating || driver.status === 'inactive'}
