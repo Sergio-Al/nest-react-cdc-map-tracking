@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
+import { useDashboardStore } from '@/stores/dashboard.store';
 import {
   useSettings, useUpdateUserSettings, useTenantSettings, useUpdateTenantSettings,
 } from '@/hooks/api/useSettings';
@@ -109,6 +110,7 @@ export default function SettingsPage() {
   const { t: tBilling } = useTranslation('billing');
   const settings = useAuthStore((s) => s.settings);
   const isAdmin = useAuthStore((s) => s.user?.role) === 'admin';
+  const replayWelcome = useDashboardStore((s) => s.replayWelcome);
 
   useSettings(); // ensure effective settings are fetched/fresh
   const updateUser = useUpdateUserSettings();
@@ -228,6 +230,16 @@ export default function SettingsPage() {
             <Frow label={t('fields.density')} help={t('densityHelp')}>
               <Segmented value={form.density} onChange={(v) => set({ density: v })}
                 options={['compact', 'comfortable'].map((x) => ({ value: x, label: t(`density.${x}`) }))} />
+            </Frow>
+            <Frow label={t('fields.tour')} help={t('tourHelp')}>
+              <button
+                type="button"
+                onClick={replayWelcome}
+                className="inline-flex h-8 items-center gap-2 rounded-[7px] border border-mc-border bg-background px-3 text-[13px] font-medium text-mc-text transition-colors hover:border-mc-border-strong"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-mc-text-dim" />
+                {t('fields.replayTour')}
+              </button>
             </Frow>
           </Card>
 

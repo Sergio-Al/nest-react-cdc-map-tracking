@@ -26,6 +26,7 @@ import { DlqModule } from './modules/dlq/dlq.module';
 import { HistoryModule } from './modules/history/history.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
@@ -137,6 +138,7 @@ import { AppI18nModule } from './i18n/app-i18n.module';
     HistoryModule,
     VehiclesModule,
     SettingsModule,
+    OnboardingModule,
     SubscriptionsModule,
     TenantsModule,
     HealthModule,

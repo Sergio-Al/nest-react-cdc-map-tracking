@@ -11,6 +11,13 @@ interface DashboardState {
   /** Inbox slide-over (used below the `lg` breakpoint). */
   inboxSheetOpen: boolean;
   setInboxSheetOpen: (open: boolean) => void;
+  /**
+   * Bumped to force-open the welcome tour on demand (Settings / command
+   * palette), independent of the server "already seen" state. WelcomeOnboarding
+   * watches this counter and reopens when it increments.
+   */
+  welcomeReplay: number;
+  replayWelcome: () => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -19,4 +26,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   toggleCommand: () => set((s) => ({ commandOpen: !s.commandOpen })),
   inboxSheetOpen: false,
   setInboxSheetOpen: (open) => set({ inboxSheetOpen: open }),
+  welcomeReplay: 0,
+  replayWelcome: () => set((s) => ({ welcomeReplay: s.welcomeReplay + 1 })),
 }));

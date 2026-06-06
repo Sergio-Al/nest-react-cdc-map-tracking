@@ -7,6 +7,7 @@
   "appearanceDesc": "Cómo se ve FleetTrack en este dispositivo.",
   "themeHelp": "Coincide con tu sistema o elige un modo fijo.",
   "densityHelp": "Altura de filas en listas y tablas.",
+  "tourHelp": "Vuelve a ver la introducción de bienvenida.",
   "tenantDefaults": "Valores predeterminados del inquilino",
   "tenantDefaultsHint": "Valores predeterminados para todos en este inquilino. Cada usuario puede sobrescribirlos.",
   "inheritHint": "Tus preferencias tienen prioridad sobre los valores del inquilino.",
@@ -35,6 +36,8 @@
     "defaultRange": "Rango de reporte predeterminado",
     "theme": "Tema",
     "density": "Densidad",
+    "tour": "Tour del producto",
+    "replayTour": "Ver de nuevo",
     "ingestMode": "Modo de integración",
     "allowAppOrderCreate": "Permitir creación de pedidos en la app"
   },

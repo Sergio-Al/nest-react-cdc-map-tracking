@@ -7,6 +7,7 @@
   "appearanceDesc": "How FleetTrack looks on this device.",
   "themeHelp": "Match your system or pick a fixed mode.",
   "densityHelp": "Row height across lists and tables.",
+  "tourHelp": "Watch the welcome introduction again.",
   "tenantDefaults": "Tenant defaults",
   "tenantDefaultsHint": "Defaults applied to everyone in this tenant. Users can override them.",
   "inheritHint": "Your overrides take precedence over the tenant defaults.",
@@ -35,6 +36,8 @@
     "defaultRange": "Default report range",
     "theme": "Theme",
     "density": "Density",
+    "tour": "Product tour",
+    "replayTour": "Replay",
     "ingestMode": "Integration mode",
     "allowAppOrderCreate": "Allow in-app order creation"
   },

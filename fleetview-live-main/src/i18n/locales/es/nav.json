@@ -29,7 +29,8 @@
       "createRoute": "Crear nueva ruta",
       "focusDriver": "Centrar a {{name}} en el mapa",
       "switchToLight": "Cambiar a tema claro",
-      "switchToDark": "Cambiar a tema oscuro"
+      "switchToDark": "Cambiar a tema oscuro",
+      "replayTour": "Ver introducción de nuevo"
     }
   }
 }

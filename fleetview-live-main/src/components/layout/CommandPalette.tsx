@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
-import { Moon, Sun, Plus, Users, Navigation } from "lucide-react";
+import { Moon, Sun, Plus, Users, Navigation, RotateCcw } from "lucide-react";
 import {
   CommandDialog,
   CommandInput,
@@ -29,6 +29,7 @@ export function CommandPalette() {
   const open = useDashboardStore((s) => s.commandOpen);
   const setOpen = useDashboardStore((s) => s.setCommandOpen);
   const toggle = useDashboardStore((s) => s.toggleCommand);
+  const replayWelcome = useDashboardStore((s) => s.replayWelcome);
   const navigate = useNavigate();
   const role = useAuthStore((s) => s.user?.role);
   const { resolvedTheme, setTheme } = useTheme();
@@ -121,6 +122,13 @@ export function CommandPalette() {
           >
             {isDark ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
             <span>{isDark ? t("palette.actions.switchToLight") : t("palette.actions.switchToDark")}</span>
+          </CommandItem>
+          <CommandItem
+            value="replay welcome intro tour onboarding"
+            onSelect={() => run(replayWelcome)}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            <span>{t("palette.actions.replayTour")}</span>
           </CommandItem>
         </CommandGroup>
 

@@ -8,6 +8,47 @@
 
 .ftw {
   --ftw-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Hero illustration palette — LIGHT (default theme). The feature mockups
+     are a "device screen" surface; these tokens make them follow the active
+     theme instead of being hardcoded dark. Overridden under .dark below. */
+  --ftw-hero-bg-1:    oklch(0.975 0.003 70);   /* screen gradient top */
+  --ftw-hero-bg-2:    oklch(0.945 0.003 70);   /* screen gradient bottom */
+  --ftw-hero-grid:    oklch(0.8 0.004 70 / 0.55);
+  --ftw-hero-stroke:  oklch(0.975 0.003 70);   /* marker halo = screen bg */
+  --ftw-hero-inset:   oklch(1 0 0 / 0.9);      /* raised cards on the screen */
+  --ftw-hero-fg:      oklch(0.22 0.006 70);    /* primary text on screen */
+  --ftw-hero-muted:   oklch(0.46 0.005 70);    /* secondary text */
+  --ftw-hero-dim:     oklch(0.52 0.005 70);    /* labels (was too dim) */
+  --ftw-hero-chip:    oklch(0.93 0.004 70);    /* small index chips */
+  --ftw-hero-track:   oklch(0.89 0.004 70);    /* scrub/progress tracks */
+  --ftw-hero-good:        oklch(0.52 0.13 150);
+  --ftw-hero-good-soft:   oklch(0.62 0.15 150 / 0.16);
+  --ftw-hero-good-border: oklch(0.55 0.14 150 / 0.4);
+  --ftw-hero-info:        oklch(0.5 0.13 240);
+  --ftw-hero-info-soft:   oklch(0.6 0.14 240 / 0.14);
+  --ftw-hero-info-border: oklch(0.55 0.13 240 / 0.4);
+}
+
+/* Hero illustration palette — DARK. Restores the original near-black screen
+   look, with the dimmest label tones nudged up for legibility. */
+.dark .ftw {
+  --ftw-hero-bg-1:    oklch(0.215 0.006 250);
+  --ftw-hero-bg-2:    oklch(0.175 0.005 250);
+  --ftw-hero-grid:    oklch(0.32 0.005 250 / 0.5);
+  --ftw-hero-stroke:  oklch(0.175 0.005 250);
+  --ftw-hero-inset:   oklch(0.2 0.005 250 / 0.85);
+  --ftw-hero-fg:      oklch(0.97 0.005 250);
+  --ftw-hero-muted:   oklch(0.74 0.005 250);
+  --ftw-hero-dim:     oklch(0.62 0.005 250);
+  --ftw-hero-chip:    oklch(0.27 0.005 250);
+  --ftw-hero-track:   oklch(0.3 0.005 250);
+  --ftw-hero-good:        oklch(0.82 0.15 150);
+  --ftw-hero-good-soft:   oklch(0.72 0.16 150 / 0.13);
+  --ftw-hero-good-border: oklch(0.72 0.16 150 / 0.3);
+  --ftw-hero-info:        oklch(0.78 0.13 240);
+  --ftw-hero-info-soft:   oklch(0.65 0.15 240 / 0.14);
+  --ftw-hero-info-border: oklch(0.65 0.15 240 / 0.3);
 }
 
 /* ── Scrim ──────────────────────────────────────────────── */
@@ -113,7 +154,7 @@
   border-radius: 12px; overflow: hidden;
   border: 1px solid var(--mc-border);
   background:
-    radial-gradient(120% 120% at 50% 0%, oklch(0.215 0.006 250) 0%, oklch(0.175 0.005 250) 100%);
+    radial-gradient(120% 120% at 50% 0%, var(--ftw-hero-bg-1) 0%, var(--ftw-hero-bg-2) 100%);
   margin-bottom: 22px;
 }
 .ftw .spot-domain {
@@ -177,19 +218,6 @@
 }
 .ftw .skip:hover { color: var(--mc-text); }
 
-/* ── Replay affordance ──────────────────────────────────── */
-.ftw .replay {
-  position: fixed; bottom: 18px; right: 18px; z-index: 60;
-  display: inline-flex; align-items: center; gap: 7px;
-  height: 30px; padding: 0 13px; border-radius: 8px;
-  background: var(--mc-bg-elev); border: 1px solid var(--mc-border);
-  color: var(--mc-text-muted); font-size: 12px; font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 4px 16px oklch(0 0 0 / 0.3);
-}
-.ftw .replay:hover { background: var(--mc-surface); color: var(--mc-text); }
-.ftw .replay svg { width: 13px; height: 13px; }
-
 /* ──────────────────────────────────────────────────────────
    Hero illustrations (one per feature)
    ────────────────────────────────────────────────────────── */
@@ -198,8 +226,8 @@
 .ftw .h-grid {
   position: absolute; inset: 0;
   background:
-    linear-gradient(0deg, oklch(0.28 0.005 250 / 0.45) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.28 0.005 250 / 0.45) 1px, transparent 1px);
+    linear-gradient(0deg, var(--ftw-hero-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ftw-hero-grid) 1px, transparent 1px);
   background-size: 30px 30px;
   mask-image: radial-gradient(120% 100% at 50% 40%, #000 40%, transparent 100%);
   -webkit-mask-image: radial-gradient(120% 100% at 50% 40%, #000 40%, transparent 100%);
@@ -208,7 +236,7 @@
 /* 1 · Live map */
 .ftw .lm-pin {
   position: absolute; width: 14px; height: 14px; border-radius: 50%;
-  border: 2.5px solid oklch(0.175 0.005 250);
+  border: 2.5px solid var(--ftw-hero-stroke);
   transform: translate(-50%, -50%);
 }
 .ftw .lm-pin .ring {
@@ -223,11 +251,11 @@
 .ftw .lm-card {
   position: absolute; right: 16px; bottom: 16px;
   width: 188px; padding: 10px 12px;
-  background: oklch(0.19 0.005 250 / 0.92); backdrop-filter: blur(6px);
+  background: var(--ftw-hero-inset); backdrop-filter: blur(6px);
   border: 1px solid var(--mc-border); border-radius: 9px;
   box-shadow: 0 8px 24px oklch(0 0 0 / 0.35);
 }
-.ftw .lm-card .nm { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; color: oklch(0.97 0.005 250); }
+.ftw .lm-card .nm { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--ftw-hero-fg); }
 .ftw .lm-card .av {
   width: 18px; height: 18px; border-radius: 50%; background: var(--mc-accent-soft);
   color: var(--mc-accent); font-family: var(--ftw-mono); font-size: 9px; font-weight: 600;
@@ -235,14 +263,14 @@
 }
 .ftw .lm-card .meta {
   margin-top: 7px; display: flex; gap: 5px; font-family: var(--ftw-mono);
-  font-size: 10px; color: oklch(0.7 0.005 250); white-space: nowrap;
+  font-size: 10px; color: var(--ftw-hero-muted); white-space: nowrap;
 }
-.ftw .lm-card .meta .v { color: oklch(0.97 0.005 250); }
+.ftw .lm-card .meta .v { color: var(--ftw-hero-fg); }
 .ftw .lm-card .pill {
   display: inline-flex; align-items: center; gap: 5px;
   border-radius: 999px; font-size: 11px; font-weight: 500; line-height: 1.5;
 }
-.ftw .lm-card .pill.ok { background: oklch(0.72 0.16 150 / 0.13); border: 1px solid oklch(0.72 0.16 150 / 0.3); color: oklch(0.82 0.15 150); }
+.ftw .lm-card .pill.ok { background: var(--ftw-hero-good-soft); border: 1px solid var(--ftw-hero-good-border); color: var(--ftw-hero-good); }
 .ftw .lm-card .pill .pd { width: 6px; height: 6px; border-radius: 50%; background: var(--mc-status-moving); }
 
 /* 2 · Visit lifecycle */
@@ -262,81 +290,90 @@
   position: relative; z-index: 1;
 }
 .ftw .vl-dot svg { width: 13px; height: 13px; }
-.ftw .vl-dot.arrived { border-color: var(--mc-status-arrived); color: var(--mc-status-arrived); background: oklch(0.65 0.15 240 / 0.16); }
+/* Colored dots composite their tint over an opaque base so the connecting
+   line stays hidden behind them (translucent fills would let it show through). */
+.ftw .vl-dot.arrived {
+  border-color: var(--mc-status-arrived); color: var(--mc-status-arrived);
+  background: linear-gradient(oklch(0.65 0.15 240 / 0.16), oklch(0.65 0.15 240 / 0.16)), var(--mc-bg-elev);
+}
 .ftw .vl-dot.active {
-  border-color: var(--mc-status-idle); color: var(--mc-status-idle); background: oklch(0.78 0.14 80 / 0.16);
+  border-color: var(--mc-status-idle); color: var(--mc-status-idle);
+  background: linear-gradient(oklch(0.78 0.14 80 / 0.16), oklch(0.78 0.14 80 / 0.16)), var(--mc-bg-elev);
   box-shadow: 0 0 0 4px oklch(0.78 0.14 80 / 0.16);
 }
-.ftw .vl-dot.done { border-color: var(--mc-status-moving); color: var(--mc-status-moving); background: oklch(0.72 0.16 150 / 0.16); }
+.ftw .vl-dot.done {
+  border-color: var(--mc-status-moving); color: var(--mc-status-moving);
+  background: linear-gradient(oklch(0.72 0.16 150 / 0.16), oklch(0.72 0.16 150 / 0.16)), var(--mc-bg-elev);
+}
 .ftw .vl-label { font-size: 9.5px; color: var(--mc-text-dim); white-space: nowrap; font-weight: 500; }
 .ftw .vl-label.cur { color: var(--mc-text); }
 .ftw .vl-flag {
   position: absolute; left: 50%; top: -52px; transform: translateX(-50%);
   display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 500; white-space: nowrap;
-  background: oklch(0.65 0.15 240 / 0.14); border: 1px solid oklch(0.65 0.15 240 / 0.3);
-  color: oklch(0.78 0.13 240);
+  background: var(--ftw-hero-info-soft); border: 1px solid var(--ftw-hero-info-border);
+  color: var(--ftw-hero-info);
 }
 .ftw .vl-flag svg { width: 11px; height: 11px; }
 
 /* 3 · Route optimization */
 .ftw .ro-wrap { position: absolute; inset: 0; display: flex; align-items: center; gap: 12px; padding: 18px 18px; }
 .ftw .ro-col {
-  flex: 1; background: oklch(0.19 0.005 250 / 0.8); border: 1px solid var(--mc-border);
+  flex: 1; background: var(--ftw-hero-inset); border: 1px solid var(--mc-border);
   border-radius: 9px; padding: 11px 11px 12px;
 }
-.ftw .ro-col .ttl { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.07em; color: oklch(0.5 0.005 250); margin-bottom: 8px; }
-.ftw .ro-stop { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 11px; color: oklch(0.7 0.005 250); }
+.ftw .ro-col .ttl { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ftw-hero-dim); margin-bottom: 8px; }
+.ftw .ro-stop { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 11px; color: var(--ftw-hero-muted); }
 .ftw .ro-stop .ix {
   width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
-  background: oklch(0.215 0.005 250); border: 1px solid var(--mc-border);
-  font-family: var(--ftw-mono); font-size: 9px; font-weight: 600; color: oklch(0.7 0.005 250);
+  background: var(--ftw-hero-chip); border: 1px solid var(--mc-border);
+  font-family: var(--ftw-mono); font-size: 9px; font-weight: 600; color: var(--ftw-hero-muted);
   display: grid; place-items: center;
 }
 .ftw .ro-col.after .ro-stop .ix { background: var(--mc-accent-soft); border-color: var(--mc-accent-border); color: var(--mc-accent); }
 .ftw .ro-dist { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--mc-border); font-family: var(--ftw-mono); font-size: 14px; font-weight: 600; }
-.ftw .ro-dist .u { font-size: 9px; color: oklch(0.5 0.005 250); font-weight: 400; }
-.ftw .ro-dist.bad { color: oklch(0.7 0.005 250); }
-.ftw .ro-dist.good { color: oklch(0.82 0.15 150); }
+.ftw .ro-dist .u { font-size: 9px; color: var(--ftw-hero-dim); font-weight: 400; }
+.ftw .ro-dist.bad { color: var(--ftw-hero-muted); }
+.ftw .ro-dist.good { color: var(--ftw-hero-good); }
 .ftw .ro-arrow { flex-shrink: 0; color: var(--mc-accent); display: grid; place-items: center; }
 .ftw .ro-arrow svg { width: 18px; height: 18px; }
 .ftw .ro-save {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-  font-size: 10px; font-family: var(--ftw-mono); color: oklch(0.82 0.15 150);
-  background: oklch(0.72 0.16 150 / 0.13); border: 1px solid oklch(0.72 0.16 150 / 0.3);
+  font-size: 10px; font-family: var(--ftw-mono); color: var(--ftw-hero-good);
+  background: var(--ftw-hero-good-soft); border: 1px solid var(--ftw-hero-good-border);
   padding: 2px 8px; border-radius: 999px;
 }
 
 /* 4 · Reports */
 .ftw .rp-pad { position: absolute; inset: 0; padding: 20px 22px; display: flex; flex-direction: column; gap: 13px; }
 .ftw .rp-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
-.ftw .rp-kpi { background: oklch(0.19 0.005 250 / 0.8); border: 1px solid var(--mc-border); border-radius: 8px; padding: 9px 10px; }
-.ftw .rp-kpi .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: oklch(0.5 0.005 250); }
-.ftw .rp-kpi .v { font-family: var(--ftw-mono); font-size: 17px; font-weight: 600; margin-top: 3px; letter-spacing: -0.02em; color: oklch(0.97 0.005 250); }
-.ftw .rp-kpi .v .u { font-size: 9px; color: oklch(0.5 0.005 250); font-weight: 400; }
+.ftw .rp-kpi { background: var(--ftw-hero-inset); border: 1px solid var(--mc-border); border-radius: 8px; padding: 9px 10px; }
+.ftw .rp-kpi .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ftw-hero-dim); }
+.ftw .rp-kpi .v { font-family: var(--ftw-mono); font-size: 17px; font-weight: 600; margin-top: 3px; letter-spacing: -0.02em; color: var(--ftw-hero-fg); }
+.ftw .rp-kpi .v .u { font-size: 9px; color: var(--ftw-hero-dim); font-weight: 400; }
 .ftw .rp-chart { flex: 1; display: flex; align-items: flex-end; gap: 8px; padding: 6px 2px 0; }
 .ftw .rp-bar { flex: 1; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, var(--mc-accent), var(--mc-accent-strong)); opacity: 0.85; min-height: 6px; }
-.ftw .rp-bar.mut { background: oklch(0.25 0.005 250); }
+.ftw .rp-bar.mut { background: var(--ftw-hero-track); }
 .ftw .rp-axis { display: flex; gap: 8px; }
-.ftw .rp-axis span { flex: 1; text-align: center; font-family: var(--ftw-mono); font-size: 8.5px; color: oklch(0.5 0.005 250); }
+.ftw .rp-axis span { flex: 1; text-align: center; font-family: var(--ftw-mono); font-size: 8.5px; color: var(--ftw-hero-dim); }
 
 /* 5 · History playback */
 .ftw .hp-pad { position: absolute; inset: 0; padding: 20px 22px; display: flex; flex-direction: column; }
 .ftw .hp-map { flex: 1; position: relative; }
 .ftw .hp-head {
   position: absolute; width: 16px; height: 16px; border-radius: 50%;
-  background: var(--mc-accent); border: 3px solid oklch(0.175 0.005 250);
+  background: var(--mc-accent); border: 3px solid var(--ftw-hero-stroke);
   box-shadow: 0 0 0 4px oklch(0.72 0.16 50 / 0.2); transform: translate(-50%, -50%);
 }
-.ftw .hp-evt { position: absolute; width: 9px; height: 9px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid oklch(0.175 0.005 250); }
+.ftw .hp-evt { position: absolute; width: 9px; height: 9px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid var(--ftw-hero-stroke); }
 .ftw .hp-bar { display: flex; align-items: center; gap: 11px; margin-top: 8px; }
 .ftw .hp-play { width: 30px; height: 30px; border-radius: 50%; background: var(--mc-accent); color: var(--mc-accent-fg); display: grid; place-items: center; flex-shrink: 0; box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.3); }
 .ftw .hp-play svg { width: 13px; height: 13px; }
-.ftw .hp-scrub { flex: 1; position: relative; height: 5px; border-radius: 3px; background: oklch(0.25 0.005 250); }
+.ftw .hp-scrub { flex: 1; position: relative; height: 5px; border-radius: 3px; background: var(--ftw-hero-track); }
 .ftw .hp-scrub .pf { position: absolute; left: 0; top: 0; bottom: 0; width: 44%; background: var(--mc-accent); border-radius: 3px; }
-.ftw .hp-scrub .ph { position: absolute; left: 44%; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: oklch(0.97 0.005 250); transform: translate(-50%, -50%); box-shadow: 0 1px 4px oklch(0 0 0 / 0.4); }
-.ftw .hp-scrub .tick { position: absolute; top: -3px; width: 2px; height: 11px; border-radius: 1px; background: oklch(0.5 0.005 250); transform: translateX(-50%); }
-.ftw .hp-time { font-family: var(--ftw-mono); font-size: 11px; color: oklch(0.7 0.005 250); flex-shrink: 0; }
+.ftw .hp-scrub .ph { position: absolute; left: 44%; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--ftw-hero-fg); transform: translate(-50%, -50%); box-shadow: 0 1px 4px oklch(0 0 0 / 0.4); }
+.ftw .hp-scrub .tick { position: absolute; top: -3px; width: 2px; height: 11px; border-radius: 1px; background: var(--ftw-hero-dim); transform: translateX(-50%); }
+.ftw .hp-time { font-family: var(--ftw-mono); font-size: 11px; color: var(--ftw-hero-muted); flex-shrink: 0; }
 
 /* 6 · Onboarding / billing */
 .ftw .bl-pad { position: absolute; inset: 0; padding: 22px 22px; display: flex; flex-direction: column; gap: 16px; }
@@ -352,10 +389,10 @@
 .ftw .bl-seats .row { display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; }
 .ftw .bl-seats .row .k { color: var(--mc-text-muted); white-space: nowrap; }
 .ftw .bl-seats .row .v { font-family: var(--ftw-mono); color: var(--mc-text); white-space: nowrap; }
-.ftw .bl-track { height: 6px; border-radius: 3px; background: oklch(0.25 0.005 250); overflow: hidden; }
+.ftw .bl-track { height: 6px; border-radius: 3px; background: var(--ftw-hero-track); overflow: hidden; }
 .ftw .bl-track .f { height: 100%; width: 66%; background: var(--mc-accent); border-radius: 3px; }
 .ftw .bl-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 2px; }
-.ftw .bl-plan { background: oklch(0.19 0.005 250 / 0.8); border: 1px solid var(--mc-border); border-radius: 8px; padding: 10px 9px; text-align: center; }
+.ftw .bl-plan { background: var(--ftw-hero-inset); border: 1px solid var(--mc-border); border-radius: 8px; padding: 10px 9px; text-align: center; }
 .ftw .bl-plan.on { border-color: var(--mc-accent-border); background: var(--mc-accent-soft); }
 .ftw .bl-plan .pn { font-size: 11.5px; font-weight: 600; color: var(--mc-text); }
 .ftw .bl-plan .pp { font-family: var(--ftw-mono); font-size: 10px; color: var(--mc-text-dim); margin-top: 3px; white-space: nowrap; }

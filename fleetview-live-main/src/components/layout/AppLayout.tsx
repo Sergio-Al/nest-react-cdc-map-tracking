@@ -3,6 +3,7 @@ import { IconRail } from '@/components/layout/IconRail';
 import { CommandPalette } from '@/components/layout/CommandPalette';
 import { SettingsEffects } from '@/components/settings/SettingsEffects';
 import { WelcomeOnboarding } from '@/components/onboarding/WelcomeOnboarding';
+import { AnnouncementCenter } from '@/components/onboarding/AnnouncementCenter';
 
 export function AppLayout() {
   return (
@@ -14,6 +15,7 @@ export function AppLayout() {
       </main>
       <CommandPalette />
       <WelcomeOnboarding />
+      <AnnouncementCenter />
     </div>
   );
 }

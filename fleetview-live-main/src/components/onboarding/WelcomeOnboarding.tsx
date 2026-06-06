@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useOnboarding } from "@/hooks/api/useOnboarding";
+import { useDashboardStore } from "@/stores/dashboard.store";
 import "./welcome.css";
 
 /**
@@ -12,46 +14,56 @@ import "./welcome.css";
  * onto the app's --mc-* theme tokens so it follows light/dark). Copy is
  * translated via the `onboarding` i18n namespace (es default + en).
  *
- * Shows automatically the first time a signed-in user lands in the app; the
- * "seen" flag is persisted to localStorage so it doesn't re-appear on reload.
+ * Shows automatically the first time a signed-in user lands in the app. The
+ * acknowledgement is persisted per-user in the backend (item key below) so it
+ * follows the user across browsers/devices and survives a cache clear.
  */
 
-const STORE_KEY = "fleettrack.welcome.v1";
+const ITEM_KEY = "welcome_v1";
 const TOTAL = 7; // 0 welcome + 6 spotlights
 const SPOTS = TOTAL - 1; // dots represent spotlights 1..6
 
-function readSeen(): boolean {
-  try {
-    const s = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
-    return s.seen === true;
-  } catch {
-    return false;
-  }
-}
-
-function persist(seen: boolean, step: number) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ seen, step }));
-  } catch {
-    /* ignore */
-  }
-}
-
 export function WelcomeOnboarding() {
   const { t } = useTranslation("onboarding");
+  const { isLoading, acknowledged, step, ack, setStep } = useOnboarding(ITEM_KEY);
+  const welcomeReplay = useDashboardStore((s) => s.welcomeReplay);
   const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [idx, setIdx] = useState(0);
   const [prev, setPrev] = useState(-1);
+  const gated = useRef(false);
 
-  // First-run gate: only open if the user hasn't seen it before.
+  // First-run gate: open once the server confirms the user hasn't seen it.
+  // Resume at the last persisted step. Server is the source of truth — there
+  // is no localStorage fallback (existing users are re-shown once).
   useEffect(() => {
-    if (!readSeen()) setOpen(true);
-  }, []);
+    if (isLoading || gated.current) return;
+    gated.current = true;
+    if (!acknowledged) {
+      if (step != null) setIdx(Math.max(0, Math.min(TOTAL - 1, step)));
+      setOpen(true);
+    }
+  }, [isLoading, acknowledged, step]);
 
-  // Mirror the prototype's resume behaviour: remember the current step.
+  // On-demand replay (Settings / command palette): force-open from the start,
+  // regardless of the server "seen" state. Skips the initial mount (nonce 0).
   useEffect(() => {
-    if (open) persist(false, idx);
+    if (welcomeReplay === 0) return;
+    setPrev(-1);
+    setIdx(0);
+    setOpen(true);
+  }, [welcomeReplay]);
+
+  // Persist the resume point as the user advances (skip the initial render so
+  // we don't write back the step we just restored). Status stays 'pending'.
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (!open) return;
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    setStep(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, idx]);
 
   const go = useCallback((n: number) => {
@@ -63,16 +75,8 @@ export function WelcomeOnboarding() {
 
   const dismiss = useCallback(() => {
     setOpen(false);
-    setDismissed(true);
-    persist(true, idx);
-  }, [idx]);
-
-  const replay = useCallback(() => {
-    setPrev(-1);
-    setIdx(0);
-    setDismissed(false);
-    setOpen(true);
-  }, []);
+    ack({ status: "completed", step: idx });
+  }, [idx, ack]);
 
   const next = useCallback(() => {
     if (idx >= TOTAL - 1) dismiss();
@@ -363,12 +367,6 @@ export function WelcomeOnboarding() {
         </div>
       )}
 
-      {dismissed && !open && (
-        <button className="replay" onClick={replay}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          {t("replay")}
-        </button>
-      )}
     </div>
   );
 }

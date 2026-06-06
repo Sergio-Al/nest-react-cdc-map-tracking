@@ -29,7 +29,8 @@
       "createRoute": "Create new route",
       "focusDriver": "Focus on {{name}} on map",
       "switchToLight": "Switch to light theme",
-      "switchToDark": "Switch to dark theme"
+      "switchToDark": "Switch to dark theme",
+      "replayTour": "Replay intro tour"
     }
   }
 }
