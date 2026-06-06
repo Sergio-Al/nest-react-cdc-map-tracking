@@ -1,9 +1,12 @@
 import { IsString, IsOptional, IsInt, IsUUID, IsNumber, MaxLength, Min, Max } from 'class-validator';
 
 export class CreateVehicleDto {
+  // Server-authoritative: the controller overwrites this from the JWT, so it's
+  // optional in the body (clients shouldn't — and needn't — send it).
+  @IsOptional()
   @IsString()
   @MaxLength(50)
-  tenantId!: string;
+  tenantId?: string;
 
   @IsString()
   @MaxLength(30)

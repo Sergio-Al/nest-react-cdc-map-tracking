@@ -86,7 +86,7 @@ export function useInitialPositions(drivers: Driver[]) {
 }
 
 export interface CreateDriverDto {
-  tenantId: string;
+  // tenantId is server-authoritative (derived from the JWT) — not sent by the client.
   name: string;
   deviceId?: string;
   phone?: string;

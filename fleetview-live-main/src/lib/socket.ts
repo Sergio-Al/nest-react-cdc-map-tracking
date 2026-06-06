@@ -18,6 +18,9 @@ class SocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private isRefreshingToken = false;
+  // First successful connect is silent; we only toast when the link comes back
+  // after a real drop (avoids a "Connected" toast on initial load).
+  private hasConnected = false;
 
   connect(token: string): Socket {
     if (this.socket?.connected) {
@@ -36,7 +39,9 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('✅ WebSocket connected');
       this.reconnectAttempts = 0;
-      toast.success('Connected');
+      // Only announce reconnections, not the initial connect.
+      if (this.hasConnected) toast.success('Reconnected');
+      this.hasConnected = true;
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -140,6 +145,7 @@ class SocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
+      this.hasConnected = false;
       console.log('🔌 WebSocket disconnected');
     }
   }

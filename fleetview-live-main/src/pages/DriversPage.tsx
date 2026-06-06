@@ -213,7 +213,6 @@ export default function DriversPage() {
             setDialogOpen(true);
           }
         }}
-        tenantId={user?.tenantId ?? ''}
         driver={editDriver}
         onCreate={handleCreate}
         onUpdate={handleUpdate}

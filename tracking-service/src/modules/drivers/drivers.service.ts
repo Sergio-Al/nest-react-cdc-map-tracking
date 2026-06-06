@@ -58,8 +58,11 @@ export class DriversService {
 
   /** Create a driver directly in PG (synchronous). Returns the created row. */
   async createDriver(dto: CreateDriverDto): Promise<Driver> {
+    // tenantId is server-authoritative — the controller sets it from the JWT
+    // before calling, so it is always present here.
+    const tenantId = dto.tenantId!;
     // Seat gate: a driver = a billable seat. Throws 402 when at/over the plan cap.
-    await this.entitlements.assertCanAddDriver(dto.tenantId);
+    await this.entitlements.assertCanAddDriver(tenantId);
     if (dto.deviceId) {
       await this.assertDeviceFree(dto.deviceId, null);
     }

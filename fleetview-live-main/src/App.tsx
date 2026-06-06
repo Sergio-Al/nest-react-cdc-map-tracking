@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
 import Index from "./pages/Index";
 import HistoryPage from "./pages/HistoryPage";
 import MonitoringPage from "./pages/MonitoringPage";
@@ -46,6 +47,7 @@ const App = () => (
         <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Index />} />

@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, RefreshDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, RefreshDto, SignupDto } from './dto/auth.dto';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -13,6 +14,24 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  // Self-serve signup: public, rate-limited (5/min per IP) to deter abuse.
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('signup')
+  async signup(@Body() signupDto: SignupDto) {
+    return this.authService.signup(signupDto);
+  }
+
+  // Live workspace-id availability for the signup form (30/min per IP).
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('workspace-available')
+  async workspaceAvailable(@Query('id') id: string) {
+    return this.authService.checkWorkspace(id);
   }
 
   @Public()

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import configuration from './config/configuration';
 import { cacheDbConfig } from './config/database.config';
 import { AuthModule } from './modules/auth/auth.module';
@@ -23,6 +24,7 @@ import { HistoryModule } from './modules/history/history.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
 import { AppI18nModule } from './i18n/app-i18n.module';
 
 
@@ -39,6 +41,9 @@ import { AppI18nModule } from './i18n/app-i18n.module';
 
     // ── Scheduled Tasks ────────────────────────────────
     ScheduleModule.forRoot(),
+
+    // ── Rate limiting (scoped per-route via @Throttle, not global) ─
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
 
     // ── Cache DB (Local PostgreSQL) ────────────────────
     TypeOrmModule.forRootAsync(cacheDbConfig),
@@ -64,6 +69,7 @@ import { AppI18nModule } from './i18n/app-i18n.module';
     VehiclesModule,
     SettingsModule,
     SubscriptionsModule,
+    TenantsModule,
     HealthModule,
   ],
 })

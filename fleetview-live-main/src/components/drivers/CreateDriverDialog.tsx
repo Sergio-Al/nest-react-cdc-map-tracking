@@ -15,7 +15,6 @@ import type { Driver } from '@/types/driver.types';
 interface CreateDriverDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tenantId: string;
   /** When set, the dialog is in edit mode and prefills from this driver. */
   driver?: Driver | null;
   onCreate: (dto: CreateDriverDto) => void;
@@ -28,7 +27,6 @@ const VEHICLE_TYPE_IDS = ['van', 'truck', 'motorcycle', 'car'] as const;
 export function CreateDriverDialog({
   open,
   onOpenChange,
-  tenantId,
   driver,
   onCreate,
   onUpdate,
@@ -66,7 +64,6 @@ export function CreateDriverDialog({
       });
     } else {
       onCreate({
-        tenantId,
         name: name.trim(),
         phone: phone.trim() || undefined,
         vehiclePlate: vehiclePlate.trim() || undefined,

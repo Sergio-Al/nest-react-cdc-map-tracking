@@ -40,6 +40,20 @@ export interface ProfileResponse extends User {
   settings: EffectiveSettings;
 }
 
+export interface SignupRequest {
+  workspaceName: string;
+  workspaceId: string;
+  name: string;
+  email: string;
+  password: string;
+  acceptedTerms: true;
+}
+
+export interface WorkspaceAvailabilityResponse {
+  available: boolean;
+  reason?: 'invalid' | 'reserved' | 'taken';
+}
+
 export interface RefreshRequest {
   refreshToken: string;
 }

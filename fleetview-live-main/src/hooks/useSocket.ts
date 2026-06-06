@@ -2,43 +2,47 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { socketService } from '@/lib/socket';
 
+/**
+ * Subscribes the calling page to the shared WebSocket connection's status.
+ *
+ * The socket is a SESSION-LIFETIME singleton: it connects once while
+ * authenticated and stays connected across page navigation. Pages must NOT
+ * disconnect it on unmount — doing so reconnected on every route change, which
+ * spammed the "Connected" toast and triggered a token refresh each time.
+ * Teardown happens on logout (see auth.store). Token refresh updates the
+ * socket's auth in place (see socket.ts), so the access token is intentionally
+ * NOT a dependency here.
+ */
 export function useSocket() {
-  const { isAuthenticated, accessToken, user } = useAuthStore();
-  const [isConnected, setIsConnected] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const tenantId = useAuthStore((s) => s.user?.tenantId);
+  const [isConnected, setIsConnected] = useState(() => socketService.isConnected());
 
   useEffect(() => {
-    if (!isAuthenticated || !accessToken || !user) {
-      socketService.disconnect();
+    if (!isAuthenticated || !tenantId) {
       setIsConnected(false);
       return;
     }
 
-    // Connect with current access token
-    const socket = socketService.connect(accessToken);
+    const token = useAuthStore.getState().accessToken;
+    if (!token) return;
 
-    // Auto-join tenant room
-    if (user.tenantId) {
-      socketService.joinTenant(user.tenantId);
-    }
+    // connect() reuses the existing live socket if already connected.
+    const socket = socketService.connect(token);
+    socketService.joinTenant(tenantId);
 
-    // Update connection status
     const handleConnect = () => setIsConnected(true);
     const handleDisconnect = () => setIsConnected(false);
-
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
-
     setIsConnected(socket.connected);
 
     return () => {
+      // Only detach this page's status listeners — keep the socket alive.
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
-      if (user.tenantId) {
-        socketService.leaveTenant(user.tenantId);
-      }
-      socketService.disconnect();
     };
-  }, [isAuthenticated, accessToken, user]);
+  }, [isAuthenticated, tenantId]);
 
   return { isConnected };
 }

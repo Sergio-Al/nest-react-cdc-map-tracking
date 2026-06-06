@@ -19,6 +19,9 @@ export type I18nTranslations = {
             "userAlreadyExists": string;
             "insufficientPermissions": string;
             "tokenInvalid": string;
+            "workspaceTaken": string;
+            "workspaceReserved": string;
+            "workspaceInvalid": string;
         };
         "history": {
             "fromToRequired": string;

@@ -14,6 +14,7 @@ import { CachedUser } from '../sync/entities/cached-user.entity';
 import { RedisModule } from '../redis/redis.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
     RedisModule,
     SettingsModule,
     SubscriptionsModule,
+    TenantsModule,
   ],
   controllers: [AuthController],
   providers: [

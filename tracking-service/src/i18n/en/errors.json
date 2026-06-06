@@ -11,7 +11,10 @@
     "userNotFound": "User not found",
     "userAlreadyExists": "User with this email already exists in this tenant",
     "insufficientPermissions": "Insufficient permissions",
-    "tokenInvalid": "Invalid session token"
+    "tokenInvalid": "Invalid session token",
+    "workspaceTaken": "Workspace '{{id}}' is already taken",
+    "workspaceReserved": "Workspace '{{id}}' is reserved",
+    "workspaceInvalid": "Workspace id must be 3-30 characters: lowercase letters, numbers, hyphens"
   },
   "history": {
     "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",

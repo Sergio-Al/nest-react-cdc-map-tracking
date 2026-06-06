@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,7 +9,9 @@ import { CachedUser } from '../sync/entities/cached-user.entity';
 import { RedisService } from '../redis/redis.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionLifecycleService } from '../subscriptions/subscription-lifecycle.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { TenantsService, Availability } from '../tenants/tenants.service';
+import { isReservedSlug, isValidSlug } from '../tenants/slug.util';
+import { RegisterDto, LoginDto, SignupDto } from './dto/auth.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
@@ -24,7 +26,61 @@ export class AuthService {
     private redisService: RedisService,
     private settingsService: SettingsService,
     private subscriptionLifecycle: SubscriptionLifecycleService,
+    private tenantsService: TenantsService,
   ) {}
+
+  /**
+   * Public self-serve signup. Workspace-first: atomically claim the workspace
+   * id (tenants PK is the race guard), create the owner ADMIN, start the
+   * reverse trial, and auto-login by returning the same token bundle as login.
+   */
+  async signup(dto: SignupDto) {
+    const tenantId = dto.workspaceId.toLowerCase();
+    if (isReservedSlug(tenantId)) {
+      throw new BadRequestException({ errorCode: 'auth.workspaceReserved', args: { id: tenantId } });
+    }
+
+    // Claim the workspace first — the PK makes concurrent claims race-safe and
+    // throws auth.workspaceTaken on conflict.
+    await this.tenantsService.create({
+      id: tenantId,
+      name: dto.workspaceName,
+      ownerEmail: dto.email,
+    });
+
+    // Create the owner admin.
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const user = this.userRepository.create({
+      id: randomUUID(),
+      email: dto.email,
+      password: hashedPassword,
+      name: dto.name,
+      role: 'admin',
+      tenantId,
+      driverId: null,
+      isActive: true,
+    });
+    await this.userRepository.save(user);
+
+    // Open the 14-day reverse trial (idempotent). Best-effort: a billing hiccup
+    // must not strand a just-created workspace mid-signup.
+    try {
+      await this.subscriptionLifecycle.startTrial(tenantId);
+    } catch (err) {
+      this.logger.warn(`startTrial failed for tenant=${tenantId}: ${(err as Error).message}`);
+    }
+
+    // Auto-login.
+    return this.generateTokenPair(user);
+  }
+
+  /** Workspace-id availability for the signup form's live check. */
+  async checkWorkspace(id: string): Promise<Availability> {
+    const slug = (id || '').toLowerCase();
+    if (!isValidSlug(slug)) return { available: false, reason: 'invalid' };
+    if (isReservedSlug(slug)) return { available: false, reason: 'reserved' };
+    return this.tenantsService.isAvailable(slug);
+  }
 
   async register(dto: RegisterDto) {
     // Check if user already exists

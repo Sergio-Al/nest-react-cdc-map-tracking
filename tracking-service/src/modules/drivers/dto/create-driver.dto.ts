@@ -2,9 +2,12 @@ import { IsString, IsOptional, MaxLength } from "class-validator";
 
 export class CreateDriverDto {
 
+  // Server-authoritative: the controller overwrites this from the JWT, so it's
+  // optional in the body (clients shouldn't — and needn't — send it).
+  @IsOptional()
   @IsString()
   @MaxLength(50)
-  tenantId!: string;
+  tenantId?: string;
 
   @IsOptional()
   @IsString()

@@ -689,8 +689,17 @@ export function useRouteReport(from: string, to: string) {
   }, [routesQuery.data, driverIndex]);
 
   const isMock = !routesQuery.isLoading && rows.length === 0;
+  // Memoize the output rows — otherwise `fallbackRows()` returns a NEW array
+  // identity every render, which loops `useRegisterExporter` via RoutesTab's
+  // `useCallback([sorted])` (effect re-fires → setExporter → store change →
+  // RoutesTab re-renders on its whole-store subscription → new rows → repeat).
+  // Same fix already applied to useDriverLeaderboard below.
+  const outRows = useMemo<RouteReportRow[]>(
+    () => (isMock ? fallbackRows() : rows),
+    [isMock, rows],
+  );
   return {
-    rows: isMock ? fallbackRows() : rows,
+    rows: outRows,
     isLoading: routesQuery.isLoading,
     isMock,
   };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,22 +16,32 @@ import {
   Sun,
   Moon,
   ArrowRight,
+  User,
+  Check,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
-import type { LoginRequest } from '@/types/auth.types';
+import type { SignupRequest } from '@/types/auth.types';
 import { cn } from '@/lib/utils';
+import { useWorkspaceAvailability, SLUG_REGEX } from '@/hooks/api/useWorkspaceAvailability';
 
 /* ──────────────────────────────────────────────────────────
-   Validation — maps to the real auth payload { email, password, tenantId }.
-   The mock's "Workspace" field is the tenantId (no .fleettrack.app suffix).
+   Helpers
    ────────────────────────────────────────────────────────── */
-type LoginFormData = {
-  tenantId: string;
-  email: string;
-  password: string;
-};
 
-/* A small pulsing "live" dot, reused in the eyebrow, chip and footer. */
+/** Derive a slug from a human-readable workspace name. */
+function nameToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 30);
+}
+
+/* A small pulsing "live" dot — identical to LoginPage. */
 function LiveDot({ className }: { className?: string }) {
   return (
     <span
@@ -45,8 +55,7 @@ function LiveDot({ className }: { className?: string }) {
 }
 
 /* ──────────────────────────────────────────────────────────
-   Pseudo-map — ambient La Paz–style backdrop (SVG).
-   Uses the shared --mc-map-* tokens so it follows the theme.
+   Pseudo-map — identical to LoginPage (ambient right-hand visual).
    ────────────────────────────────────────────────────────── */
 function PseudoMap() {
   const W = 1600;
@@ -59,10 +68,10 @@ function PseudoMap() {
       aria-hidden="true"
     >
       <defs>
-        <pattern id="login-dots" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
+        <pattern id="signup-dots" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
           <circle cx="1" cy="1" r="0.7" fill="var(--mc-map-grid)" />
         </pattern>
-        <pattern id="login-blocks" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
+        <pattern id="signup-blocks" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
           <rect x="6" y="6" width="48" height="48" rx="3" fill="var(--mc-map-block)" />
           <rect x="64" y="6" width="48" height="48" rx="3" fill="var(--mc-map-block)" />
           <rect x="6" y="64" width="48" height="48" rx="3" fill="var(--mc-map-block)" />
@@ -71,8 +80,8 @@ function PseudoMap() {
       </defs>
 
       <rect x="0" y="0" width={W} height={H} fill="var(--mc-map-bg)" />
-      <rect x="0" y="0" width={W} height={H} fill="url(#login-dots)" opacity="0.55" />
-      <rect x="0" y="0" width={W} height={H} fill="url(#login-blocks)" opacity="0.45" />
+      <rect x="0" y="0" width={W} height={H} fill="url(#signup-dots)" opacity="0.55" />
+      <rect x="0" y="0" width={W} height={H} fill="url(#signup-blocks)" opacity="0.45" />
 
       {/* River */}
       <path
@@ -153,9 +162,6 @@ function MapLabels() {
   );
 }
 
-/* ──────────────────────────────────────────────────────────
-   Vehicle pins + dashed trail toward the selected pin.
-   ────────────────────────────────────────────────────────── */
 type Pin = { x: number; y: number; status: 'moving' | 'idle' | 'offline'; initials: string; selected?: boolean };
 
 const PINS: Pin[] = [
@@ -174,7 +180,6 @@ const PIN_FILL: Record<Pin['status'], string> = {
   offline: 'oklch(0.58 0.18 25)',
 };
 
-/* Per-pin drift timing, mirroring the mock's p1–p4 variants. */
 const DRIFT = [
   { animationDuration: '14s', animationDelay: '0s' },
   { animationDuration: '17s', animationDelay: '-3s' },
@@ -209,7 +214,7 @@ function Pins() {
             key={p.initials}
             className={cn(
               'absolute z-[2] grid place-items-center rounded-full font-mono text-[10px] font-bold',
-              "h-7 w-7 -ml-3.5 -mt-3.5",
+              'h-7 w-7 -ml-3.5 -mt-3.5',
               moving && 'animate-drift',
             )}
             style={{
@@ -236,9 +241,6 @@ function Pins() {
   );
 }
 
-/* ──────────────────────────────────────────────────────────
-   Floating "Now tracking" card — the single focal point on the map.
-   ────────────────────────────────────────────────────────── */
 function NowCard() {
   const { t } = useTranslation('auth');
   return (
@@ -291,7 +293,6 @@ function NowCard() {
   );
 }
 
-/* The right-hand ambient visual column. */
 function Visual() {
   const { t } = useTranslation('auth');
   return (
@@ -299,7 +300,6 @@ function Visual() {
       <div className="absolute inset-0">
         <PseudoMap />
 
-        {/* Faint overlay grid, masked toward the edges */}
         <div
           className="pointer-events-none absolute inset-0 opacity-55"
           style={{
@@ -315,7 +315,6 @@ function Visual() {
         <Pins />
         <NowCard />
 
-        {/* Vignette keeps the chrome readable over the map */}
         <div
           className="pointer-events-none absolute inset-0 opacity-50"
           style={{
@@ -338,24 +337,94 @@ function Visual() {
 }
 
 /* ──────────────────────────────────────────────────────────
-   Login form — the real, wired-up sign-in.
+   Workspace-ID availability badge
    ────────────────────────────────────────────────────────── */
-function LoginForm() {
+type AvailabilityBadgeProps = {
+  id: string;
+};
+
+function AvailabilityBadge({ id }: AvailabilityBadgeProps) {
+  const { t } = useTranslation('auth');
+  const { data, isFetching } = useWorkspaceAvailability(id);
+  const formatValid = SLUG_REGEX.test(id);
+
+  if (!id || !formatValid) return null;
+
+  if (isFetching) {
+    return (
+      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-mc-text-dim">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        {t('signup.availability.checking')}
+      </span>
+    );
+  }
+
+  if (!data) return null;
+
+  if (data.available) {
+    return (
+      <span className="inline-flex items-center gap-1 font-mono text-[11px]" style={{ color: 'var(--mc-accent)' }}>
+        <Check className="h-3 w-3" />
+        {t('signup.availability.available')}
+      </span>
+    );
+  }
+
+  const reasonKey = data.reason ?? 'taken';
+  return (
+    <span className="inline-flex items-center gap-1 font-mono text-[11px]" style={{ color: 'var(--mc-error)' }}>
+      <X className="h-3 w-3" />
+      {t(`signup.availability.${reasonKey}`)}
+    </span>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
+   Signup form
+   ────────────────────────────────────────────────────────── */
+type SignupFormData = {
+  workspaceName: string;
+  workspaceId: string;
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  acceptedTerms: boolean;
+};
+
+function SignupForm() {
   const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login);
+  const signup = useAuthStore((state) => state.signup);
   const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const { t, i18n } = useTranslation('auth');
 
-  const loginSchema = useMemo(
+  // Track whether the user has manually edited the workspaceId field
+  // so the auto-suggest stops overwriting it.
+  const slugDirtyRef = useRef(false);
+
+  const signupSchema = useMemo(
     () =>
-      z.object({
-        tenantId: z.string().min(1, t('validation.workspaceRequired')),
-        email: z.string().email(t('validation.emailInvalid')),
-        password: z.string().min(1, t('validation.passwordRequired')),
-      }),
-    // Re-derive when the language flips so error messages stay in sync.
+      z
+        .object({
+          workspaceName: z.string().min(1, t('signup.validation.workspaceNameRequired')),
+          workspaceId: z
+            .string()
+            .regex(SLUG_REGEX, t('signup.validation.slugInvalid')),
+          name: z.string().min(1, t('form.workspace')),
+          email: z.string().email(t('signup.validation.emailInvalid')),
+          password: z.string().min(8, t('signup.validation.passwordShort')),
+          confirmPassword: z.string(),
+          acceptedTerms: z.literal(true, {
+            errorMap: () => ({ message: t('signup.validation.termsRequired') }),
+          }),
+        })
+        .refine((d) => d.password === d.confirmPassword, {
+          message: t('signup.validation.passwordMismatch'),
+          path: ['confirmPassword'],
+        }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [i18n.language],
   );
@@ -364,41 +433,91 @@ function LoginForm() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { tenantId: '', email: '', password: '' },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      workspaceName: '',
+      workspaceId: '',
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      acceptedTerms: false,
+    },
+    mode: 'onChange',
   });
 
-  const email = watch('email');
+  const watchedWorkspaceName = watch('workspaceName');
+  const watchedWorkspaceId = watch('workspaceId');
 
-  const onSubmit = async (data: LoginFormData) => {
+  // Auto-suggest slug from workspace name (only while user hasn't touched the slug field)
+  useEffect(() => {
+    if (slugDirtyRef.current) return;
+    const suggested = nameToSlug(watchedWorkspaceName);
+    if (suggested) {
+      setValue('workspaceId', suggested, { shouldValidate: true });
+    }
+  }, [watchedWorkspaceName, setValue]);
+
+  // Live availability check — debounced at 400ms via React Query's enabled flag
+  // We use a separate debounced value so the query only fires after the user stops typing.
+  const [debouncedSlug, setDebouncedSlug] = useState(watchedWorkspaceId);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSlug(watchedWorkspaceId), 400);
+    return () => clearTimeout(timer);
+  }, [watchedWorkspaceId]);
+
+  const { data: availabilityData } = useWorkspaceAvailability(debouncedSlug);
+
+  const isAvailable = availabilityData?.available === true;
+  const slugFormatValid = SLUG_REGEX.test(watchedWorkspaceId);
+
+  const onSubmit = async (data: SignupFormData) => {
+    // The button stays enabled so handleSubmit always runs field validation
+    // (terms, password match, etc. surface as inline errors). Availability is
+    // not part of the zod schema, so guard it here with a visible message
+    // rather than silently doing nothing.
+    if (!isAvailable) {
+      setAuthError(t('signup.errors.workspaceUnavailable'));
+      return;
+    }
     setAuthError(null);
     try {
       setIsLoading(true);
-      // zod infers all fields optional under this repo's strictNullChecks:false,
-      // but the resolver has already validated they're present.
-      await login(data as LoginRequest);
-      toast.success(t('success'));
+      await signup({
+        workspaceName: data.workspaceName,
+        workspaceId: data.workspaceId,
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        acceptedTerms: true,
+      } as SignupRequest);
+      toast.success(t('signup.success'));
       navigate('/');
     } catch (error) {
-      const apiMessage = (error as { response?: { data?: { message?: string | string[] } } })?.response
-        ?.data?.message;
-      const message = apiMessage ?? t('errors.fallback');
-      setAuthError(Array.isArray(message) ? message.join(' ') : message);
+      const apiErr = error as { response?: { data?: { message?: string | string[]; errorCode?: string } } };
+      const errorCode = apiErr?.response?.data?.errorCode;
+      if (errorCode === 'auth.workspaceTaken') {
+        setAuthError(t('signup.errors.workspaceTaken'));
+      } else {
+        const apiMessage = apiErr?.response?.data?.message;
+        const message = apiMessage ?? t('signup.errors.fallback');
+        setAuthError(Array.isArray(message) ? message.join(' ') : message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fieldError = (name: keyof LoginFormData) => errors[name]?.message;
-  const passwordInvalid = Boolean(authError || fieldError('password'));
+  const fieldError = (name: keyof SignupFormData) => errors[name]?.message;
 
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
       onInput={() => authError && setAuthError(null)}
-      className="flex min-h-0 flex-1 flex-col justify-center px-12 min-[1080px]:px-20"
+      className="flex min-h-0 flex-1 flex-col justify-center px-12 py-8 min-[1080px]:px-20"
       noValidate
     >
       <div className="mb-4 inline-flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-mc-text-dim">
@@ -407,10 +526,10 @@ function LoginForm() {
       </div>
 
       <h1 className="mb-2 text-[32px] font-semibold leading-[1.1] tracking-[-0.025em] text-mc-text">
-        {t('form.title')}
+        {t('signup.title')}
       </h1>
       <p className="mb-7 max-w-[360px] text-sm leading-relaxed text-mc-text-muted">
-        {t('form.subtitle')}
+        {t('signup.subtitle')}
       </p>
 
       {authError && (
@@ -421,48 +540,118 @@ function LoginForm() {
           <AlertTriangle className="mt-px h-4 w-4 shrink-0" style={{ color: 'var(--mc-error)' }} />
           <div className="min-w-0 flex-1 text-[12.5px] leading-[1.45]">
             <div className="mb-0.5 font-medium" style={{ color: 'var(--mc-error)' }}>
-              {t('errors.title')}
+              {t('signup.errors.title')}
             </div>
-            <div className="text-mc-text-muted">
-              {authError}
-              {email ? <> {t('errors.checkCredentials', { email })}</> : null}
-            </div>
+            <div className="text-mc-text-muted">{authError}</div>
           </div>
         </div>
       )}
 
       <div className="flex flex-col gap-3.5">
-        {/* Workspace → tenantId */}
+        {/* Workspace name */}
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <label htmlFor="tenantId" className="text-[11.5px] font-medium text-mc-text-muted">
-              {t('form.workspace')}
-            </label>
-            <span className="font-mono text-[11.5px] text-mc-text-dim">{t('form.workspaceHint')}</span>
-          </div>
+          <label htmlFor="workspaceName" className="text-[11.5px] font-medium text-mc-text-muted">
+            {t('signup.workspaceName')}
+          </label>
           <div
             className={cn(
               'flex h-10 items-stretch overflow-hidden rounded-mc border bg-mc-field-bg transition-colors',
               'hover:border-mc-border-strong focus-within:border-mc-accent-border focus-within:bg-mc-field-bg-focus',
               'focus-within:shadow-[0_0_0_3px_var(--mc-accent-soft)]',
-              fieldError('tenantId') ? 'border-mc-error-border' : 'border-mc-border',
+              fieldError('workspaceName') ? 'border-mc-error-border' : 'border-mc-border',
             )}
           >
             <span className="grid place-items-center pl-3 pr-2.5 text-mc-text-dim">
               <Building2 className="h-3.5 w-3.5" />
             </span>
             <input
-              id="tenantId"
+              id="workspaceName"
               type="text"
-              placeholder={t('form.workspacePlaceholder')}
+              placeholder={t('signup.workspaceNamePlaceholder')}
               autoComplete="organization"
               className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[13.5px] text-mc-text outline-none placeholder:text-mc-text-dim"
-              {...register('tenantId')}
+              {...register('workspaceName')}
             />
           </div>
-          {fieldError('tenantId') && (
+          {fieldError('workspaceName') && (
             <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--mc-error)' }}>
-              <AlertTriangle className="h-[11px] w-[11px]" /> {fieldError('tenantId')}
+              <AlertTriangle className="h-[11px] w-[11px]" /> {fieldError('workspaceName')}
+            </span>
+          )}
+        </div>
+
+        {/* Workspace ID (slug) */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <label htmlFor="workspaceId" className="text-[11.5px] font-medium text-mc-text-muted">
+              {t('signup.workspaceId')}
+            </label>
+            {/* Availability badge (uses debounced slug) */}
+            <AvailabilityBadge id={debouncedSlug} />
+          </div>
+          <div
+            className={cn(
+              'flex h-10 items-stretch overflow-hidden rounded-mc border bg-mc-field-bg transition-colors',
+              'hover:border-mc-border-strong focus-within:bg-mc-field-bg-focus',
+              fieldError('workspaceId')
+                ? 'border-mc-error-border focus-within:border-mc-error focus-within:shadow-[0_0_0_3px_var(--mc-error-soft)]'
+                : slugFormatValid && availabilityData && !availabilityData.available
+                  ? 'border-mc-error-border focus-within:border-mc-error focus-within:shadow-[0_0_0_3px_var(--mc-error-soft)]'
+                  : 'border-mc-border focus-within:border-mc-accent-border focus-within:shadow-[0_0_0_3px_var(--mc-accent-soft)]',
+            )}
+          >
+            <span className="grid place-items-center pl-3 pr-2.5 text-mc-text-dim">
+              <Building2 className="h-3.5 w-3.5" />
+            </span>
+            <input
+              id="workspaceId"
+              type="text"
+              placeholder={t('signup.workspaceIdPlaceholder')}
+              autoComplete="off"
+              className="h-full min-w-0 flex-1 bg-transparent pr-3 font-mono text-[13px] text-mc-text outline-none placeholder:text-mc-text-dim"
+              {...register('workspaceId', {
+                onChange: () => {
+                  slugDirtyRef.current = true;
+                },
+              })}
+            />
+          </div>
+          <span className="text-[11px] text-mc-text-dim">{t('signup.workspaceIdHint')}</span>
+          {fieldError('workspaceId') && (
+            <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--mc-error)' }}>
+              <AlertTriangle className="h-[11px] w-[11px]" /> {fieldError('workspaceId')}
+            </span>
+          )}
+        </div>
+
+        {/* Full name */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="name" className="text-[11.5px] font-medium text-mc-text-muted">
+            {t('signup.fullName')}
+          </label>
+          <div
+            className={cn(
+              'flex h-10 items-stretch overflow-hidden rounded-mc border bg-mc-field-bg transition-colors',
+              'hover:border-mc-border-strong focus-within:border-mc-accent-border focus-within:bg-mc-field-bg-focus',
+              'focus-within:shadow-[0_0_0_3px_var(--mc-accent-soft)]',
+              fieldError('name') ? 'border-mc-error-border' : 'border-mc-border',
+            )}
+          >
+            <span className="grid place-items-center pl-3 pr-2.5 text-mc-text-dim">
+              <User className="h-3.5 w-3.5" />
+            </span>
+            <input
+              id="name"
+              type="text"
+              placeholder={t('signup.fullNamePlaceholder')}
+              autoComplete="name"
+              className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[13.5px] text-mc-text outline-none placeholder:text-mc-text-dim"
+              {...register('name')}
+            />
+          </div>
+          {fieldError('name') && (
+            <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--mc-error)' }}>
+              <AlertTriangle className="h-[11px] w-[11px]" /> {fieldError('name')}
             </span>
           )}
         </div>
@@ -501,22 +690,14 @@ function LoginForm() {
 
         {/* Password */}
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <label htmlFor="password" className="text-[11.5px] font-medium text-mc-text-muted">
-              {t('form.password')}
-            </label>
-            <a
-              href="#"
-              className="font-mono text-[11.5px] text-mc-accent transition-colors hover:text-mc-accent-strong"
-            >
-              {t('form.forgotPassword')}
-            </a>
-          </div>
+          <label htmlFor="password" className="text-[11.5px] font-medium text-mc-text-muted">
+            {t('form.password')}
+          </label>
           <div
             className={cn(
               'flex h-10 items-stretch overflow-hidden rounded-mc border bg-mc-field-bg transition-colors',
               'hover:border-mc-border-strong focus-within:bg-mc-field-bg-focus',
-              passwordInvalid
+              fieldError('password')
                 ? 'border-mc-error-border focus-within:border-mc-error focus-within:shadow-[0_0_0_3px_var(--mc-error-soft)]'
                 : 'border-mc-border focus-within:border-mc-accent-border focus-within:shadow-[0_0_0_3px_var(--mc-accent-soft)]',
             )}
@@ -528,7 +709,7 @@ function LoginForm() {
               id="password"
               type={showPw ? 'text' : 'password'}
               placeholder={t('form.passwordPlaceholder')}
-              autoComplete="current-password"
+              autoComplete="new-password"
               className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[13.5px] text-mc-text outline-none placeholder:text-mc-text-dim"
               {...register('password')}
             />
@@ -547,6 +728,66 @@ function LoginForm() {
             </span>
           )}
         </div>
+
+        {/* Confirm password */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="confirmPassword" className="text-[11.5px] font-medium text-mc-text-muted">
+            {t('signup.confirmPassword')}
+          </label>
+          <div
+            className={cn(
+              'flex h-10 items-stretch overflow-hidden rounded-mc border bg-mc-field-bg transition-colors',
+              'hover:border-mc-border-strong focus-within:bg-mc-field-bg-focus',
+              fieldError('confirmPassword')
+                ? 'border-mc-error-border focus-within:border-mc-error focus-within:shadow-[0_0_0_3px_var(--mc-error-soft)]'
+                : 'border-mc-border focus-within:border-mc-accent-border focus-within:shadow-[0_0_0_3px_var(--mc-accent-soft)]',
+            )}
+          >
+            <span className="grid place-items-center pl-3 pr-2.5 text-mc-text-dim">
+              <Lock className="h-3.5 w-3.5" />
+            </span>
+            <input
+              id="confirmPassword"
+              type={showConfirmPw ? 'text' : 'password'}
+              placeholder={t('signup.confirmPasswordPlaceholder')}
+              autoComplete="new-password"
+              className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[13.5px] text-mc-text outline-none placeholder:text-mc-text-dim"
+              {...register('confirmPassword')}
+            />
+            <button
+              type="button"
+              aria-label={showConfirmPw ? t('form.hidePassword') : t('form.showPassword')}
+              onClick={() => setShowConfirmPw((v) => !v)}
+              className="grid place-items-center px-3 text-mc-text-dim transition-colors hover:text-mc-text-muted"
+            >
+              {showConfirmPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+          {fieldError('confirmPassword') && (
+            <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--mc-error)' }}>
+              <AlertTriangle className="h-[11px] w-[11px]" /> {fieldError('confirmPassword')}
+            </span>
+          )}
+        </div>
+
+        {/* Terms checkbox */}
+        <div className="flex flex-col gap-1.5">
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              className="mt-[2px] h-3.5 w-3.5 shrink-0 accent-[var(--mc-accent)] cursor-pointer"
+              {...register('acceptedTerms')}
+            />
+            <span className="text-[12px] leading-[1.5] text-mc-text-muted">
+              {t('signup.agreeTerms')}
+            </span>
+          </label>
+          {fieldError('acceptedTerms') && (
+            <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--mc-error)' }}>
+              <AlertTriangle className="h-[11px] w-[11px]" /> {fieldError('acceptedTerms')}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="mt-5 flex flex-col gap-3.5">
@@ -556,7 +797,7 @@ function LoginForm() {
           className="flex h-[42px] w-full items-center justify-center gap-2 rounded-mc border border-mc-accent-strong bg-mc-accent text-[13.5px] font-semibold text-mc-accent-fg transition-[background,transform] duration-100 hover:bg-mc-accent-strong active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70"
           style={{ boxShadow: 'inset 0 1px 0 oklch(1 0 0 / 0.25), 0 1px 2px oklch(0 0 0 / 0.15)' }}
         >
-          <span>{isLoading ? t('form.submitting') : t('form.submit')}</span>
+          <span>{isLoading ? t('signup.submitting') : t('signup.submit')}</span>
           {!isLoading && <ArrowRight className="h-3.5 w-3.5" />}
           <span className="ml-auto inline-flex items-center gap-[3px] font-mono text-[11px] font-medium tracking-[0.04em] opacity-70">
             <span className="inline-flex items-center rounded border border-mc-accent-strong/40 bg-black/10 px-1.5 py-px leading-[1.4]">
@@ -566,12 +807,12 @@ function LoginForm() {
         </button>
 
         <div className="text-center text-xs text-mc-text-muted">
-          {t('brand.newTo')}{' '}
+          {t('signup.haveAccount')}{' '}
           <Link
-            to="/signup"
+            to="/login"
             className="border-b border-mc-border-strong pb-px font-medium text-mc-text transition-colors hover:border-mc-accent-border hover:text-mc-accent"
           >
-            {t('brand.requestAccess')}
+            {t('signup.signIn')}
           </Link>
         </div>
       </div>
@@ -580,9 +821,9 @@ function LoginForm() {
 }
 
 /* ──────────────────────────────────────────────────────────
-   Page shell — split screen + theme toggle + minimal footer.
+   Page shell — mirrors LoginPage exactly.
    ────────────────────────────────────────────────────────── */
-export default function LoginPage() {
+export default function SignupPage() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const { t } = useTranslation('auth');
@@ -591,7 +832,7 @@ export default function LoginPage() {
     <div className="flex h-screen min-h-[720px] flex-col bg-mc text-mc-text">
       <div className="flex min-h-0 flex-1">
         {/* Form column */}
-        <div className="relative flex w-full shrink-0 flex-col border-mc-border bg-mc min-[1080px]:w-[520px] min-[1080px]:border-r">
+        <div className="relative flex w-full shrink-0 flex-col border-mc-border bg-mc min-[1080px]:w-[560px] min-[1080px]:border-r overflow-y-auto">
           <button
             type="button"
             aria-label={t('form.toggleTheme')}
@@ -602,7 +843,7 @@ export default function LoginPage() {
             {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
 
-          <LoginForm />
+          <SignupForm />
         </div>
 
         {/* Ambient ops visual */}
