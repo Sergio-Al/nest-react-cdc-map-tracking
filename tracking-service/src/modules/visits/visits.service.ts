@@ -6,6 +6,7 @@ import { CreateVisitDto, UpdateVisitStatusDto } from './dto/visit.dto';
 import { RoutesService } from '../routes/routes.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { OrdersService } from '../orders/orders.service';
+import { TimescaleService } from '../timescale/timescale.service';
 
 @Injectable()
 export class VisitsService {
@@ -18,6 +19,7 @@ export class VisitsService {
     private readonly routesService: RoutesService,
     private readonly kafkaProducer: KafkaProducerService,
     private readonly ordersService: OrdersService,
+    private readonly timescale: TimescaleService,
   ) {}
 
   async create(dto: CreateVisitDto): Promise<PlannedVisit> {
@@ -73,10 +75,14 @@ export class VisitsService {
    * Get the next pending visit for a driver on an active route
    */
   async getNextVisitForDriver(driverId: string): Promise<PlannedVisit | null> {
+    // Only today/future visits — otherwise a stale unfinished visit from a past
+    // day permanently hijacks the driver's ETA/geofence/auto-arrival context.
+    const today = new Date().toISOString().split('T')[0];
     return this.visitRepo
       .createQueryBuilder('v')
       .where('v.driver_id = :driverId', { driverId })
       .andWhere('v.status IN (:...statuses)', { statuses: ['pending', 'en_route'] })
+      .andWhere('v.scheduled_date >= :today', { today })
       .orderBy('v.sequence_number', 'ASC')
       .getOne();
   }
@@ -106,11 +112,6 @@ export class VisitsService {
         break;
       case 'completed':
         visit.completedAt = now;
-        // Update route's completed stops count
-        const completedCount = await this.visitRepo.count({
-          where: { routeId: visit.routeId, status: 'completed' },
-        });
-        await this.routesService.updateStopCount(visit.routeId, completedCount + 1);
         break;
       case 'skipped':
       case 'failed':
@@ -119,6 +120,24 @@ export class VisitsService {
     }
 
     const saved = await this.visitRepo.save(visit);
+    const becameTerminal =
+      previousStatus !== saved.status &&
+      (saved.status === 'completed' || saved.status === 'skipped' || saved.status === 'failed');
+
+    // Recompute the route's completed-stop count atomically from the visits
+    // table on any status change (avoids the count-then-write +1 race, and also
+    // decrements when a visit leaves 'completed').
+    if (previousStatus !== saved.status) {
+      await this.routesService.recountCompletedStops(saved.routeId);
+    }
+
+    // Record terminal visits to history once, on the transition into a terminal
+    // state — re-completing must not create a duplicate history row. Without
+    // this, real completed/skipped/failed visits never reach visit_completions
+    // and the history/reports views show only seeded demo data.
+    if (becameTerminal) {
+      await this.recordVisitCompletion(saved);
+    }
 
     // Publish visit event to Kafka
     await this.publishVisitEvent(saved, previousStatus);
@@ -194,6 +213,46 @@ export class VisitsService {
         `Failed to complete order=${visit.orderId} for visit=${visit.id}`,
         error,
       );
+    }
+  }
+
+  /**
+   * Write a terminal visit to the TimescaleDB history (best-effort). Drives
+   * /api/history/visits and the reports built on it.
+   */
+  private async recordVisitCompletion(visit: PlannedVisit): Promise<void> {
+    try {
+      const completion = visit.completedAt ?? visit.departedAt ?? new Date();
+      const durationSec =
+        visit.arrivedAt && visit.completedAt
+          ? Math.max(
+              0,
+              Math.round((visit.completedAt.getTime() - visit.arrivedAt.getTime()) / 1000),
+            )
+          : null;
+      let onTime = true;
+      if (visit.timeWindowEnd) {
+        const windowEnd = new Date(`${visit.scheduledDate}T${visit.timeWindowEnd}`);
+        if (!isNaN(windowEnd.getTime())) {
+          onTime = completion.getTime() <= windowEnd.getTime();
+        }
+      }
+      await this.timescale.insertVisitCompletion({
+        time: completion,
+        visitId: visit.id,
+        tenantId: visit.tenantId,
+        driverId: visit.driverId,
+        customerId: visit.customerId,
+        routeId: visit.routeId,
+        visitType: visit.visitType,
+        status: visit.status,
+        arrivedAt: visit.arrivedAt,
+        completedAt: visit.completedAt,
+        durationSec,
+        onTime,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to record visit completion for ${visit.id}`, err);
     }
   }
 

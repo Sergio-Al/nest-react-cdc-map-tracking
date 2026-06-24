@@ -81,6 +81,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
         (time, driver_id, tenant_id, latitude, longitude, speed, heading, altitude,
          accuracy, route_id, visit_id, customer_name, distance_to_next_m, eta_to_next_sec)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ON CONFLICT (time, driver_id) DO NOTHING
     `;
     await this.pool.query(sql, [
       row.time,
@@ -111,6 +112,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
           (time, driver_id, tenant_id, latitude, longitude, speed, heading, altitude,
            accuracy, route_id, visit_id, customer_name, distance_to_next_m, eta_to_next_sec)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        ON CONFLICT (time, driver_id) DO NOTHING
       `;
       for (const row of rows) {
         await client.query(sql, [
@@ -135,6 +137,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
         (time, visit_id, tenant_id, driver_id, customer_id, route_id,
          visit_type, status, arrived_at, completed_at, duration_sec, on_time)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ON CONFLICT (time, visit_id) DO NOTHING
     `;
     await this.pool.query(sql, [
       row.time, row.visitId, row.tenantId, row.driverId, row.customerId,

@@ -230,6 +230,17 @@ export class RoutesService {
     await this.routeRepo.update(id, { completedStops });
   }
 
+  /** Atomically set completed_stops to the true count of completed visits. */
+  async recountCompletedStops(routeId: string): Promise<void> {
+    await this.routeRepo.query(
+      `UPDATE routes SET completed_stops = (
+         SELECT COUNT(*) FROM planned_visits
+         WHERE route_id = $1 AND status = 'completed'
+       ) WHERE id = $1`,
+      [routeId],
+    );
+  }
+
   async incrementTotalStops(id: string): Promise<void> {
     await this.routeRepo.increment({ id }, 'totalStops', 1);
   }
