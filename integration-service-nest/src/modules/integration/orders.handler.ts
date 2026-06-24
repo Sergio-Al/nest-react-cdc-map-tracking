@@ -12,6 +12,7 @@ import {
 import { KafkaConsumerService } from '../kafka/kafka-consumer.service';
 import { DlqService } from '../kafka/dlq.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { isDuplicateKeyError } from './duplicate-key.util';
 
 const TOPIC = 'commands.orders';
 const MAX_RETRIES = 3; // 4 attempts total, matching the customers handler
@@ -80,6 +81,13 @@ export class OrdersHandler implements OnModuleInit {
           await this.dlq.sendToDlq(TOPIC, message.key, raw, err.message);
           return;
         }
+        // Duplicate correlation_id = already applied (at-least-once redelivery) → success.
+        if (isDuplicateKeyError(err)) {
+          this.logger.log(
+            `order create already applied — duplicate ignored (correlationId=${cmd.correlationId})`,
+          );
+          return;
+        }
         lastErr = err as Error;
         this.metrics.addDbError();
         this.logger.warn(
@@ -130,7 +138,13 @@ export class OrdersHandler implements OnModuleInit {
     if (!data.tenantId || data.customerId == null) {
       throw new PermanentCommandError('invalid data: tenantId and customerId are required');
     }
-    const orderNumber = data.orderNumber ?? `ORD-${Date.now()}`;
+    // Derive a deterministic order number from the correlationId when the
+    // command doesn't supply one, so a redelivery yields the same number (and
+    // hits uq_orders_correlation / uq_orders_number) instead of minting a new
+    // `ORD-${Date.now()}` every delivery.
+    const orderNumber =
+      data.orderNumber ??
+      (cmd.correlationId ? `ORD-${cmd.correlationId.slice(0, 12)}` : `ORD-${Date.now()}`);
     await this.repo.insert({
       tenantId: data.tenantId,
       customerId: String(data.customerId),
@@ -139,6 +153,7 @@ export class OrdersHandler implements OnModuleInit {
       totalAmount: data.totalAmount ?? 0,
       deliveryDate: data.deliveryDate ?? null,
       notes: data.notes ?? null,
+      correlationId: cmd.correlationId ?? null,
     });
     this.logger.log(
       `order created in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, number=${orderNumber})`,

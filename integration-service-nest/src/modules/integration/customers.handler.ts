@@ -7,6 +7,7 @@ import { CommandMessage, CustomerData, PermanentCommandError } from './command.t
 import { KafkaConsumerService } from '../kafka/kafka-consumer.service';
 import { DlqService } from '../kafka/dlq.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { isDuplicateKeyError } from './duplicate-key.util';
 
 const TOPIC = 'commands.customers';
 const MAX_RETRIES = 3; // 4 attempts total, matching the Go handler
@@ -92,12 +93,22 @@ export class CustomersHandler implements OnModuleInit {
           longitude: data.longitude ?? null,
           geofenceRadiusMeters: data.geofenceRadiusMeters ?? 100,
           customerType: data.customerType ?? 'regular',
+          correlationId: cmd.correlationId ?? null,
         });
         this.logger.log(
           `customer created in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, name=${data.name})`,
         );
         return;
       } catch (err) {
+        // A duplicate correlation_id means this exact command was already
+        // applied (Kafka at-least-once redelivery) — treat as success, not a
+        // retryable DB error, so we don't false-positive DLQ an applied write.
+        if (isDuplicateKeyError(err)) {
+          this.logger.log(
+            `customer create already applied — duplicate ignored (correlationId=${cmd.correlationId})`,
+          );
+          return;
+        }
         lastErr = err as Error;
         this.metrics.addDbError();
         this.logger.warn(

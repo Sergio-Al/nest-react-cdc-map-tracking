@@ -33,4 +33,9 @@ export class OrderEntity {
 
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
+
+  // Idempotency key (producing command's correlationId). UNIQUE so a redelivered
+  // create can't mint a second order; the handler treats the dup-key as success.
+  @Column({ name: 'correlation_id', type: 'varchar', length: 36, nullable: true })
+  correlationId!: string | null;
 }

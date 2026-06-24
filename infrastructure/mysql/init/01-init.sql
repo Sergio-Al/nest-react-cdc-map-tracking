@@ -30,9 +30,14 @@ CREATE TABLE IF NOT EXISTS customers (
     geofence_radius_meters  INT          NOT NULL DEFAULT 100,
     customer_type           VARCHAR(50)  NOT NULL DEFAULT 'regular',
     active                  BOOLEAN      NOT NULL DEFAULT TRUE,
+    -- Idempotency key: the producing command's correlationId. UNIQUE so a
+    -- redelivered create (Kafka at-least-once) can't insert a duplicate row.
+    -- NULL allowed (MySQL permits multiple NULLs) for updates / pre-existing rows.
+    correlation_id          VARCHAR(36),
     created_at              DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_customers_tenant (tenant_id)
+    INDEX idx_customers_tenant (tenant_id),
+    UNIQUE KEY uq_customers_correlation (correlation_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Products
@@ -60,11 +65,14 @@ CREATE TABLE IF NOT EXISTS orders (
     total_amount    DECIMAL(12,2) NOT NULL DEFAULT 0,
     delivery_date   DATE,
     notes           TEXT,
+    -- Idempotency key for redelivered create commands (see customers.correlation_id).
+    correlation_id  VARCHAR(36),
     created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_orders_tenant (tenant_id),
     INDEX idx_orders_customer (customer_id),
     UNIQUE KEY uq_orders_number (tenant_id, order_number),
+    UNIQUE KEY uq_orders_correlation (correlation_id),
     FOREIGN KEY (customer_id) REFERENCES customers(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
