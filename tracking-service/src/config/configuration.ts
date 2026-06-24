@@ -33,6 +33,10 @@ export default () => ({
     broker: process.env.KAFKA_BROKER || 'localhost:9094',
     clientId: process.env.KAFKA_CLIENT_ID || 'tracking-service',
     groupId: process.env.KAFKA_GROUP_ID || 'tracking-service-group',
+    // Partitions processed concurrently by the consumer. Without this, kafkajs
+    // processes one partition at a time, so a slow CDC message head-of-line-
+    // blocks GPS enrichment. ~matches the gps.positions partition count.
+    partitionsConcurrency: parseInt(process.env.KAFKA_PARTITIONS_CONCURRENCY || '6', 10),
   },
 
   cacheDb: {

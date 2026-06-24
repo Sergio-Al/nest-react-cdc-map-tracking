@@ -141,6 +141,16 @@ export class RoutesService {
     return route;
   }
 
+  /** Active route id only (no visits eager-load) — for the GPS enrichment hot path. */
+  async findActiveRouteIdByDriver(driverId: string): Promise<string | null> {
+    const route = await this.routeRepo.findOne({
+      where: { driverId, status: 'in_progress' },
+      select: { id: true },
+      order: { scheduledDate: 'DESC' },
+    });
+    return route?.id ?? null;
+  }
+
   async findActiveByDriver(driverId: string): Promise<Route | null> {
     return this.routeRepo.findOne({
       where: { driverId, status: 'in_progress' },

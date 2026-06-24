@@ -394,7 +394,7 @@ export class RouteOptimizerService {
     this.logger.debug(`Calling OSRM: ${url}`);
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!response.ok) {
         throw new Error(`OSRM returned ${response.status}: ${await response.text()}`);
       }
@@ -480,6 +480,7 @@ export class RouteOptimizerService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!response.ok) {
@@ -539,7 +540,7 @@ export class RouteOptimizerService {
     this.logger.debug(`Calling OSRM route: ${url}`);
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!response.ok) {
         throw new Error(`OSRM returned ${response.status}: ${await response.text()}`);
       }

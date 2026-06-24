@@ -300,6 +300,9 @@ export class CdcMetricsService {
    */
   @Cron('*/5 * * * * *')
   async broadcastLag(): Promise<void> {
+    // Skip entirely when no admin is connected — avoids building a snapshot
+    // (and opening a Kafka admin client) every 5s for nobody.
+    if (!this.trackingGateway.hasAdminClients()) return;
     try {
       const snapshot = await this.getSnapshot();
       this.trackingGateway.broadcastCdcLag(snapshot);

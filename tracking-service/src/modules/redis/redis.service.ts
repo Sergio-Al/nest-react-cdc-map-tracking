@@ -110,6 +110,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.georadius(key, longitude, latitude, radius, unit) as Promise<string[]>;
   }
 
+  // ── Sorted Sets (for per-tenant active-driver tracking) ────
+
+  async zadd(key: string, score: number, member: string): Promise<void> {
+    await this.client.zadd(key, score, member);
+  }
+
+  /** Members with score in [min, max]. */
+  async zrangebyscore(key: string, min: number | string, max: number | string): Promise<string[]> {
+    return this.client.zrangebyscore(key, min, max);
+  }
+
+  /** Trim members with score in [min, max] (e.g. evict stale entries). */
+  async zremrangebyscore(key: string, min: number | string, max: number | string): Promise<number> {
+    return this.client.zremrangebyscore(key, min, max);
+  }
+
   // ── Pub/Sub ────────────────────────────────────────────────
 
   async publish(channel: string, message: string): Promise<void> {

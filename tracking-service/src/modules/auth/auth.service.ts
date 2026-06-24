@@ -291,6 +291,13 @@ export class AuthService {
   }
 
   async validateUser(payload: JwtPayload): Promise<CachedUser | null> {
+    // Cache the active user briefly so we don't hit PG on every authenticated
+    // request (hundreds/sec with 500 dashboards polling). Deactivation/role
+    // changes take effect within this TTL; the password is never cached.
+    const cacheKey = `authuser:${payload.sub}`;
+    const cached = await this.redisService.getJson<CachedUser>(cacheKey);
+    if (cached) return cached;
+
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
     });
@@ -299,6 +306,8 @@ export class AuthService {
       return null;
     }
 
+    const { password: _pw, ...safe } = user;
+    await this.redisService.setJson(cacheKey, safe, 60);
     return user;
   }
 
