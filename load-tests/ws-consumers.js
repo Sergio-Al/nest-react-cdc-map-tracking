@@ -86,7 +86,7 @@ function getAuthToken() {
 
 // ── Main test function ─────────────────────────────────────
 
-export default function () {
+export function wsConsumers() {
   const token = getAuthToken();
   if (!token) {
     wsConnectErrors.add(true);
@@ -167,6 +167,10 @@ export default function () {
   // Brief pause between reconnections
   sleep(2);
 }
+
+// Default export for standalone runs (k6 run ws-consumers.js); the named
+// export is what full-scenario.js references via `exec: 'wsConsumers'`.
+export default wsConsumers;
 
 // ── Summary ────────────────────────────────────────────────
 
