@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import i18n from '@/i18n';
 import { env } from '@/config/env';
+import { refreshTokens } from './auth-refresh';
 
 const api = axios.create({
   baseURL: `${env.apiUrl}/api`,
@@ -80,46 +81,10 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const authData = localStorage.getItem('auth-storage');
-      
-      if (!authData) {
-        isRefreshing = false;
-        processQueue(new Error('No auth data'), null);
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
       try {
-        const { state } = JSON.parse(authData);
-        const refreshToken = state?.refreshToken;
-
-        if (!refreshToken) {
-          throw new Error('No refresh token');
-        }
-
-        const response = await axios.post<{
-          accessToken: string;
-          refreshToken: string;
-        }>(`${env.apiUrl}/api/auth/refresh`, {
-          refreshToken,
-        });
-
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
-
-        // Update localStorage with new tokens
-        const updatedState = {
-          ...state,
-          accessToken,
-          refreshToken: newRefreshToken,
-        };
-        localStorage.setItem('auth-storage', JSON.stringify({ state: updatedState }));
-
-        // Sync Zustand auth store so WebSocket and other consumers
-        // pick up the refreshed token without a full page reload
-        try {
-          const { useAuthStore } = await import('@/stores/auth.store');
-          useAuthStore.getState().setTokens(accessToken, newRefreshToken);
-        } catch { /* noop — store may not be initialised yet */ }
+        // Shared, de-duped rotation (also used by the WebSocket service) so the
+        // two paths can't double-rotate the refresh token.
+        const accessToken = await refreshTokens();
 
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -132,11 +97,11 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
         isRefreshing = false;
-        
+
         // Clear auth data and redirect to login
         localStorage.removeItem('auth-storage');
         window.location.href = '/login';
-        
+
         return Promise.reject(refreshError);
       }
     }

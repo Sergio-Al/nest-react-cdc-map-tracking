@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,20 +8,34 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+// LoginPage stays eager — it's the first paint for unauthenticated users.
 import LoginPage from "./pages/LoginPage";
-import SignupPage from "./pages/SignupPage";
-import Index from "./pages/Index";
-import HistoryPage from "./pages/HistoryPage";
-import MonitoringPage from "./pages/MonitoringPage";
-import ReportsPage from "./pages/ReportsPage";
-import SettingsPage from "./pages/SettingsPage";
-import RoutesPage from "./pages/RoutesPage";import DriversPage from "./pages/DriversPage";
-import VehiclesPage from "./pages/VehiclesPage";
-import NotFound from "./pages/NotFound";
-import CustomersPage from "./pages/CustomersPage";
-import OrdersPage from "./pages/OrdersPage";
+// Everything else is route-split so the live-map user doesn't download Recharts
+// (Reports), dnd-kit (Routes), etc. up front.
+const SignupPage = lazy(() => import("./pages/SignupPage"));
+const Index = lazy(() => import("./pages/Index"));
+const HistoryPage = lazy(() => import("./pages/HistoryPage"));
+const MonitoringPage = lazy(() => import("./pages/MonitoringPage"));
+const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const RoutesPage = lazy(() => import("./pages/RoutesPage"));
+const DriversPage = lazy(() => import("./pages/DriversPage"));
+const VehiclesPage = lazy(() => import("./pages/VehiclesPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const CustomersPage = lazy(() => import("./pages/CustomersPage"));
+const OrdersPage = lazy(() => import("./pages/OrdersPage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    // Safety net so stragglers without an explicit staleTime don't refetch on
+    // every window focus/mount.
+    queries: { staleTime: 30_000 },
+  },
+});
+
+const PageFallback = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background" />
+);
 
 const HtmlLangSync = () => {
   const { i18n } = useTranslation();
@@ -45,6 +59,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+        <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
@@ -65,6 +80,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

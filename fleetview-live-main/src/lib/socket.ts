@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
-import axios from 'axios';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 import { env } from '@/config/env';
+import { refreshTokens } from './auth-refresh';
 import { WS_EVENTS } from '@/types/ws-events.types';
 import type { EnrichedPosition } from '@/types/position.types';
 import type { VisitEvent } from '@/types/visit.types';
@@ -15,15 +16,19 @@ import type { CdcLagSnapshot } from '@/types/monitoring.types';
 
 class SocketService {
   private socket: Socket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
   private isRefreshingToken = false;
+  private networkListenersAdded = false;
   // First successful connect is silent; we only toast when the link comes back
   // after a real drop (avoids a "Connected" toast on initial load).
   private hasConnected = false;
 
   connect(token: string): Socket {
-    if (this.socket?.connected) {
+    // Reuse an existing socket — even one mid-reconnect. Recreating it orphaned
+    // the previous instance (with its listeners and retry loop), leaking
+    // duplicate connections. Just refresh the auth token and (re)connect.
+    if (this.socket) {
+      this.socket.auth = { token };
+      if (!this.socket.connected) this.socket.connect();
       return this.socket;
     }
 
@@ -33,14 +38,15 @@ class SocketService {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionAttempts: Infinity, // keep retrying; a laptop sleep/outage must not kill live updates
     });
+
+    this.setupNetworkReconnect();
 
     this.socket.on('connect', () => {
       console.log('✅ WebSocket connected');
-      this.reconnectAttempts = 0;
       // Only announce reconnections, not the initial connect.
-      if (this.hasConnected) toast.success('Reconnected');
+      if (this.hasConnected) toast.success(i18n.t('common:connection.reconnected'));
       this.hasConnected = true;
     });
 
@@ -54,7 +60,6 @@ class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('WebSocket connection error:', error);
-      this.reconnectAttempts++;
 
       // Attempt token refresh on auth-related failures
       const msg = error.message?.toLowerCase() ?? '';
@@ -67,12 +72,9 @@ class SocketService {
         this.refreshTokenAndReconnect();
         return;
       }
-      
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        toast.error('Connection lost. Please refresh the page.');
-      } else {
-        toast.error('Connection error, reconnecting...');
-      }
+
+      // We retry forever (reconnectionAttempts: Infinity), so this is transient.
+      toast.error(i18n.t('common:connection.error'));
     });
 
     this.socket.on(WS_EVENTS.ERROR, (error: { message: string }) => {
@@ -82,10 +84,26 @@ class SocketService {
         this.refreshTokenAndReconnect();
         return;
       }
-      toast.error(error.message || 'WebSocket error');
+      toast.error(error.message || i18n.t('common:connection.error'));
     });
 
     return this.socket;
+  }
+
+  /**
+   * Reconnect promptly when the browser regains connectivity or the tab becomes
+   * visible again, instead of waiting out the backoff timer. Registered once.
+   */
+  private setupNetworkReconnect(): void {
+    if (this.networkListenersAdded || typeof window === 'undefined') return;
+    this.networkListenersAdded = true;
+    const tryReconnect = () => {
+      if (this.socket && !this.socket.connected) this.socket.connect();
+    };
+    window.addEventListener('online', tryReconnect);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') tryReconnect();
+    });
   }
 
   /**
@@ -98,42 +116,15 @@ class SocketService {
     this.isRefreshingToken = true;
 
     try {
-      const authData = localStorage.getItem('auth-storage');
-      if (!authData) throw new Error('No auth data');
-
-      const { state } = JSON.parse(authData);
-      const refreshToken = state?.refreshToken;
-      if (!refreshToken) throw new Error('No refresh token');
-
-      console.log('🔄 Refreshing token for WebSocket reconnection...');
-      const response = await axios.post<{
-        accessToken: string;
-        refreshToken: string;
-      }>(`${env.apiUrl}/api/auth/refresh`, { refreshToken });
-
-      const { accessToken, refreshToken: newRefreshToken } = response.data;
-
-      // Update localStorage
-      const updatedState = { ...state, accessToken, refreshToken: newRefreshToken };
-      localStorage.setItem('auth-storage', JSON.stringify({ state: updatedState }));
-
-      // Sync Zustand store (lazy import to avoid circular deps)
-      const { useAuthStore } = await import('@/stores/auth.store');
-      useAuthStore.getState().setTokens(accessToken, newRefreshToken);
-
-      // Update socket auth so next reconnect uses the fresh token
+      // Shared, de-duped with the axios interceptor so the two paths can't
+      // double-rotate the refresh token.
+      const accessToken = await refreshTokens();
+      // Update socket auth so the next reconnect uses the fresh token.
       this.socket.auth = { token: accessToken };
-      this.reconnectAttempts = 0;
-
-      // If socket.io auto-reconnect hasn't kicked in yet, trigger manually
-      if (!this.socket.connected) {
-        this.socket.connect();
-      }
-
-      console.log('✅ Token refreshed for WebSocket');
+      if (!this.socket.connected) this.socket.connect();
     } catch (err) {
       console.error('Failed to refresh token for WebSocket:', err);
-      toast.error('Session expired. Please log in again.');
+      toast.error(i18n.t('common:connection.sessionExpired'));
       localStorage.removeItem('auth-storage');
       window.location.href = '/login';
     } finally {
