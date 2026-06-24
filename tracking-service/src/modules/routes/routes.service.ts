@@ -131,9 +131,10 @@ export class RoutesService {
     });
   }
 
-  async findById(id: string): Promise<Route> {
+  async findById(id: string, tenantId?: string): Promise<Route> {
+    const where: FindOptionsWhere<Route> = tenantId ? { id, tenantId } : { id };
     const route = await this.routeRepo.findOne({
-      where: { id },
+      where,
       relations: ['visits'],
     });
     if (!route) throw new NotFoundException({ errorCode: 'routes.notFound', args: { id } });
@@ -156,8 +157,8 @@ export class RoutesService {
     });
   }
 
-  async update(id: string, dto: UpdateRouteDto): Promise<Route> {
-    const route = await this.findById(id);
+  async update(id: string, dto: UpdateRouteDto, tenantId?: string): Promise<Route> {
+    const route = await this.findById(id, tenantId);
     if (dto.status) route.status = dto.status;
 
     // Depot edits (pin / drag / clear) and the open-route toggle. Only mutate

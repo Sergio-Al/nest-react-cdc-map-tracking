@@ -2,6 +2,12 @@ export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
+  // Allowed browser origins for HTTP CORS and the Socket.io gateway.
+  // Comma-separated env override; defaults to the dev frontend (port 5173).
+  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim()),
+
   // Deployment-default IANA timezone. Used as the bucket tz for the
   // `driver_daily_stats` continuous aggregate (one tz per deployment) and as
   // the system-default tenant timezone. Keep in sync with the value baked into

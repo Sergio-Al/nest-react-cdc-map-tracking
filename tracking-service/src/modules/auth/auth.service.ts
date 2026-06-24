@@ -1,7 +1,7 @@
 import { Injectable, Logger, UnauthorizedException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, QueryFailedError } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -110,9 +110,28 @@ export class AuthService {
       driverId: input.driverId,
       isActive: true,
     });
-    await this.userRepository.save(user);
+    await this.saveUserUnique(user, 'auth.driverLoginExists');
     const { password, ...result } = user;
     return result;
+  }
+
+  /**
+   * Save a new user, translating the (tenant_id, lower(email)) unique-violation
+   * (PG 23505, from uq_cached_users_tenant_email) into a friendly conflict. This
+   * is the backstop for the check-then-insert race the findOne pre-check can't close.
+   */
+  private async saveUserUnique(
+    user: CachedUser,
+    conflictErrorCode = 'auth.userAlreadyExists',
+  ): Promise<void> {
+    try {
+      await this.userRepository.save(user);
+    } catch (err) {
+      if (err instanceof QueryFailedError && (err as any).code === '23505') {
+        throw new ConflictException({ errorCode: conflictErrorCode });
+      }
+      throw err;
+    }
   }
 
   /** Set of driver ids that already have a login, for the given tenant. */
@@ -157,7 +176,7 @@ export class AuthService {
       isActive: true,
     });
 
-    await this.userRepository.save(user);
+    await this.saveUserUnique(user);
 
     // Owner signup creates the workspace → open the reverse trial. Idempotent
     // (no-op if the tenant already has a subscription) and best-effort: a

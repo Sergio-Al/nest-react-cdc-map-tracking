@@ -8,10 +8,14 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { RedisService } from '../redis/redis.service';
 import { AuthService } from '../auth/auth.service';
+import { Driver } from '../drivers/entities/driver.entity';
+import { Route } from '../routes/entities/route.entity';
 import { EnrichedPosition } from '../enrichment/enrichment.types';
 import {
   VisitEvent,
@@ -30,7 +34,12 @@ import { CdcLagSnapshot } from '../sync/cdc-metrics.service';
  */
 @WebSocketGateway({
   namespace: '/tracking',
-  cors: { origin: '*' },
+  cors: {
+    origin: (process.env.CORS_ORIGINS || 'http://localhost:5173')
+      .split(',')
+      .map((o) => o.trim()),
+    credentials: true,
+  },
 })
 export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -43,6 +52,10 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     private readonly redisService: RedisService,
     private readonly jwtService: JwtService,
     private readonly authService: AuthService,
+    @InjectRepository(Driver, 'cacheDb')
+    private readonly driverRepo: Repository<Driver>,
+    @InjectRepository(Route, 'cacheDb')
+    private readonly routeRepo: Repository<Route>,
   ) {}
 
   // ── Lifecycle ───────────────────────────────────────────────
@@ -126,13 +139,23 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(WS_EVENTS.JOIN_DRIVER)
-  handleJoinDriver(
+  async handleJoinDriver(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: JoinDriverDto,
-  ): void {
+  ): Promise<void> {
     const user = client.data.user;
     if (user?.role === 'driver' && user.driverId !== data.driverId) {
       this.logger.warn(`Driver ${client.id} attempted to join unauthorized driver ${data.driverId}`);
+      client.emit('error', { message: 'Unauthorized driver access' });
+      return;
+    }
+    // Verify the driver belongs to the caller's tenant before joining the room
+    // (prevents cross-tenant live-position streaming).
+    const driver = await this.driverRepo.findOne({
+      where: { id: data.driverId, tenantId: user?.tenantId },
+    });
+    if (!driver) {
+      this.logger.warn(`Client ${client.id} attempted to join unauthorized driver ${data.driverId}`);
       client.emit('error', { message: 'Unauthorized driver access' });
       return;
     }
@@ -142,10 +165,20 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(WS_EVENTS.JOIN_ROUTE)
-  handleJoinRoute(
+  async handleJoinRoute(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: JoinRouteDto,
-  ): void {
+  ): Promise<void> {
+    const user = client.data.user;
+    // Verify the route belongs to the caller's tenant before joining the room.
+    const route = await this.routeRepo.findOne({
+      where: { id: data.routeId, tenantId: user?.tenantId },
+    });
+    if (!route) {
+      this.logger.warn(`Client ${client.id} attempted to join unauthorized route ${data.routeId}`);
+      client.emit('error', { message: 'Unauthorized route access' });
+      return;
+    }
     const room = `route:${data.routeId}`;
     client.join(room);
     this.logger.debug(`Client ${client.id} joined ${room}`);

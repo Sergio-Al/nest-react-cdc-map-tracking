@@ -31,7 +31,7 @@ export class DriversController {
 
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.driversService.findOne(id);
+    return this.driversService.findOne(id, user.tenantId);
   }
 
   @Get(':id/position')
@@ -59,7 +59,7 @@ export class DriversController {
     if (user.role === 'driver' && user.driverId !== id) {
       return [];
     }
-    return this.timescaleService.getDriverPositionHistory(id, fromDate, toDate);
+    return this.timescaleService.getDriverPositionHistory(id, fromDate, toDate, user.tenantId);
   }
 
   @Roles('admin', 'dispatcher')

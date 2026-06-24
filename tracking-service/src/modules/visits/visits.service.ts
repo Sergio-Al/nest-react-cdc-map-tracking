@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { PlannedVisit } from './entities/planned-visit.entity';
 import { CreateVisitDto, UpdateVisitStatusDto } from './dto/visit.dto';
 import { RoutesService } from '../routes/routes.service';
@@ -41,15 +41,19 @@ export class VisitsService {
     return saved;
   }
 
-  async findById(id: string): Promise<PlannedVisit> {
-    const visit = await this.visitRepo.findOne({ where: { id } });
+  async findById(id: string, tenantId?: string): Promise<PlannedVisit> {
+    const where: FindOptionsWhere<PlannedVisit> = tenantId ? { id, tenantId } : { id };
+    const visit = await this.visitRepo.findOne({ where });
     if (!visit) throw new NotFoundException({ errorCode: 'visits.notFound', args: { id } });
     return visit;
   }
 
-  async findByRoute(routeId: string): Promise<PlannedVisit[]> {
+  async findByRoute(routeId: string, tenantId?: string): Promise<PlannedVisit[]> {
+    const where: FindOptionsWhere<PlannedVisit> = tenantId
+      ? { routeId, tenantId }
+      : { routeId };
     return this.visitRepo.find({
-      where: { routeId },
+      where,
       order: { sequenceNumber: 'ASC' },
     });
   }
@@ -89,8 +93,8 @@ export class VisitsService {
   /**
    * Update visit status with lifecycle management
    */
-  async updateStatus(id: string, dto: UpdateVisitStatusDto): Promise<PlannedVisit> {
-    const visit = await this.findById(id);
+  async updateStatus(id: string, dto: UpdateVisitStatusDto, tenantId?: string): Promise<PlannedVisit> {
+    const visit = await this.findById(id, tenantId);
     const previousStatus = visit.status;
     visit.status = dto.status;
     if (dto.notes) visit.notes = dto.notes;
@@ -144,8 +148,8 @@ export class VisitsService {
   /**
    * Delete a pending visit. Only allowed for visits with status 'pending'.
    */
-  async delete(id: string): Promise<void> {
-    const visit = await this.findById(id);
+  async delete(id: string, tenantId?: string): Promise<void> {
+    const visit = await this.findById(id, tenantId);
     if (visit.status !== 'pending') {
       throw new BadRequestException({
         errorCode: 'visits.cannotDeleteInStatus',

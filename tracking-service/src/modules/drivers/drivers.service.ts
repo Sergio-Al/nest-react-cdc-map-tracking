@@ -61,8 +61,10 @@ export class DriversService {
     });
   }
 
-  async findOne(id: string): Promise<Driver | null> {
-    return this.driverRepo.findOne({ where: { id } });
+  async findOne(id: string, tenantId: string): Promise<Driver> {
+    // Tenant-scoped: a cross-tenant (or missing) id 404s rather than leaking
+    // the row or returning a 200/null. Only caller is GET /drivers/:id.
+    return this.getOwned(id, tenantId);
   }
 
   async findByDeviceId(deviceId: string): Promise<Driver | null> {

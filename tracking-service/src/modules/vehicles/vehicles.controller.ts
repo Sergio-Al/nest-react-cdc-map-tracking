@@ -38,8 +38,8 @@ export class VehiclesController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.vehiclesService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    return this.vehiclesService.findOne(id, user.tenantId);
   }
 
   @Roles('admin', 'dispatcher')
@@ -47,7 +47,8 @@ export class VehiclesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateVehicleDto,
+    @CurrentUser() user: any,
   ) {
-    return this.vehiclesService.update(id, dto);
+    return this.vehiclesService.update(id, dto, user.tenantId);
   }
 }

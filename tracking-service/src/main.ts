@@ -22,6 +22,16 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
 
+  // Fail fast in production if the JWT secret was left at its insecure default.
+  if (configService.get<string>('nodeEnv') === 'production') {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || jwtSecret === 'change-me-in-production-please') {
+      throw new Error(
+        'JWT_SECRET must be set to a strong, non-default value when NODE_ENV=production',
+      );
+    }
+  }
+
   app.setGlobalPrefix('api');
   // Filter order matters: I18nValidationExceptionFilter handles
   // I18nValidationException (thrown by I18nValidationPipe). Anything else
@@ -38,7 +48,10 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors();
+  app.enableCors({
+    origin: configService.get<string[]>('corsOrigins'),
+    credentials: true,
+  });
 
   // Initialize the app (triggers onModuleInit for all modules, including RedisService)
   await app.init();
