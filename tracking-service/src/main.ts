@@ -6,6 +6,7 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 import { I18nValidationPipe, I18nValidationExceptionFilter } from 'nestjs-i18n';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { corsOrigin } from './common/cors';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -49,7 +50,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: configService.get<string[]>('corsOrigins'),
+    origin: corsOrigin,
     credentials: true,
   });
 

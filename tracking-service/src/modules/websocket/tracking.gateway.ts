@@ -8,6 +8,7 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { corsOrigin } from '../../common/cors';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Server, Socket } from 'socket.io';
@@ -39,9 +40,7 @@ const ACTIVE_DRIVERS_WINDOW_MS = 5 * 60 * 1000;
 @WebSocketGateway({
   namespace: '/tracking',
   cors: {
-    origin: (process.env.CORS_ORIGINS || 'http://localhost:5173')
-      .split(',')
-      .map((o) => o.trim()),
+    origin: corsOrigin,
     credentials: true,
   },
 })

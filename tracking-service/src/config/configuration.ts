@@ -2,9 +2,12 @@ export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
-  // Allowed browser origins for HTTP CORS and the Socket.io gateway.
-  // Comma-separated env override; defaults to the dev frontend (port 5173).
-  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173')
+  // Allowed browser origins for HTTP CORS and the Socket.io gateway. The actual
+  // policy lives in `src/common/cors.ts` (shared by main.ts + the WS gateway):
+  // explicit CORS_ORIGINS whitelist always allowed; in non-production any
+  // localhost/127.0.0.1 origin is also allowed so the dev port never blocks.
+  // Exposed here for reference/diagnostics. Defaults to the dev frontend (3001).
+  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3001,http://localhost:5173')
     .split(',')
     .map((o) => o.trim()),
 
