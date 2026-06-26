@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Query,
+  Headers,
   ParseUUIDPipe,
   ForbiddenException,
 } from '@nestjs/common';
@@ -54,6 +55,10 @@ export class VisitsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateVisitStatusDto,
     @CurrentUser() user: any,
+    // Optional client-generated key from the driver app's offline outbox; used
+    // for tracing replayed commands (idempotency itself is enforced by the
+    // visit's status in the service — see VisitsService.updateStatus).
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     // If user is a driver, verify they own this visit
     if (user.role === 'driver') {
@@ -63,7 +68,7 @@ export class VisitsController {
         throw new ForbiddenException({ errorCode: 'visits.cannotUpdateOtherDriver' });
       }
     }
-    return this.visitsService.updateStatus(id, dto, user.tenantId);
+    return this.visitsService.updateStatus(id, dto, user.tenantId, idempotencyKey);
   }
 
   @Roles('admin', 'dispatcher')

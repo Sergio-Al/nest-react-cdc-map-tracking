@@ -102,6 +102,20 @@ export class DriversController {
     return this.driversService.createLogin(id, user.tenantId, dto);
   }
 
+  // Self-serve device provisioning for the driver mobile app. Derives + returns
+  // a stable device id for the authenticated driver and registers it in Traccar,
+  // so the app can start streaming GPS (OsmAnd protocol) without an admin
+  // pre-pairing step. Idempotent — safe to call on every login.
+  @Roles('driver')
+  @Post('me/device')
+  @HttpCode(HttpStatus.OK)
+  provisionMyDevice(@CurrentUser() user: any) {
+    if (!user.driverId) {
+      throw new ForbiddenException({ errorCode: 'auth.insufficientPermissions' });
+    }
+    return this.driversService.provisionAppDevice(user.driverId, user.tenantId);
+  }
+
   // Managers may pair anyone; a driver may pair only their own device.
   @Roles('admin', 'dispatcher', 'driver')
   @Patch(':id/device')

@@ -99,8 +99,27 @@ export class VisitsService {
   /**
    * Update visit status with lifecycle management
    */
-  async updateStatus(id: string, dto: UpdateVisitStatusDto, tenantId?: string): Promise<PlannedVisit> {
+  async updateStatus(
+    id: string,
+    dto: UpdateVisitStatusDto,
+    tenantId?: string,
+    idempotencyKey?: string,
+  ): Promise<PlannedVisit> {
     const visit = await this.findById(id, tenantId);
+
+    // Natural idempotency: the visit's own status IS the dedup key. The driver
+    // app's offline outbox resends commands after a dropped response, so a
+    // redundant transition into the status the visit is already in must be a
+    // pure no-op — no timestamp overwrite, no duplicate Kafka event, no double
+    // history row. (Also makes repeated geofence auto-arrival harmless.)
+    if (visit.status === dto.status) {
+      this.logger.log(
+        `Visit ${id} already '${dto.status}' — idempotent no-op` +
+          (idempotencyKey ? ` (key=${idempotencyKey})` : ''),
+      );
+      return visit;
+    }
+
     const previousStatus = visit.status;
     visit.status = dto.status;
     if (dto.notes) visit.notes = dto.notes;
