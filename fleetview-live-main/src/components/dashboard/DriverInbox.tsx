@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, Filter, Plus, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Driver } from "@/types/driver.types";
@@ -69,14 +69,14 @@ function FilterChip({
   );
 }
 
-function InboxRow({
+const InboxRow = memo(function InboxRow({
   driver,
   selected,
   onSelect,
 }: {
   driver: DriverWithPosition;
   selected: boolean;
-  onSelect: () => void;
+  onSelect: (id: string) => void;
 }) {
   const { t } = useTranslation("dashboard");
   const status = getDriverStatus(driver.position);
@@ -98,7 +98,7 @@ function InboxRow({
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={() => onSelect(driver.id)}
       data-driver-id={driver.id}
       className={cn(
         "grid w-full grid-cols-[36px_1fr_auto] items-center gap-2.5 border-l-2 border-l-transparent py-[11px] pl-3.5 pr-4 text-left transition-colors",
@@ -155,7 +155,7 @@ function InboxRow({
       </div>
     </button>
   );
-}
+});
 
 export function DriverInbox({
   drivers,
@@ -232,10 +232,13 @@ export function DriverInbox({
   const cycleSort = () =>
     setSort((s) => SORT_CYCLE[(SORT_CYCLE.indexOf(s) + 1) % SORT_CYCLE.length]);
 
-  const select = (id: string) => {
-    onSelectDriver(id);
-    setInboxSheetOpen(false); // close the drawer on selection (no-op on lg+)
-  };
+  const select = useCallback(
+    (id: string) => {
+      onSelectDriver(id);
+      setInboxSheetOpen(false); // close the drawer on selection (no-op on lg+)
+    },
+    [onSelectDriver, setInboxSheetOpen],
+  );
 
   // ↑/↓ move the selection through the visible list (when not typing).
   useEffect(() => {
@@ -358,7 +361,7 @@ export function DriverInbox({
               key={driver.id}
               driver={driver}
               selected={driver.id === selectedDriverId}
-              onSelect={() => select(driver.id)}
+              onSelect={select}
             />
           ))
         )}

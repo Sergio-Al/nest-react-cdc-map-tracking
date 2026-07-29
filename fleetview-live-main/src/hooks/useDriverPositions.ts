@@ -17,7 +17,6 @@ export function useDriverPositions(isConnected: boolean) {
     if (!isConnected) return;
 
     const handlePositionUpdate = (position: EnrichedPosition) => {
-      console.log('📍 Position update:', position.driverName, position);
       updatePosition(position);
     };
 

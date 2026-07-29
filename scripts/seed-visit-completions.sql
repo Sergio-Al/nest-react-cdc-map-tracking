@@ -26,7 +26,8 @@
 
 DELETE FROM visit_completions;
 
--- ── tenant-1: 2 drivers, customers 1..20, ~18 visits/day for 30 days ──────
+-- ── tenant-1: 2 drivers, customers 1001..1020, ~18 visits/day for 30 days ─
+-- Customer ids track infrastructure/cache-db/init/04-seed-customers-lapaz.sql.
 INSERT INTO visit_completions
   (time, visit_id, tenant_id, driver_id, customer_id, route_id,
    visit_type, status, arrived_at, completed_at, duration_sec, on_time)
@@ -50,7 +51,7 @@ FROM (
     LEAST(
       (d + interval '7 hours' + (random() * interval '12 hours'))::timestamptz,
       now() - interval '1 minute')                            AS ts,
-    1 + floor(random() * 20)::int                             AS cid,
+    1001 + floor(random() * 20)::int                          AS cid,
     180 + floor(random() * 2400)::int                         AS dur,
     random()                                                  AS rstatus,
     random()                                                  AS rdrv,
@@ -70,7 +71,7 @@ CROSS JOIN LATERAL (
          END AS status
 ) AS st;
 
--- ── tenant-2: 1 driver, customers 21..23, ~5 visits/day ───────────────────
+-- ── tenant-2: 1 driver, customers 1021..1023, ~5 visits/day ───────────────
 INSERT INTO visit_completions
   (time, visit_id, tenant_id, driver_id, customer_id, route_id,
    visit_type, status, arrived_at, completed_at, duration_sec, on_time)
@@ -92,7 +93,7 @@ FROM (
     LEAST(
       (d + interval '8 hours' + (random() * interval '10 hours'))::timestamptz,
       now() - interval '1 minute')                            AS ts,
-    21 + floor(random() * 3)::int                             AS cid,
+    1021 + floor(random() * 3)::int                           AS cid,
     180 + floor(random() * 2400)::int                         AS dur,
     random()                                                  AS rstatus,
     random()                                                  AS rontime

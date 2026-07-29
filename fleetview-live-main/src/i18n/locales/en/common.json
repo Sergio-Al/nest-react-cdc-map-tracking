@@ -129,6 +129,11 @@
     "error": "Something went wrong",
     "loading": "Loading…"
   },
+  "connection": {
+    "reconnected": "Reconnected",
+    "error": "Connection error, reconnecting…",
+    "sessionExpired": "Session expired. Please log in again."
+  },
   "notFound": {
     "title": "Page not found",
     "description": "The requested route does not exist.",

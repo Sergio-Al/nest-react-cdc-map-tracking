@@ -1257,31 +1257,31 @@ El sistema viene con 3 vehículos pre-cargados asociados a los conductores de pr
 
 ## 📝 Clientes de Prueba (La Paz, Bolivia)
 
-| Nombre | Tenant | Ubicación | Geofence | Tipo |
-|---|---|---|---|---|
-| Farmacia Bolivia Centro | tenant-1 | -16.4955, -68.1336 | 100m | retail |
-| Tienda El Prado | tenant-1 | -16.5025, -68.1310 | 100m | retail |
-| Distribuidora San Francisco | tenant-1 | -16.4980, -68.1380 | 150m | warehouse |
-| Mercado Lanza - Puesto 42 | tenant-1 | -16.4970, -68.1450 | 80m | retail |
-| Supermercado Hipermaxi Calacoto | tenant-1 | -16.5320, -68.0830 | 200m | retail |
-| Restaurante Gustu | tenant-1 | -16.5280, -68.0890 | 100m | restaurant |
-| Oficina Sopocachi Plaza | tenant-1 | -16.5120, -68.1220 | 100m | office |
-| Librería Sopocachi | tenant-1 | -16.5080, -68.1250 | 80m | retail |
-| Clínica Miraflores | tenant-1 | -16.5050, -68.1150 | 120m | clinic |
-| Panadería Miraflores | tenant-1 | -16.5100, -68.1180 | 80m | retail |
-| Ferretería Obrajes | tenant-1 | -16.5250, -68.1020 | 100m | retail |
-| Gimnasio Power Fit | tenant-1 | -16.5200, -68.0950 | 100m | gym |
-| Almacén Villa Fátima | tenant-1 | -16.4900, -68.1200 | 120m | warehouse |
-| Taller Mecánico Achachicala | tenant-1 | -16.4850, -68.1280 | 150m | workshop |
-| Hotel Presidente | tenant-1 | -16.4990, -68.1350 | 100m | hotel |
-| Centro Comercial MegaCenter | tenant-1 | -16.5380, -68.0780 | 250m | mall |
-| Universidad Mayor de San Andrés | tenant-1 | -16.5040, -68.1270 | 200m | university |
-| Mercado Rodríguez | tenant-1 | -16.4960, -68.1410 | 100m | retail |
-| Café del Mundo Sopocachi | tenant-1 | -16.5110, -68.1230 | 60m | restaurant |
-| Terminal de Buses La Paz | tenant-1 | -16.5150, -68.1500 | 200m | terminal |
-| Distribuidora Oruro Central | tenant-2 | -16.5000, -68.1370 | 150m | warehouse |
-| Tienda Express Miraflores | tenant-2 | -16.5060, -68.1160 | 100m | retail |
-| Almacén Sur Calacoto | tenant-2 | -16.5350, -68.0810 | 120m | warehouse |
+| Id | Nombre | Tenant | Zona | Ubicación | Geofence | Tipo |
+|---|---|---|---|---|---|---|
+| 1001 | Farmacia Bolivia | tenant-1 | Centro | -16.4955, -68.1336 | 80m | regular |
+| 1002 | Supermercado Ketal Sur | tenant-1 | Calacoto | -16.5340, -68.0780 | 100m | premium |
+| 1003 | Restaurante Gustu | tenant-1 | Calacoto | -16.5365, -68.0810 | 60m | premium |
+| 1004 | Hospital de Clinicas | tenant-1 | Miraflores | -16.5050, -68.1210 | 150m | regular |
+| 1005 | Universidad Mayor San Andres | tenant-1 | Centro | -16.5025, -68.1310 | 120m | regular |
+| 1006 | Mercado Rodriguez | tenant-1 | Max Paredes | -16.4960, -68.1425 | 80m | regular |
+| 1007 | Tienda YPFB San Miguel | tenant-1 | San Miguel | -16.5280, -68.0860 | 100m | regular |
+| 1008 | Oficinas BCP Prado | tenant-1 | Centro | -16.5000, -68.1320 | 80m | premium |
+| 1009 | Colegio Franco Boliviano | tenant-1 | Obrajes | -16.5250, -68.1040 | 100m | regular |
+| 1010 | Megacenter Mall | tenant-1 | Irpavi | -16.5180, -68.0720 | 150m | premium |
+| 1011 | Clinica del Sur | tenant-1 | Obrajes | -16.5220, -68.0950 | 120m | premium |
+| 1012 | Ferreteria El Constructor | tenant-1 | Cementerio | -16.4980, -68.1510 | 80m | regular |
+| 1013 | Panaderia Francesca | tenant-1 | Sopocachi | -16.5080, -68.1250 | 50m | regular |
+| 1014 | Distribuidora de Gas LP | tenant-1 | Villa Fatima | -16.4870, -68.1170 | 100m | regular |
+| 1015 | Libreria Gisbert | tenant-1 | Centro | -16.4975, -68.1365 | 60m | regular |
+| 1016 | Multicine Megacenter | tenant-1 | Irpavi | -16.5189, -68.0730 | 100m | regular |
+| 1017 | Taller Automotriz Velasco | tenant-1 | Villa Victoria | -16.4920, -68.1480 | 80m | regular |
+| 1018 | Consultorio Dental Sonrisa | tenant-1 | Achumani | -16.5350, -68.0690 | 60m | regular |
+| 1019 | Deposito Industrial Achachicala | tenant-1 | Achachicala | -16.4780, -68.1320 | 200m | regular |
+| 1020 | Hotel Radisson Plaza | tenant-1 | Sopocachi | -16.5060, -68.1280 | 100m | premium |
+| 1021 | Tienda San Pedro | tenant-2 | San Pedro | -16.4990, -68.1400 | 80m | regular |
+| 1022 | Mercado Lanza | tenant-2 | Centro | -16.4945, -68.1370 | 100m | regular |
+| 1023 | Banco Mercantil Miraflores | tenant-2 | Miraflores | -16.5070, -68.1150 | 80m | premium |
 
 ---
 

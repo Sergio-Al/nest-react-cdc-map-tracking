@@ -42,7 +42,9 @@ BEGIN
       NOW(),
       NOW()
     )
-    ON CONFLICT (device_id) DO UPDATE SET
+    -- Matches the partial unique index uq_drivers_device_id (… WHERE device_id
+    -- IS NOT NULL); a bare ON CONFLICT (device_id) can't infer a partial index.
+    ON CONFLICT (device_id) WHERE device_id IS NOT NULL DO UPDATE SET
       name = EXCLUDED.name,
       tenant_id = EXCLUDED.tenant_id,
       vehicle_type = EXCLUDED.vehicle_type,

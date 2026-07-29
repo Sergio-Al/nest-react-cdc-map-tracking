@@ -81,6 +81,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
         (time, driver_id, tenant_id, latitude, longitude, speed, heading, altitude,
          accuracy, route_id, visit_id, customer_name, distance_to_next_m, eta_to_next_sec)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ON CONFLICT (time, driver_id) DO NOTHING
     `;
     await this.pool.query(sql, [
       row.time,
@@ -111,6 +112,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
           (time, driver_id, tenant_id, latitude, longitude, speed, heading, altitude,
            accuracy, route_id, visit_id, customer_name, distance_to_next_m, eta_to_next_sec)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        ON CONFLICT (time, driver_id) DO NOTHING
       `;
       for (const row of rows) {
         await client.query(sql, [
@@ -135,6 +137,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
         (time, visit_id, tenant_id, driver_id, customer_id, route_id,
          visit_type, status, arrived_at, completed_at, duration_sec, on_time)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ON CONFLICT (time, visit_id) DO NOTHING
     `;
     await this.pool.query(sql, [
       row.time, row.visitId, row.tenantId, row.driverId, row.customerId,
@@ -149,6 +152,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
     driverId: string,
     from: Date,
     to: Date,
+    tenantId: string,
     limit = 5000,
   ): Promise<EnrichedPositionRow[]> {
     const sql = `
@@ -159,11 +163,11 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
              distance_to_next_m AS "distanceToNextM",
              eta_to_next_sec AS "etaToNextSec"
       FROM enriched_positions
-      WHERE driver_id = $1 AND time >= $2 AND time <= $3
+      WHERE driver_id = $1 AND tenant_id = $2 AND time >= $3 AND time <= $4
       ORDER BY time ASC
-      LIMIT $4
+      LIMIT $5
     `;
-    const result = await this.pool.query(sql, [driverId, from, to, limit]);
+    const result = await this.pool.query(sql, [driverId, tenantId, from, to, limit]);
     return result.rows;
   }
 
@@ -171,6 +175,7 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
     routeId: string,
     from: Date,
     to: Date,
+    tenantId: string,
     limit = 10000,
   ): Promise<EnrichedPositionRow[]> {
     const sql = `
@@ -181,11 +186,11 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
              distance_to_next_m AS "distanceToNextM",
              eta_to_next_sec AS "etaToNextSec"
       FROM enriched_positions
-      WHERE route_id = $1 AND time >= $2 AND time <= $3
+      WHERE route_id = $1 AND tenant_id = $2 AND time >= $3 AND time <= $4
       ORDER BY time ASC
-      LIMIT $4
+      LIMIT $5
     `;
-    const result = await this.pool.query(sql, [routeId, from, to, limit]);
+    const result = await this.pool.query(sql, [routeId, tenantId, from, to, limit]);
     return result.rows;
   }
 

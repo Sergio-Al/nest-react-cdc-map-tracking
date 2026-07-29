@@ -5,12 +5,17 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { Public } from '../auth/decorators/public.decorator';
+import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { TraccarIngestionService } from './traccar-ingestion.service';
 import { TraccarPositionDto, TraccarEventDto } from './dto';
 
+// @Public() bypasses the global JWT guard (Traccar has no JWT); ApiKeyGuard then
+// enforces the shared secret via the `x-api-key` header so the webhook isn't open.
 @Public()
+@UseGuards(ApiKeyGuard)
 @Controller('traccar')
 export class TraccarController {
   private readonly logger = new Logger(TraccarController.name);

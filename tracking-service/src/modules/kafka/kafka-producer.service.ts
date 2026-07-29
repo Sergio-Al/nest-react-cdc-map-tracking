@@ -13,6 +13,9 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
   private kafka: Kafka;
   private producer: Producer;
   private admin: Admin;
+  /** Short-lived cache so the public /api/health endpoint can't be used to
+   *  hammer the broker with admin connect/disconnect churn. */
+  private healthCache: { value: boolean; expires: number } | null = null;
 
   constructor(private readonly config: ConfigService) {
     this.kafka = new Kafka({
@@ -71,15 +74,22 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Check if the broker is reachable */
+  /** Check if the broker is reachable (cached ~10s to avoid admin churn). */
   async isHealthy(): Promise<boolean> {
+    const now = Date.now();
+    if (this.healthCache && this.healthCache.expires > now) {
+      return this.healthCache.value;
+    }
+    let ok = false;
     try {
       await this.admin.connect();
       const topics = await this.admin.listTopics();
       await this.admin.disconnect();
-      return topics.length >= 0;
+      ok = topics.length >= 0;
     } catch {
-      return false;
+      ok = false;
     }
+    this.healthCache = { value: ok, expires: now + 10000 };
+    return ok;
   }
 }

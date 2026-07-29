@@ -50,14 +50,15 @@ export class VehiclesService {
     return this.vehicleRepo.find({ where, order: { createdAt: 'DESC' } });
   }
 
-  async findOne(id: string): Promise<Vehicle> {
-    const vehicle = await this.vehicleRepo.findOne({ where: { id } });
+  async findOne(id: string, tenantId?: string): Promise<Vehicle> {
+    const where: FindOptionsWhere<Vehicle> = tenantId ? { id, tenantId } : { id };
+    const vehicle = await this.vehicleRepo.findOne({ where });
     if (!vehicle) throw new NotFoundException({ errorCode: 'vehicles.notFound', args: { id } });
     return vehicle;
   }
 
-  async update(id: string, dto: UpdateVehicleDto): Promise<Vehicle> {
-    const vehicle = await this.findOne(id);
+  async update(id: string, dto: UpdateVehicleDto, tenantId: string): Promise<Vehicle> {
+    const vehicle = await this.findOne(id, tenantId);
     Object.assign(vehicle, dto);
     return this.vehicleRepo.save(vehicle);
   }

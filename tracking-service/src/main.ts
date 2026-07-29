@@ -6,6 +6,7 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 import { I18nValidationPipe, I18nValidationExceptionFilter } from 'nestjs-i18n';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { corsOrigin } from './common/cors';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -21,6 +22,16 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
+
+  // Fail fast in production if the JWT secret was left at its insecure default.
+  if (configService.get<string>('nodeEnv') === 'production') {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || jwtSecret === 'change-me-in-production-please') {
+      throw new Error(
+        'JWT_SECRET must be set to a strong, non-default value when NODE_ENV=production',
+      );
+    }
+  }
 
   app.setGlobalPrefix('api');
   // Filter order matters: I18nValidationExceptionFilter handles
@@ -38,7 +49,10 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors();
+  app.enableCors({
+    origin: corsOrigin,
+    credentials: true,
+  });
 
   // Initialize the app (triggers onModuleInit for all modules, including RedisService)
   await app.init();

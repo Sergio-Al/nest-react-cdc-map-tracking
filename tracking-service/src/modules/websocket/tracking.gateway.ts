@@ -8,10 +8,15 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { corsOrigin } from '../../common/cors';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { RedisService } from '../redis/redis.service';
 import { AuthService } from '../auth/auth.service';
+import { Driver } from '../drivers/entities/driver.entity';
+import { Route } from '../routes/entities/route.entity';
 import { EnrichedPosition } from '../enrichment/enrichment.types';
 import {
   VisitEvent,
@@ -24,13 +29,20 @@ import {
 } from './ws.types';
 import { CdcLagSnapshot } from '../sync/cdc-metrics.service';
 
+// A driver counts as "active" if its last enriched position is within this
+// window (matches the enrichment Redis position TTL of 5 minutes).
+const ACTIVE_DRIVERS_WINDOW_MS = 5 * 60 * 1000;
+
 /**
  * WebSocket gateway for real-time tracking updates.
  * Implements room-based broadcasting per tenant, driver, and route.
  */
 @WebSocketGateway({
   namespace: '/tracking',
-  cors: { origin: '*' },
+  cors: {
+    origin: corsOrigin,
+    credentials: true,
+  },
 })
 export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -43,6 +55,10 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     private readonly redisService: RedisService,
     private readonly jwtService: JwtService,
     private readonly authService: AuthService,
+    @InjectRepository(Driver, 'cacheDb')
+    private readonly driverRepo: Repository<Driver>,
+    @InjectRepository(Route, 'cacheDb')
+    private readonly routeRepo: Repository<Route>,
   ) {}
 
   // ── Lifecycle ───────────────────────────────────────────────
@@ -126,13 +142,23 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(WS_EVENTS.JOIN_DRIVER)
-  handleJoinDriver(
+  async handleJoinDriver(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: JoinDriverDto,
-  ): void {
+  ): Promise<void> {
     const user = client.data.user;
     if (user?.role === 'driver' && user.driverId !== data.driverId) {
       this.logger.warn(`Driver ${client.id} attempted to join unauthorized driver ${data.driverId}`);
+      client.emit('error', { message: 'Unauthorized driver access' });
+      return;
+    }
+    // Verify the driver belongs to the caller's tenant before joining the room
+    // (prevents cross-tenant live-position streaming).
+    const driver = await this.driverRepo.findOne({
+      where: { id: data.driverId, tenantId: user?.tenantId },
+    });
+    if (!driver) {
+      this.logger.warn(`Client ${client.id} attempted to join unauthorized driver ${data.driverId}`);
       client.emit('error', { message: 'Unauthorized driver access' });
       return;
     }
@@ -142,10 +168,20 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(WS_EVENTS.JOIN_ROUTE)
-  handleJoinRoute(
+  async handleJoinRoute(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: JoinRouteDto,
-  ): void {
+  ): Promise<void> {
+    const user = client.data.user;
+    // Verify the route belongs to the caller's tenant before joining the room.
+    const route = await this.routeRepo.findOne({
+      where: { id: data.routeId, tenantId: user?.tenantId },
+    });
+    if (!route) {
+      this.logger.warn(`Client ${client.id} attempted to join unauthorized route ${data.routeId}`);
+      client.emit('error', { message: 'Unauthorized route access' });
+      return;
+    }
     const room = `route:${data.routeId}`;
     client.join(room);
     this.logger.debug(`Client ${client.id} joined ${room}`);
@@ -181,6 +217,19 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.logger.debug(`Client ${client.id} left ${room}`);
   }
 
+  /**
+   * True if any client on this instance is in the admin room. Lets the CDC-lag
+   * cron skip its work (and the admin Kafka client it creates) when nobody is
+   * watching. The cron runs on every instance, so a remote admin is still
+   * served by that instance's own cron.
+   */
+  hasAdminClients(): boolean {
+    // `server` is the '/tracking' namespace at runtime (typed as Server); its
+    // adapter holds the room→sockets map.
+    const rooms = (this.server as any)?.adapter?.rooms;
+    return (rooms?.get('role:admin')?.size ?? 0) > 0;
+  }
+
   // ── Active Drivers Query ────────────────────────────────────
 
   @SubscribeMessage(WS_EVENTS.GET_ACTIVE_DRIVERS)
@@ -188,11 +237,18 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     @ConnectedSocket() client: Socket,
   ): Promise<ActiveDriversResponse> {
     try {
-      // Scan for all driver position keys in Redis
-      const keys = await this.redisService.getClient().keys('pos:driver:*');
-      const drivers = keys.map((key) => key.replace('pos:driver:', ''));
+      const tenantId = client.data.user?.tenantId;
+      if (!tenantId) return { drivers: [], count: 0 };
 
-      this.logger.debug(`Client ${client.id} requested active drivers (${drivers.length} found)`);
+      // Read the per-tenant active-driver sorted set (score = last-seen ms),
+      // scoped to the caller's tenant and recent activity — no blocking KEYS
+      // scan and no cross-tenant leak. Opportunistically trim stale members.
+      const key = `active:drivers:${tenantId}`;
+      const cutoff = Date.now() - ACTIVE_DRIVERS_WINDOW_MS;
+      const drivers = await this.redisService.zrangebyscore(key, cutoff, '+inf');
+      await this.redisService.zremrangebyscore(key, '-inf', cutoff);
+
+      this.logger.debug(`Client ${client.id} requested active drivers (${drivers.length} in ${tenantId})`);
 
       return {
         drivers,

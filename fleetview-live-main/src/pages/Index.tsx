@@ -27,10 +27,10 @@ const Index = () => {
   useInitialPositions(drivers);
 
   const positions = useMapStore((state) => state.positions);
-  const driversWithPositions = drivers.map((driver) => ({
-    ...driver,
-    position: positions[driver.id],
-  }));
+  const driversWithPositions = useMemo(
+    () => drivers.map((driver) => ({ ...driver, position: positions[driver.id] })),
+    [drivers, positions],
+  );
 
   // Advanced fleet filters (status / vehicle type / assignment / device + saved
   // views). The narrowed set drives the inbox list and the map markers; the

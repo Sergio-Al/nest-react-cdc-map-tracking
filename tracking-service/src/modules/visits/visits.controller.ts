@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Query,
+  Headers,
   ParseUUIDPipe,
   ForbiddenException,
 } from '@nestjs/common';
@@ -22,17 +23,18 @@ export class VisitsController {
   @Roles('admin', 'dispatcher')
   @Post()
   create(@Body() dto: CreateVisitDto, @CurrentUser() user: any) {
+    dto.tenantId = user.tenantId; // enforce tenant from JWT
     return this.visitsService.create(dto);
   }
 
   @Get(':id')
   findById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.visitsService.findById(id);
+    return this.visitsService.findById(id, user.tenantId);
   }
 
   @Get('route/:routeId')
   findByRoute(@Param('routeId', ParseUUIDPipe) routeId: string, @CurrentUser() user: any) {
-    return this.visitsService.findByRoute(routeId);
+    return this.visitsService.findByRoute(routeId, user.tenantId);
   }
 
   @Get('driver/:driverId')
@@ -53,16 +55,20 @@ export class VisitsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateVisitStatusDto,
     @CurrentUser() user: any,
+    // Optional client-generated key from the driver app's offline outbox; used
+    // for tracing replayed commands (idempotency itself is enforced by the
+    // visit's status in the service — see VisitsService.updateStatus).
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     // If user is a driver, verify they own this visit
     if (user.role === 'driver') {
-      const visit = await this.visitsService.findById(id);
-      const route = await this.visitsService['routesService'].findById(visit.routeId);
+      const visit = await this.visitsService.findById(id, user.tenantId);
+      const route = await this.visitsService['routesService'].findById(visit.routeId, user.tenantId);
       if (route.driverId !== user.driverId) {
         throw new ForbiddenException({ errorCode: 'visits.cannotUpdateOtherDriver' });
       }
     }
-    return this.visitsService.updateStatus(id, dto);
+    return this.visitsService.updateStatus(id, dto, user.tenantId, idempotencyKey);
   }
 
   @Roles('admin', 'dispatcher')
@@ -71,7 +77,7 @@ export class VisitsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: any,
   ) {
-    await this.visitsService.delete(id);
+    await this.visitsService.delete(id, user.tenantId);
     return { deleted: true };
   }
 }

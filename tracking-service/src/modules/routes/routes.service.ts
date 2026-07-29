@@ -131,13 +131,24 @@ export class RoutesService {
     });
   }
 
-  async findById(id: string): Promise<Route> {
+  async findById(id: string, tenantId?: string): Promise<Route> {
+    const where: FindOptionsWhere<Route> = tenantId ? { id, tenantId } : { id };
     const route = await this.routeRepo.findOne({
-      where: { id },
+      where,
       relations: ['visits'],
     });
     if (!route) throw new NotFoundException({ errorCode: 'routes.notFound', args: { id } });
     return route;
+  }
+
+  /** Active route id only (no visits eager-load) — for the GPS enrichment hot path. */
+  async findActiveRouteIdByDriver(driverId: string): Promise<string | null> {
+    const route = await this.routeRepo.findOne({
+      where: { driverId, status: 'in_progress' },
+      select: { id: true },
+      order: { scheduledDate: 'DESC' },
+    });
+    return route?.id ?? null;
   }
 
   async findActiveByDriver(driverId: string): Promise<Route | null> {
@@ -156,8 +167,8 @@ export class RoutesService {
     });
   }
 
-  async update(id: string, dto: UpdateRouteDto): Promise<Route> {
-    const route = await this.findById(id);
+  async update(id: string, dto: UpdateRouteDto, tenantId?: string): Promise<Route> {
+    const route = await this.findById(id, tenantId);
     if (dto.status) route.status = dto.status;
 
     // Depot edits (pin / drag / clear) and the open-route toggle. Only mutate
@@ -217,6 +228,17 @@ export class RoutesService {
 
   async updateStopCount(id: string, completedStops: number): Promise<void> {
     await this.routeRepo.update(id, { completedStops });
+  }
+
+  /** Atomically set completed_stops to the true count of completed visits. */
+  async recountCompletedStops(routeId: string): Promise<void> {
+    await this.routeRepo.query(
+      `UPDATE routes SET completed_stops = (
+         SELECT COUNT(*) FROM planned_visits
+         WHERE route_id = $1 AND status = 'completed'
+       ) WHERE id = $1`,
+      [routeId],
+    );
   }
 
   async incrementTotalStops(id: string): Promise<void> {

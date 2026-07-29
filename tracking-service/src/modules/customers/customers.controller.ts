@@ -22,7 +22,8 @@ export class CustomersController {
   @Roles('admin', 'dispatcher')
   @Post()
   @HttpCode(HttpStatus.ACCEPTED)
-  async create(@Body() dto: CreateCustomerDto) {
+  async create(@Body() dto: CreateCustomerDto, @CurrentUser() user: any) {
+    dto.tenantId = user.tenantId; // enforce tenant from JWT (never trust the body)
     const correlationId = randomUUID();
     await this.kafkaProducer.produce('commands.customers', {
       key: dto.tenantId,
@@ -34,7 +35,8 @@ export class CustomersController {
   @Roles('admin', 'dispatcher')
   @Patch(':id')
   @HttpCode(HttpStatus.ACCEPTED)
-  async update(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateCustomerDto, @CurrentUser() user: any) {
+    dto.tenantId = user.tenantId; // enforce tenant from JWT (never trust the body)
     const correlationId = randomUUID();
     await this.kafkaProducer.produce('commands.customers', {
       key: dto.tenantId,

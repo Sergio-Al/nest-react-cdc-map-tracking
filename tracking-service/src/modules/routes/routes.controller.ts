@@ -31,6 +31,7 @@ export class RoutesController {
   @Roles('admin', 'dispatcher')
   @Post()
   create(@Body() dto: CreateRouteDto, @CurrentUser() user: any) {
+    dto.tenantId = user.tenantId; // enforce tenant from JWT
     return this.routesService.create(dto);
   }
 
@@ -54,7 +55,7 @@ export class RoutesController {
 
   @Get(':id')
   findById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.routesService.findById(id);
+    return this.routesService.findById(id, user.tenantId);
   }
 
   @Get('driver/:driverId/active')
@@ -78,29 +79,32 @@ export class RoutesController {
   @Roles('admin', 'dispatcher')
   @Patch(':id')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRouteDto, @CurrentUser() user: any) {
-    return this.routesService.update(id, dto);
+    return this.routesService.update(id, dto, user.tenantId);
   }
 
   @Roles('admin', 'dispatcher')
   @UseGuards(FeatureGuard)
   @RequiresFeature('route_optimization')
   @Post(':id/optimize')
-  optimize(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+  async optimize(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    await this.routesService.findById(id, user.tenantId); // 404s cross-tenant before optimizing
     return this.routeOptimizer.optimizeRoute(id);
   }
 
   @Get(':id/geometry')
-  getGeometry(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+  async getGeometry(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    await this.routesService.findById(id, user.tenantId); // 404s cross-tenant
     return this.routeOptimizer.getRouteGeometry(id);
   }
 
   @Roles('admin', 'dispatcher')
   @Patch(':id/reorder')
-  reorder(
+  async reorder(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReorderVisitsDto,
     @CurrentUser() user: any,
   ) {
+    await this.routesService.findById(id, user.tenantId); // 404s cross-tenant
     return this.routeOptimizer.reorderVisits(id, dto);
   }
 
@@ -119,6 +123,6 @@ export class RoutesController {
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
       throw new BadRequestException({ errorCode: 'routes.fromToInvalid' });
     }
-    return this.timescaleService.getRoutePositionHistory(id, fromDate, toDate);
+    return this.timescaleService.getRoutePositionHistory(id, fromDate, toDate, user.tenantId);
   }
 }

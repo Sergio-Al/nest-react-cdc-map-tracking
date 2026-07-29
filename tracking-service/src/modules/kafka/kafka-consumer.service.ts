@@ -65,6 +65,11 @@ export class KafkaConsumerService implements OnApplicationBootstrap, OnModuleDes
       }
 
       await this.consumer.run({
+        // Process several partitions concurrently so a slow message on one
+        // partition (e.g. a CDC upsert) doesn't head-of-line-block GPS
+        // enrichment on the others.
+        partitionsConsumedConcurrently:
+          this.config.get<number>('kafka.partitionsConcurrency') ?? 6,
         eachMessage: async (payload) => {
           const { topic, partition, message } = payload;
           const handler = this.handlers.find((h) => h.topic === topic);

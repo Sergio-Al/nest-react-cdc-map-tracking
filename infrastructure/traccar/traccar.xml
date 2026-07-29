@@ -26,10 +26,13 @@
     <!-- ─── Webhook: Forward positions to NestJS ─────────── -->
     <entry key='forward.url'>http://host.docker.internal:3000/api/traccar/positions</entry>
     <entry key='forward.type'>json</entry>
+    <!-- ApiKeyGuard on the webhook: must match TRACCAR_API_KEY in tracking-service -->
+    <entry key='forward.header'>x-api-key: traccar-shared-key</entry>
 
     <!-- ─── Event forwarding ─────────────────────────────── -->
     <entry key='event.forward.url'>http://host.docker.internal:3000/api/traccar/events</entry>
     <entry key='event.forward.type'>json</entry>
+    <entry key='event.forward.header'>x-api-key: traccar-shared-key</entry>
 
     <!-- ─── Geocoder (optional – Nominatim / OSM) ─────────  -->
     <entry key='geocoder.enable'>false</entry>

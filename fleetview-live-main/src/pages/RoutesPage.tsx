@@ -72,7 +72,7 @@ export default function RoutesPage() {
   const { selectedRouteId, localVisits, paletteOpen } = store;
   const { isConnected } = useSocket();
   const { data: customers = [] } = useCustomers();
-  const { data: routes = [] } = useRoutes();
+  const { data: routes = [], isSuccess: routesLoaded, isFetching: routesFetching } = useRoutes();
   const { data: drivers = [] } = useDrivers();
   const { data: geometry } = useRouteGeometry(selectedRouteId, localVisits.length);
   const { addStops } = useRouteBuilderActions();
@@ -84,6 +84,18 @@ export default function RoutesPage() {
   }, [routes, drivers]);
 
   const ds = useDatasetFilters('routes-builder', routeRows, ROUTE_LIST_FIELDS, ROUTE_LIST_VIEWS);
+
+  // The builder must never open on a route this tenant can't see. `/routes`
+  // returns every route for the JWT's tenant unbounded, so once the query has
+  // settled an absent id means stale selection (a route deleted elsewhere, or
+  // one carried over from a previous session) — fall back to the list. Waiting
+  // on `!routesFetching` matters because createRoute() selects the new route
+  // while the invalidated list is still in flight.
+  useEffect(() => {
+    if (!selectedRouteId || !routesLoaded || routesFetching) return;
+    if (!routes.some((r) => r.id === selectedRouteId)) store.setSelectedRoute(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRouteId, routesLoaded, routesFetching, routes]);
 
   const existingIds = useMemo(() => localVisits.map((v) => v.customerId), [localVisits]);
 

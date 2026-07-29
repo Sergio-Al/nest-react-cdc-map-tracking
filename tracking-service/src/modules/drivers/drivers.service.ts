@@ -61,8 +61,10 @@ export class DriversService {
     });
   }
 
-  async findOne(id: string): Promise<Driver | null> {
-    return this.driverRepo.findOne({ where: { id } });
+  async findOne(id: string, tenantId: string): Promise<Driver> {
+    // Tenant-scoped: a cross-tenant (or missing) id 404s rather than leaking
+    // the row or returning a 200/null. Only caller is GET /drivers/:id.
+    return this.getOwned(id, tenantId);
   }
 
   async findByDeviceId(deviceId: string): Promise<Driver | null> {
@@ -202,6 +204,32 @@ export class DriversService {
     }
     this.logger.log(`Driver ${id} device set to ${deviceId ?? 'none'}`);
     return saved;
+  }
+
+  /**
+   * Self-serve device provisioning for the driver mobile app. The app has no
+   * device id of its own — the server derives a stable one for the driver,
+   * pairs it, and registers it in Traccar so the app can immediately report GPS
+   * over the OsmAnd protocol. Idempotent: an already-paired driver (whether
+   * auto-provisioned here or pre-paired by an admin to a DEVxxx) keeps the same
+   * device id; we only re-ensure the Traccar device exists.
+   */
+  async provisionAppDevice(
+    driverId: string,
+    tenantId: string,
+  ): Promise<{ deviceId: string }> {
+    const driver = await this.getOwned(driverId, tenantId);
+    // Reuse any existing pairing; otherwise mint a stable per-driver id (the
+    // driver UUID guarantees uniqueness, so assertDeviceFree never trips).
+    const deviceId = driver.deviceId ?? `APP-${driver.id}`;
+    if (driver.deviceId !== deviceId) {
+      await this.pairDevice(driverId, tenantId, deviceId);
+    } else {
+      // Already paired — make sure the Traccar device is present/enabled.
+      await this.traccar.ensureDevice(deviceId, driver.name);
+    }
+    this.logger.log(`Driver ${driverId} app device provisioned: ${deviceId}`);
+    return { deviceId };
   }
 
   async upsertPosition(

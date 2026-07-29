@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/axios';
+import { resetSessionState } from '@/lib/sessionReset';
 import type {
   User,
   LoginRequest,
@@ -91,6 +92,7 @@ export const useAuthStore = create<AuthState>()(
           // unmount (it's a session-lifetime singleton). Lazy import avoids a
           // circular dependency (socket.ts imports this store).
           import('@/lib/socket').then(({ socketService }) => socketService.disconnect());
+          resetSessionState();
           set({
             user: null,
             settings: null,
@@ -114,6 +116,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearAuth: () => {
+        resetSessionState();
         set({
           user: null,
           settings: null,

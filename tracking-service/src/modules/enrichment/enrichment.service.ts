@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EachMessagePayload } from 'kafkajs';
@@ -21,9 +21,12 @@ import { RawGpsPosition, EnrichedPosition } from './enrichment.types';
 const REDIS_LATEST_POS_TTL = 300; // 5 minutes
 const REDIS_DRIVER_POS_PREFIX = 'pos:driver:';
 const REDIS_GEO_KEY = 'geo:drivers';
+const REDIS_ACTIVE_SET_PREFIX = 'active:drivers:'; // per-tenant ZSET, score = last-seen ms
+const TIMESCALE_FLUSH_INTERVAL_MS = 1000;
+const TIMESCALE_FLUSH_THRESHOLD = 100;
 
 @Injectable()
-export class EnrichmentService implements OnModuleInit {
+export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EnrichmentService.name);
 
   /** In-memory device→driver map for fast lookups */
@@ -34,6 +37,14 @@ export class EnrichmentService implements OnModuleInit {
 
   /** Reverse driver→device index so a changed/cleared device_id can evict its stale key. */
   private driverDeviceIndex = new Map<string, string>();
+
+  /** Drivers already marked 'active' this process — skip the redundant per-message status UPDATE. */
+  private activeDrivers = new Set<string>();
+
+  /** Buffer of enriched rows pending a batched TimescaleDB write. */
+  private timescaleBuffer: EnrichedPositionRow[] = [];
+  private flushTimer?: NodeJS.Timeout;
+  private activeResetTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly kafkaConsumer: KafkaConsumerService,
@@ -61,7 +72,27 @@ export class EnrichmentService implements OnModuleInit {
       retryPolicy: { maxRetries: 3, baseDelayMs: 100 },
     });
 
+    // Flush the TimescaleDB write buffer on an interval (also flushes early when
+    // it hits the size threshold) — one transaction per batch instead of an
+    // INSERT per position.
+    this.flushTimer = setInterval(
+      () => void this.flushTimescale(),
+      TIMESCALE_FLUSH_INTERVAL_MS,
+    );
+    // Periodically forget the "already active" set so external status drift
+    // (manual deactivate/reactivate) re-asserts within a few minutes.
+    this.activeResetTimer = setInterval(
+      () => this.activeDrivers.clear(),
+      5 * 60 * 1000,
+    );
+
     this.logger.log('Enrichment service initialized, consuming gps.positions');
+  }
+
+  async onModuleDestroy() {
+    if (this.flushTimer) clearInterval(this.flushTimer);
+    if (this.activeResetTimer) clearInterval(this.activeResetTimer);
+    await this.flushTimescale(); // don't lose buffered history on shutdown
   }
 
   // ── Load driver mappings on startup ──────────────────────
@@ -135,8 +166,9 @@ export class EnrichmentService implements OnModuleInit {
 
     const { driverId, tenantId, name: driverName } = driverInfo;
 
-    // 2. Get route & visit context
-    const activeRoute = await this.routesService.findActiveByDriver(driverId);
+    // 2. Get route & visit context. Route lookup is id-only (no visits eager-
+    //    load) since the hot path only needs the id.
+    const activeRouteId = await this.routesService.findActiveRouteIdByDriver(driverId);
     const currentVisit = await this.visitsService.getCurrentVisitForDriver(driverId);
     const nextVisit = await this.visitsService.getNextVisitForDriver(driverId);
 
@@ -209,7 +241,7 @@ export class EnrichmentService implements OnModuleInit {
       heading: raw.course,
       altitude: raw.altitude,
       accuracy: raw.accuracy || null,
-      routeId: activeRoute?.id || null,
+      routeId: activeRouteId,
       currentVisitId: currentVisit?.id || null,
       nextVisitId: nextVisit?.id || null,
       nextCustomerName,
@@ -222,16 +254,18 @@ export class EnrichmentService implements OnModuleInit {
       visitAutoArrival,
     };
 
-    // 5. Fan-out: write to all destinations in parallel (allSettled for resilience)
+    // 5a. Buffer the TimescaleDB history write (flushed in batches, not per msg).
+    this.bufferForTimescale(enriched);
+
+    // 5b. Fan-out the remaining destinations in parallel (allSettled for resilience)
     const fanOutResults = await Promise.allSettled([
       this.updateRedisLatestPosition(driverId, tenantId, enriched),
       this.updateDriverPositionSnapshot(driverId, tenantId, enriched),
-      this.writeToTimescale(enriched),
       this.publishEnrichedToKafka(enriched),
     ]);
 
     // Report fan-out failures with destination names
-    const destinations = ['Redis', 'PostgreSQL', 'TimescaleDB', 'Kafka'];
+    const destinations = ['Redis', 'PostgreSQL', 'Kafka'];
     const failures = fanOutResults
       .map((r, i) => (r.status === 'rejected' ? destinations[i] : null))
       .filter(Boolean);
@@ -269,6 +303,14 @@ export class EnrichmentService implements OnModuleInit {
         enriched.latitude,
         driverId,
       );
+
+      // Track active drivers per tenant (score = last-seen ms) so the gateway
+      // lists them with a scoped ZRANGEBYSCORE instead of a blocking KEYS scan.
+      await this.redis.zadd(
+        `${REDIS_ACTIVE_SET_PREFIX}${tenantId}`,
+        Date.now(),
+        driverId,
+      );
     } catch (err) {
       this.logger.error(`Failed to update Redis position for ${driverId}`, err);
     }
@@ -304,8 +346,8 @@ export class EnrichmentService implements OnModuleInit {
 
   // ── TimescaleDB historical write ─────────────────────────
 
-  private async writeToTimescale(enriched: EnrichedPosition): Promise<void> {
-    const row: EnrichedPositionRow = {
+  private toTimescaleRow(enriched: EnrichedPosition): EnrichedPositionRow {
+    return {
       time: new Date(enriched.time),
       driverId: enriched.driverId,
       tenantId: enriched.tenantId,
@@ -321,7 +363,29 @@ export class EnrichmentService implements OnModuleInit {
       distanceToNextM: enriched.distanceToNextM,
       etaToNextSec: enriched.etaToNextSec,
     };
-    await this.timescale.insertEnrichedPosition(row);
+  }
+
+  /** Push a row to the batch buffer; flush early when it gets large. */
+  private bufferForTimescale(enriched: EnrichedPosition): void {
+    this.timescaleBuffer.push(this.toTimescaleRow(enriched));
+    if (this.timescaleBuffer.length >= TIMESCALE_FLUSH_THRESHOLD) {
+      void this.flushTimescale();
+    }
+  }
+
+  /** Write and clear the buffered rows in one transaction. */
+  private async flushTimescale(): Promise<void> {
+    if (this.timescaleBuffer.length === 0) return;
+    const batch = this.timescaleBuffer;
+    this.timescaleBuffer = [];
+    try {
+      await this.timescale.insertEnrichedPositionBatch(batch);
+    } catch (err) {
+      this.logger.error(
+        `TimescaleDB batch flush failed (${batch.length} rows dropped)`,
+        err,
+      );
+    }
   }
 
   // ── Kafka enriched topic ──────────────────────────────────
@@ -337,8 +401,12 @@ export class EnrichmentService implements OnModuleInit {
   // ── Driver status management ─────────────────────────────
 
   private async ensureDriverActive(driverId: string): Promise<void> {
+    // Skip the write once we've marked this driver active this process; the set
+    // is periodically cleared so external status changes re-assert.
+    if (this.activeDrivers.has(driverId)) return;
     try {
       await this.driverRepo.update(driverId, { status: 'active' });
+      this.activeDrivers.add(driverId);
     } catch {
       // Non-critical
     }

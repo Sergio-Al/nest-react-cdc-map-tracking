@@ -18,34 +18,60 @@ interface MapState {
   clearPositions: () => void;
 }
 
-export const useMapStore = create<MapState>((set) => ({
-  positions: {},
-  selectedDriverId: null,
-  selectedRouteId: null,
-  followDriver: false,
-  mapFocusTick: 0,
+// Incoming WS position updates are coalesced here and flushed to the store on a
+// short interval. At 1,000 drivers reporting ~every 5s (~200 msg/s) a per-message
+// `set` would trigger ~200 store-subscriber render cascades/second; batching
+// collapses that to ~1000/FLUSH_MS, i.e. a few renders/second. The cost is up to
+// FLUSH_MS of display latency, which is imperceptible for live tracking.
+const FLUSH_MS = 300;
+const positionBuffer = new Map<string, EnrichedPosition>();
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-  updatePosition: (position) =>
-    set((state) => ({
-      positions: {
-        ...state.positions,
-        [position.driverId]: position,
-      },
-    })),
+export const useMapStore = create<MapState>((set) => {
+  const flushPositions = () => {
+    flushTimer = null;
+    if (positionBuffer.size === 0) return;
+    set((state) => {
+      const positions = { ...state.positions };
+      positionBuffer.forEach((pos, id) => {
+        positions[id] = pos;
+      });
+      positionBuffer.clear();
+      return { positions };
+    });
+  };
 
-  selectDriver: (id) =>
-    set({ selectedDriverId: id }),
+  return {
+    positions: {},
+    selectedDriverId: null,
+    selectedRouteId: null,
+    followDriver: false,
+    mapFocusTick: 0,
 
-  selectRoute: (id) =>
-    set({ selectedRouteId: id }),
+    updatePosition: (position) => {
+      // Keep only the latest position per driver until the next flush.
+      positionBuffer.set(position.driverId, position);
+      if (!flushTimer) flushTimer = setTimeout(flushPositions, FLUSH_MS);
+    },
 
-  toggleFollowDriver: () =>
-    set((state) => ({ followDriver: !state.followDriver })),
+    selectDriver: (id) => set({ selectedDriverId: id }),
 
-  setFollowDriver: (follow) => set({ followDriver: follow }),
+    selectRoute: (id) => set({ selectedRouteId: id }),
 
-  focusSelected: () => set((state) => ({ mapFocusTick: state.mapFocusTick + 1 })),
+    toggleFollowDriver: () =>
+      set((state) => ({ followDriver: !state.followDriver })),
 
-  clearPositions: () =>
-    set({ positions: {}, selectedDriverId: null, selectedRouteId: null }),
-}));
+    setFollowDriver: (follow) => set({ followDriver: follow }),
+
+    focusSelected: () => set((state) => ({ mapFocusTick: state.mapFocusTick + 1 })),
+
+    clearPositions: () => {
+      positionBuffer.clear();
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      set({ positions: {}, selectedDriverId: null, selectedRouteId: null });
+    },
+  };
+});

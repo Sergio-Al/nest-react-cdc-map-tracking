@@ -1,6 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import {
   CachedAccount,
@@ -49,32 +50,32 @@ export class SyncController {
   }
 
   @Get('accounts')
-  findAllAccounts() {
-    return this.accountRepo.find();
+  findAllAccounts(@CurrentUser() user: any) {
+    return this.accountRepo.find({ where: { tenantId: user.tenantId } });
   }
 
   @Get('accounts/:id')
-  findAccount(@Param('id') id: number) {
-    return this.accountRepo.findOne({ where: { id } });
+  findAccount(@Param('id') id: number, @CurrentUser() user: any) {
+    return this.accountRepo.findOne({ where: { id, tenantId: user.tenantId } });
   }
 
   @Get('customers')
-  findAllCustomers() {
-    return this.customerRepo.find();
+  findAllCustomers(@CurrentUser() user: any) {
+    return this.customerRepo.find({ where: { tenantId: user.tenantId } });
   }
 
   @Get('customers/:id')
-  findCustomer(@Param('id') id: number) {
-    return this.customerRepo.findOne({ where: { id } });
+  findCustomer(@Param('id') id: number, @CurrentUser() user: any) {
+    return this.customerRepo.findOne({ where: { id, tenantId: user.tenantId } });
   }
 
   @Get('products')
-  findAllProducts() {
-    return this.productRepo.find();
+  findAllProducts(@CurrentUser() user: any) {
+    return this.productRepo.find({ where: { tenantId: user.tenantId } });
   }
 
   @Get('products/:id')
-  findProduct(@Param('id') id: number) {
-    return this.productRepo.findOne({ where: { id } });
+  findProduct(@Param('id') id: number, @CurrentUser() user: any) {
+    return this.productRepo.findOne({ where: { id, tenantId: user.tenantId } });
   }
 }

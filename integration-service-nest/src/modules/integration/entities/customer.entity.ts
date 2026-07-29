@@ -50,4 +50,10 @@ export class CustomerEntity {
 
   @Column({ type: 'boolean', default: true })
   active!: boolean;
+
+  // Idempotency key (producing command's correlationId). UNIQUE in MySQL so a
+  // redelivered create can't insert a duplicate row; the handler treats the
+  // resulting dup-key error as success.
+  @Column({ name: 'correlation_id', type: 'varchar', length: 36, nullable: true })
+  correlationId!: string | null;
 }

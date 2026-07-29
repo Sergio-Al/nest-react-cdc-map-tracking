@@ -2,6 +2,15 @@ export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
+  // Allowed browser origins for HTTP CORS and the Socket.io gateway. The actual
+  // policy lives in `src/common/cors.ts` (shared by main.ts + the WS gateway):
+  // explicit CORS_ORIGINS whitelist always allowed; in non-production any
+  // localhost/127.0.0.1 origin is also allowed so the dev port never blocks.
+  // Exposed here for reference/diagnostics. Defaults to the dev frontend (3001).
+  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3001,http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim()),
+
   // Deployment-default IANA timezone. Used as the bucket tz for the
   // `driver_daily_stats` continuous aggregate (one tz per deployment) and as
   // the system-default tenant timezone. Keep in sync with the value baked into
@@ -27,6 +36,10 @@ export default () => ({
     broker: process.env.KAFKA_BROKER || 'localhost:9094',
     clientId: process.env.KAFKA_CLIENT_ID || 'tracking-service',
     groupId: process.env.KAFKA_GROUP_ID || 'tracking-service-group',
+    // Partitions processed concurrently by the consumer. Without this, kafkajs
+    // processes one partition at a time, so a slow CDC message head-of-line-
+    // blocks GPS enrichment. ~matches the gps.positions partition count.
+    partitionsConcurrency: parseInt(process.env.KAFKA_PARTITIONS_CONCURRENCY || '6', 10),
   },
 
   cacheDb: {

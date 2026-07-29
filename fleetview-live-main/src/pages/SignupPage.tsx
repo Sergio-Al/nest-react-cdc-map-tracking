@@ -471,15 +471,18 @@ function SignupForm() {
 
   const { data: availabilityData } = useWorkspaceAvailability(debouncedSlug);
 
-  const isAvailable = availabilityData?.available === true;
   const slugFormatValid = SLUG_REGEX.test(watchedWorkspaceId);
 
   const onSubmit = async (data: SignupFormData) => {
     // The button stays enabled so handleSubmit always runs field validation
-    // (terms, password match, etc. surface as inline errors). Availability is
-    // not part of the zod schema, so guard it here with a visible message
-    // rather than silently doing nothing.
-    if (!isAvailable) {
+    // (terms, password match, etc. surface as inline errors). The availability
+    // badge is advisory and debounced, so DON'T block on "not-yet-confirmed
+    // available" — that rejected valid slugs whenever the async check hadn't
+    // settled for the exact current slug. Only hard-block when the server has
+    // CONFIRMED the slug is unavailable; otherwise trust the signup endpoint,
+    // which atomically claims the slug (PK) and throws auth.workspaceTaken on
+    // a real conflict (handled below).
+    if (availabilityData?.available === false) {
       setAuthError(t('signup.errors.workspaceUnavailable'));
       return;
     }

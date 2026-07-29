@@ -40,7 +40,6 @@ function CtrlButton({
 export function MapControls() {
   const map = useMap();
   const ref = useRef<HTMLDivElement>(null);
-  const positions = useMapStore((s) => s.positions);
   const following = useMapStore((s) => s.followDriver);
   const toggleFollow = useMapStore((s) => s.toggleFollowDriver);
   const { t } = useTranslation("dashboard");
@@ -53,7 +52,8 @@ export function MapControls() {
   }, []);
 
   const recenter = () => {
-    const pts = Object.values(positions);
+    // Read positions lazily so this control doesn't re-render on every tick.
+    const pts = Object.values(useMapStore.getState().positions);
     if (pts.length > 0) {
       const bounds = L.latLngBounds(pts.map((p) => [p.latitude, p.longitude] as [number, number]));
       map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });

@@ -30,6 +30,9 @@ const positionDuration = new Trend('position_duration', true);
 // ── Configuration ──────────────────────────────────────────
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
+// The Traccar webhook is guarded by ApiKeyGuard (x-api-key). Defaults to the
+// dev shared key; override with -e TRACCAR_API_KEY=… to match your .env.
+const TRACCAR_API_KEY = __ENV.TRACCAR_API_KEY || 'traccar-shared-key';
 const TOTAL_DRIVERS = 1000;
 
 // La Paz, Bolivia center coordinates
@@ -64,7 +67,7 @@ export const options = {
  * Each VU gets a unique driver ID based on its VU number (1-based).
  * The driver simulates a random walk from a starting position.
  */
-export default function () {
+export function gpsIngestion() {
   const driverNumber = (__VU % TOTAL_DRIVERS) + 1;
   const deviceId = `LOAD${String(driverNumber).padStart(4, '0')}`;
 
@@ -115,23 +118,33 @@ export default function () {
   const params = {
     headers: {
       'Content-Type': 'application/json',
+      'x-api-key': TRACCAR_API_KEY,
     },
     tags: { name: 'POST_position' },
   };
 
   const res = http.post(`${BASE_URL}/api/traccar/positions`, payload, params);
 
-  const success = check(res, {
-    'status is 201': (r) => r.status === 201,
+  // Correctness only — this drives the position_errors threshold. The webhook
+  // returns 200 (HttpStatus.OK). Latency is checked separately so a slow-but-
+  // successful request is NOT counted as an error.
+  const ok = check(res, {
+    'status is 200': (r) => r.status === 200,
+  });
+  check(res, {
     'response time < 200ms': (r) => r.timings.duration < 200,
   });
 
-  positionErrors.add(!success);
+  positionErrors.add(!ok);
   positionDuration.add(res.timings.duration);
 
   // Each device sends a position every 5 seconds
   sleep(5);
 }
+
+// Default export for standalone runs (k6 run gps-ingestion.js); the named
+// export is what full-scenario.js references via `exec: 'gpsIngestion'`.
+export default gpsIngestion;
 
 // ── Summary ────────────────────────────────────────────────
 
