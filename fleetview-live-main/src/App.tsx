@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -24,14 +25,6 @@ const VehiclesPage = lazy(() => import("./pages/VehiclesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CustomersPage = lazy(() => import("./pages/CustomersPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    // Safety net so stragglers without an explicit staleTime don't refetch on
-    // every window focus/mount.
-    queries: { staleTime: 30_000 },
-  },
-});
 
 const PageFallback = () => (
   <div className="flex h-screen w-full items-center justify-center bg-background" />
