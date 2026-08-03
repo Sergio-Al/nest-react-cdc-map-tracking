@@ -423,6 +423,16 @@ The frontend will be available at `http://localhost:5173`.
 docker compose --profile full up -d
 ```
 
+**First time on a machine only:** download the Bolivia OSM data, build the OSRM routing graph, and restart the router (needs only Docker + `curl`; ~200 MB download, a few minutes):
+
+```bash
+chmod +x infrastructure/osrm/setup.sh
+./infrastructure/osrm/setup.sh
+docker compose restart osrm
+```
+
+No seed or migration step is needed on a fresh install — every SQL script in `infrastructure/*/init/` (including the La Paz customer seed) runs automatically the first time the database containers create their volumes. Step 5 above is only for databases that already existed before those scripts were added.
+
 This builds and runs the backend (`tracking-service`, production build) and the dashboard (`frontend`, static build served by nginx) alongside all the infrastructure. Open http://localhost:5173 and log in with `admin@tenant1.com` / `admin123`. After changing backend or frontend code, rebuild with:
 
 ```bash
@@ -493,6 +503,27 @@ Expected response:
 | Kafka UI | http://localhost:8080 | Topic, consumer, and connector monitoring |
 | Traccar | http://localhost:8082 | Traccar administration interface |
 | Integration Service | http://localhost:8090/healthz | Integration service health check |
+
+### Track a real phone (official Traccar Client app)
+
+Until the native FleetTrack driver app ships, any phone can feed live GPS into the dashboard using the free **Traccar Client** app (App Store / Play Store). Setup has two sides: an admin pairs the device in the dashboard, then the driver configures the app.
+
+**Admin — pair the device (once per phone):**
+
+1. Open the dashboard (http://localhost:5173) and log in (`admin@tenant1.com` / `admin123`).
+2. Go to **Drivers**, create the driver (or open an existing one).
+3. In the driver's detail panel, **pair a device ID** — e.g. `DEV010`. Pairing auto-registers the device in Traccar. This step is **mandatory**: Traccar rejects positions from unknown identifiers (HTTP 400, no auto-registration), so an unpaired phone sends into the void.
+
+**Driver's phone — configure Traccar Client:**
+
+1. Install **Traccar Client** and open it.
+2. **Device identifier**: exactly the paired ID (`DEV010`).
+3. **Server URL**: `http://<host-ip>:5055`, where `<host-ip>` is the LAN IP of the machine running Docker (macOS: `ipconfig getifaddr en0` · Linux: `hostname -I` · Windows: `ipconfig`). The phone must be on the same network.
+4. Set frequency to 5–10 s, grant location permission (**Always**), and start the service.
+
+**Verify:** within seconds the driver shows a fresh signal in the fleet list and a live marker on the map. If nothing arrives: confirm phone and host share the network, re-check the identifier matches the paired ID character-for-character, and look at `docker logs traccar` — a 400/"unknown device" line means the identifier isn't paired. Note that re-pairing a driver to a new ID disables their old device IDs in Traccar.
+
+> Traccar Client reports **GPS only**. Visit lists, completion with proof, and offline sync are features of the native FleetTrack driver app. Server-side geofence auto-arrival still works, since it's computed in the enrichment pipeline.
 
 ---
 

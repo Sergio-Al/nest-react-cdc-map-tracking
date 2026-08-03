@@ -423,6 +423,16 @@ El frontend estará disponible en `http://localhost:5173`.
 docker compose --profile full up -d
 ```
 
+**Solo la primera vez en una máquina:** descargar los datos OSM de Bolivia, construir el grafo de ruteo OSRM y reiniciar el router (solo requiere Docker + `curl`; ~200 MB de descarga, unos minutos):
+
+```bash
+chmod +x infrastructure/osrm/setup.sh
+./infrastructure/osrm/setup.sh
+docker compose restart osrm
+```
+
+En una instalación nueva no hace falta ningún paso de seed ni migración — todos los scripts SQL de `infrastructure/*/init/` (incluida la semilla de clientes de La Paz) se ejecutan automáticamente la primera vez que los contenedores de base de datos crean sus volúmenes. El paso 5 de arriba es solo para bases de datos que ya existían antes de que se agregaran esos scripts.
+
 Esto construye y ejecuta el backend (`tracking-service`, build de producción) y el dashboard (`frontend`, build estático servido por nginx) junto con toda la infraestructura. Abre http://localhost:5173 e inicia sesión con `admin@tenant1.com` / `admin123`. Tras cambiar código del backend o frontend, reconstruye con:
 
 ```bash
@@ -493,6 +503,27 @@ Respuesta esperada:
 | Kafka UI | http://localhost:8080 | Monitoreo de tópicos, consumidores y conectores |
 | Traccar | http://localhost:8082 | Interfaz de administración de Traccar |
 | Integration Service | http://localhost:8090/healthz | Health check del servicio de integración |
+
+### Rastrear un teléfono real (app oficial Traccar Client)
+
+Mientras la app nativa FleetTrack para conductores no esté lista, cualquier teléfono puede enviar GPS en vivo al dashboard usando la app gratuita **Traccar Client** (App Store / Play Store). La configuración tiene dos partes: un administrador empareja el dispositivo en el dashboard, y luego el conductor configura la app.
+
+**Administrador — emparejar el dispositivo (una vez por teléfono):**
+
+1. Abre el dashboard (http://localhost:5173) e inicia sesión (`admin@tenant1.com` / `admin123`).
+2. Ve a **Conductores**, crea el conductor (o abre uno existente).
+3. En el panel de detalle del conductor, **empareja un ID de dispositivo** — p. ej. `DEV010`. El emparejamiento registra automáticamente el dispositivo en Traccar. Este paso es **obligatorio**: Traccar rechaza posiciones de identificadores desconocidos (HTTP 400, sin auto-registro), así que un teléfono sin emparejar transmite al vacío.
+
+**Teléfono del conductor — configurar Traccar Client:**
+
+1. Instala **Traccar Client** y ábrela.
+2. **Identificador de dispositivo**: exactamente el ID emparejado (`DEV010`).
+3. **URL del servidor**: `http://<ip-del-host>:5055`, donde `<ip-del-host>` es la IP LAN de la máquina que corre Docker (macOS: `ipconfig getifaddr en0` · Linux: `hostname -I` · Windows: `ipconfig`). El teléfono debe estar en la misma red.
+4. Configura la frecuencia a 5–10 s, otorga permiso de ubicación (**Siempre**) e inicia el servicio.
+
+**Verificar:** en segundos el conductor muestra señal fresca en la lista de flota y un marcador en vivo en el mapa. Si no llega nada: confirma que teléfono y host comparten la red, revisa que el identificador coincida carácter por carácter con el ID emparejado, y mira `docker logs traccar` — una línea 400/"unknown device" significa que el identificador no está emparejado. Ten en cuenta que re-emparejar un conductor a un nuevo ID deshabilita sus IDs de dispositivo anteriores en Traccar.
+
+> Traccar Client reporta **solo GPS**. Las listas de visitas, la completación con evidencia y la sincronización offline son funciones de la app nativa FleetTrack para conductores. La auto-llegada por geocerca del lado del servidor sí funciona, porque se calcula en el pipeline de enriquecimiento.
 
 ---
 
