@@ -302,9 +302,14 @@ DEFAULT_TZ=America/La_Paz
 # Start all infrastructure services
 docker compose up -d
 
+# — OR — run the ENTIRE platform in Docker (backend + frontend included):
+docker compose --profile full up -d
+
 # Verify all containers are healthy
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
+
+The `full` profile additionally builds and starts `tracking-service` (port 3000) and the `frontend` dashboard (port 5173) as containers — with it, steps 7–8 below and the "Local development" run mode are unnecessary. Use plain `docker compose up -d` when you want to run the backend locally with hot reload instead (both modes bind port 3000, so pick one).
 
 The following services will start:
 
@@ -315,6 +320,7 @@ The following services will start:
 | `kafka` | 9094 (host) | Apache Kafka broker (KRaft) |
 | `kafka-init` | — | Creates all 8 Kafka topics (runs once and exits) |
 | `kafka-connect` | 8083 | Debezium Connect for CDC |
+| `cdc-connector-init` | — | Auto-registers the Debezium CDC connector (runs once and exits) |
 | `kafka-ui` | 8080 | Kafka monitoring UI |
 | `mysql` | 3306 | Source of truth database |
 | `cache-db` | 5432 | Local PostgreSQL cache |
@@ -323,6 +329,8 @@ The following services will start:
 | `osrm` | 5003 | OSRM routing engine (La Paz road network) |
 | `or-tools-solver` | 5002 | OR-Tools VRP solver (Python FastAPI) |
 | `integration-service` | 8090 | NestJS microservice: Kafka commands → MySQL writes |
+| `tracking-service` | 3000 | **`--profile full` only** — main NestJS backend in Docker |
+| `frontend` | 5173 | **`--profile full` only** — React dashboard served by nginx |
 
 ### 4. Set up OSRM (Route Optimization)
 
@@ -332,7 +340,7 @@ chmod +x infrastructure/osrm/setup.sh
 ./infrastructure/osrm/setup.sh
 ```
 
-This downloads the Bolivia OSM extract from Geofabrik, clips it to the La Paz bounding box (`-69.65,-17.05,-67.0,-13.5`), and runs OSRM extract/partition/customize. The resulting graph files are stored in `infrastructure/osrm/data/`.
+This downloads the Bolivia OSM extract from Geofabrik, clips it to the La Paz bounding box (`-69.65,-17.05,-67.0,-13.5`), and runs OSRM extract/partition/customize. The resulting graph files are stored in `infrastructure/osrm/data/` (gitignored — every fresh clone must run this once). Until you do, the `osrm` container idles with a reminder message instead of crash-looping — the rest of the stack starts fine without it (only road-network routing/optimization is unavailable). After running the setup: `docker compose restart osrm`.
 
 ### 5. Apply route optimization migration & seed data
 
@@ -368,8 +376,10 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 
 ### 6. Register the Debezium CDC connector
 
+**This now happens automatically**: the `cdc-connector-init` container waits for Kafka Connect and upserts the connector on every `docker compose up`. The manual script remains for re-runs or after editing the connector config (the config itself lives in `scripts/cdc-connector-config.json`, shared by both paths):
+
 ```bash
-# Wait for Kafka Connect to be ready, then register the connector
+# Manual (re-)registration — idempotent
 bash scripts/register-cdc-connector.sh
 ```
 
@@ -407,7 +417,22 @@ The frontend will be available at `http://localhost:5173`.
 
 ## ▶️ Running the Application
 
-### Local development (recommended)
+### Everything in Docker (quickest — no Node/Bun needed on the host)
+
+```bash
+docker compose --profile full up -d
+```
+
+This builds and runs the backend (`tracking-service`, production build) and the dashboard (`frontend`, static build served by nginx) alongside all the infrastructure. Open http://localhost:5173 and log in with `admin@tenant1.com` / `admin123`. After changing backend or frontend code, rebuild with:
+
+```bash
+docker compose --profile full build tracking-service frontend
+docker compose --profile full up -d
+```
+
+> The frontend bakes the backend URL into the bundle at **build** time. The default (`http://localhost:3000`) is correct when you browse from the same machine. To open the dashboard from another device on your network, rebuild with your host's IP: `VITE_API_URL=http://<host-ip>:3000 VITE_WS_URL=http://<host-ip>:3000 docker compose --profile full build frontend`.
+
+### Local development (recommended for backend work — hot reload)
 
 ```bash
 # Make sure the Docker infrastructure is running

@@ -17,6 +17,11 @@ services:
       - "5055:5055/tcp"                         # OsmAnd protocol (Traccar Client iOS/Android)
     volumes:
       - ./infrastructure/traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+    # traccar.xml forwards positions to host.docker.internal:3000 — the published
+    # backend port. This works whether tracking-service runs locally or in Docker.
+    # host-gateway makes the name resolve on Linux too (built-in on Mac/Windows).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       traccar-db:
         condition: service_healthy
@@ -146,6 +151,29 @@ services:
     networks:
       - tracking-net
 
+  # ─── CDC Connector Init (register Debezium connector) ─────
+  # One-shot: upserts the MySQL CDC connector so a fresh clone needs no manual
+  # scripts/register-cdc-connector.sh run (that script stays for re-runs/tweaks).
+  cdc-connector-init:
+    image: curlimages/curl:latest
+    container_name: cdc-connector-init
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+    volumes:
+      - ./scripts/cdc-connector-config.json:/cdc-connector-config.json:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Registering MySQL CDC connector..."
+        until curl -sf http://kafka-connect:8083/connectors > /dev/null; do sleep 2; done
+        curl -sf -X PUT http://kafka-connect:8083/connectors/mysql-cdc-v4/config \
+          -H "Content-Type: application/json" \
+          -d @/cdc-connector-config.json > /dev/null
+        echo "CDC connector registered ✔"
+    networks:
+      - tracking-net
+
   # ─── Kafka UI ──────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -261,13 +289,27 @@ services:
       - "${OSRM_PORT:-5003}:5000"
     volumes:
       - ./infrastructure/osrm/data:/data:ro
-    command: osrm-routed --algorithm mld /data/la-paz.osrm --max-table-size 1000
+    # Map data is gitignored (heavy). On a fresh clone, idle with instructions
+    # instead of crash-looping until ./infrastructure/osrm/setup.sh is run.
+    command:
+      - bash
+      - -c
+      - |
+        if [ -f /data/la-paz.osrm ]; then
+          exec osrm-routed --algorithm mld /data/la-paz.osrm --max-table-size 1000
+        else
+          echo "✖ OSRM map data not found in infrastructure/osrm/data/."
+          echo "  Run once:  ./infrastructure/osrm/setup.sh"
+          echo "  Then:      docker compose restart osrm"
+          sleep infinity
+        fi
     deploy:
       resources:
         limits:
           memory: 512M
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      # The image ships no curl/wget; a TCP connect to the routing port is enough.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/5000"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -298,68 +340,114 @@ services:
       - tracking-net
 
   # ─── NestJS Tracking Service ──────────────────────────────
-  # tracking-service:
-  #   build:
-  #     context: ./tracking-service
-  #     dockerfile: Dockerfile
-  #     target: development
-  #   container_name: tracking-service
-  #   restart: unless-stopped
-  #   ports:
-  #     - "${TRACKING_SERVICE_PORT:-3000}:3000"
-  #   environment:
-  #     NODE_ENV: ${NODE_ENV:-development}
-  #     PORT: 3000
-  #     # Kafka
-  #     KAFKA_BROKER: kafka:9092
-  #     KAFKA_CLIENT_ID: tracking-service
-  #     KAFKA_GROUP_ID: tracking-service-group
-  #     # Cache DB (Local PostgreSQL)
-  #     CACHE_DB_HOST: cache-db
-  #     CACHE_DB_PORT: 5432
-  #     CACHE_DB_NAME: ${CACHE_DB_NAME:-tracking_cache}
-  #     CACHE_DB_USER: ${CACHE_DB_USER:-tracking}
-  #     CACHE_DB_PASSWORD: ${CACHE_DB_PASSWORD:-tracking_secret}
-  #     # TimescaleDB
-  #     TIMESCALE_HOST: timescale
-  #     TIMESCALE_PORT: 5432
-  #     TIMESCALE_DB: ${TIMESCALE_DB:-tracking_history}
-  #     TIMESCALE_USER: ${TIMESCALE_USER:-timescale}
-  #     TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_secret}
-  #     # MySQL (source of truth – replaces SQL Server)
-  #     MYSQL_HOST: mysql
-  #     MYSQL_PORT: 3306
-  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-core_business}
-  #     MYSQL_USER: ${MYSQL_USER:-app_user}
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secret}
-  #     # Redis
-  #     REDIS_HOST: redis
-  #     REDIS_PORT: 6379
-  #     REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
-  #     # Authentication
-  #     JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please}
-  #     JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-  #     REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-7d}
-  #     TRACCAR_API_KEY: ${TRACCAR_API_KEY:-traccar-shared-key}
-  #     # Route Optimization
-  #     OSRM_URL: http://osrm:5000
-  #     OR_TOOLS_URL: http://or-tools-solver:5001
-  #   volumes:
-  #     - ./tracking-service:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     kafka:
-  #       condition: service_healthy
-  #     cache-db:
-  #       condition: service_healthy
-  #     timescale:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     mysql:
-  #       condition: service_healthy
-  #   networks:
-  #     - tracking-net
+  # Part of the "full" profile: `docker compose --profile full up -d` runs the
+  # whole platform in Docker. Omit the profile to run only the infra and start
+  # tracking-service locally with hot reload (`npm run start:dev`) — both bind
+  # host port 3000, so pick one mode at a time.
+  tracking-service:
+    build:
+      context: ./tracking-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: tracking-service
+    restart: unless-stopped
+    profiles: ["full"]
+    ports:
+      - "${TRACKING_SERVICE_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      # Kafka (internal listener)
+      KAFKA_BROKER: kafka:9092
+      KAFKA_CLIENT_ID: tracking-service
+      KAFKA_GROUP_ID: tracking-service-group
+      # Cache DB (Local PostgreSQL)
+      CACHE_DB_HOST: cache-db
+      CACHE_DB_PORT: 5432
+      CACHE_DB_NAME: ${CACHE_DB_NAME:-tracking_cache}
+      CACHE_DB_USER: ${CACHE_DB_USER:-tracking}
+      CACHE_DB_PASSWORD: ${CACHE_DB_PASSWORD:-tracking_secret}
+      # TimescaleDB
+      TIMESCALE_HOST: timescale
+      TIMESCALE_PORT: 5432
+      TIMESCALE_DB: ${TIMESCALE_DB:-tracking_history}
+      TIMESCALE_USER: ${TIMESCALE_USER:-timescale}
+      TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_secret}
+      # MySQL (source of truth for business data)
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-core_business}
+      MYSQL_USER: ${MYSQL_USER:-app_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secret}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      # Authentication
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-7d}
+      # CORS (browser origins of the dashboard)
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001,http://localhost:5173}
+      # Traccar webhook auth + REST admin client (device auto-provisioning)
+      TRACCAR_API_KEY: ${TRACCAR_API_KEY:-traccar-shared-key}
+      TRACCAR_URL: http://traccar:8082
+      TRACCAR_ADMIN_EMAIL: ${TRACCAR_ADMIN_EMAIL:-admin@example.com}
+      TRACCAR_ADMIN_PASSWORD: ${TRACCAR_ADMIN_PASSWORD:-admin}
+      TRACCAR_PROVISIONING_ENABLED: ${TRACCAR_PROVISIONING_ENABLED:-true}
+      # Route Optimization
+      OSRM_URL: http://osrm:5000
+      OR_TOOLS_URL: http://or-tools-solver:5001
+      # Timezone default (keep in sync with infrastructure/timescale/init/01-init.sql)
+      DEFAULT_TZ: ${DEFAULT_TZ:-America/La_Paz}
+      # Pino disk logging → /app/logs (mounted below, same pattern as integration-service)
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_MAX_SIZE: ${LOG_MAX_SIZE:-1m}
+      LOG_ROTATE_INTERVAL_MS: ${LOG_ROTATE_INTERVAL_MS:-259200000}
+      LOG_RETAIN_COUNT: ${LOG_RETAIN_COUNT:-20}
+    volumes:
+      - ./tracking-service/logs:/app/logs
+    healthcheck:
+      # Liveness only: any HTTP answer counts (the /api/health body may report
+      # degraded subsystems without meaning the process itself is down).
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      kafka:
+        condition: service_healthy
+      cache-db:
+        condition: service_healthy
+      timescale:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - tracking-net
+
+  # ─── React Dashboard (nginx) ──────────────────────────────
+  # Part of the "full" profile. Serves the built SPA; the browser talks to the
+  # backend directly at VITE_API_URL (baked into the bundle at build time).
+  frontend:
+    build:
+      context: ./fleetview-live-main
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+        VITE_WS_URL: ${VITE_WS_URL:-http://localhost:3000}
+    container_name: frontend
+    restart: unless-stopped
+    profiles: ["full"]
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - tracking-service
+    networks:
+      - tracking-net
 
   # ─── Integration Service (Kafka → MySQL, NestJS) ──────────
   integration-service:
