@@ -411,7 +411,7 @@ bun dev
 # o: npm run dev
 ```
 
-El frontend estará disponible en `http://localhost:5173`.
+El frontend estará disponible en `http://localhost:3001`.
 
 ---
 
