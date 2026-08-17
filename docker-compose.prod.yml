@@ -1,0 +1,64 @@
+# ──────────────────────────────────────────────────────────────
+# Production override — single-host deployment (AWS EC2)
+#
+# Usage (always together with the base file):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile full up -d
+#
+# App images resolve to GHCR names so `pull` (CI deploys) and `build`
+# (first bootstrap on the server) tag the same image. Database and
+# internal admin ports rebind to 127.0.0.1 — the security group is the
+# outer gate, this is defense in depth. Public surface: 80 (frontend),
+# 3000 (API/WS), 5055 (Traccar OsmAnd ingest), 8082 (Traccar UI,
+# admin-IP-only at the security group).
+# ──────────────────────────────────────────────────────────────
+
+services:
+  tracking-service:
+    image: ${REGISTRY:-ghcr.io/sergio-al/nest-react-cdc-map-tracking}/tracking-service:${TAG:-latest}
+    environment:
+      NODE_ENV: production
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io/sergio-al/nest-react-cdc-map-tracking}/frontend:${TAG:-latest}
+
+  integration-service:
+    image: ${REGISTRY:-ghcr.io/sergio-al/nest-react-cdc-map-tracking}/integration-service:${TAG:-latest}
+    ports: !override
+      - "127.0.0.1:8090:8090"
+
+  or-tools-solver:
+    image: ${REGISTRY:-ghcr.io/sergio-al/nest-react-cdc-map-tracking}/or-tools-solver:${TAG:-latest}
+    ports: !override
+      - "127.0.0.1:5002:5001"
+
+  mysql:
+    ports: !override
+      - "127.0.0.1:3306:3306"
+
+  cache-db:
+    ports: !override
+      - "127.0.0.1:5432:5432"
+
+  timescale:
+    ports: !override
+      - "127.0.0.1:5433:5432"
+
+  redis:
+    ports: !override
+      - "127.0.0.1:6379:6379"
+
+  kafka:
+    ports: !override
+      - "127.0.0.1:9094:9094"
+
+  kafka-connect:
+    ports: !override
+      - "127.0.0.1:8083:8083"
+
+  kafka-ui:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+
+  osrm:
+    ports: !override
+      - "127.0.0.1:5003:5000"
