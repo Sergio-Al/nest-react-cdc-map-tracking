@@ -30,13 +30,17 @@ export class TraccarAdminService {
   private readonly logger = new Logger(TraccarAdminService.name);
   private readonly baseUrl: string;
   private readonly authHeader: string;
+  private readonly adminEmail: string;
+  private readonly adminPassword: string;
+  private bootstrapAttempted = false;
   private readonly breaker: CircuitBreaker<[string, RequestInit?], Response>;
 
   constructor(private readonly config: ConfigService) {
     this.baseUrl = (this.config.get<string>('traccar.url') || 'http://localhost:8082').replace(/\/$/, '');
-    const email = this.config.get<string>('traccar.adminEmail') || '';
-    const password = this.config.get<string>('traccar.adminPassword') || '';
-    this.authHeader = 'Basic ' + Buffer.from(`${email}:${password}`).toString('base64');
+    this.adminEmail = this.config.get<string>('traccar.adminEmail') || '';
+    this.adminPassword = this.config.get<string>('traccar.adminPassword') || '';
+    this.authHeader =
+      'Basic ' + Buffer.from(`${this.adminEmail}:${this.adminPassword}`).toString('base64');
 
     this.breaker = new CircuitBreaker(
       (path: string, init?: RequestInit) => this.rawRequest(path, init),
@@ -108,10 +112,60 @@ export class TraccarAdminService {
         ...(init?.headers ?? {}),
       },
     });
+    // A 401 on a fresh Traccar database means no users exist yet (Traccar
+    // seeds no default admin). Registering the first user makes it the admin,
+    // so try that once per process, then retry the original request.
+    if (res.status === 401 && !this.bootstrapAttempted) {
+      this.bootstrapAttempted = true;
+      if (await this.registerFirstAdmin()) {
+        return this.rawRequest(path, init);
+      }
+    }
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       throw new Error(`Traccar ${init?.method ?? 'GET'} ${path} → ${res.status}: ${body.slice(0, 200)}`);
     }
     return res;
+  }
+
+  /**
+   * Self-register the configured admin account as Traccar's first user
+   * (unauthenticated POST /api/users). Only meaningful on an empty user table:
+   * Traccar grants `administrator` to the first registered user. Returns true
+   * when an administrator account was created.
+   */
+  private async registerFirstAdmin(): Promise<boolean> {
+    if (!this.adminEmail || !this.adminPassword) return false;
+    try {
+      const res = await fetch(`${this.baseUrl}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Admin',
+          email: this.adminEmail,
+          password: this.adminPassword,
+        }),
+      });
+      if (!res.ok) {
+        this.logger.warn(
+          `Traccar auth failed and admin bootstrap was rejected (${res.status}). ` +
+            `Create the '${this.adminEmail}' admin in Traccar manually.`,
+        );
+        return false;
+      }
+      const user = (await res.json()) as { administrator?: boolean };
+      if (!user.administrator) {
+        this.logger.warn(
+          `Bootstrapped Traccar user '${this.adminEmail}' is NOT an administrator ` +
+            `(users already existed). Grant it admin in Traccar manually.`,
+        );
+        return false;
+      }
+      this.logger.log(`Traccar admin bootstrapped: ${this.adminEmail}`);
+      return true;
+    } catch (err) {
+      this.logger.warn(`Traccar admin bootstrap failed: ${(err as Error).message}`);
+      return false;
+    }
   }
 }

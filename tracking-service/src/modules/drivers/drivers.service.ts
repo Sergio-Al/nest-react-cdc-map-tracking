@@ -3,9 +3,10 @@ import {
   Logger,
   NotFoundException,
   ConflictException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { Not, QueryFailedError, Repository } from 'typeorm';
 import { Driver, DriverPosition } from './entities';
 import { EnrichmentService } from '../enrichment/enrichment.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
@@ -23,7 +24,7 @@ import { CreateDriverLoginDto } from './dto/create-driver-login.dto';
  * restart (the role the CDC consumer used to play).
  */
 @Injectable()
-export class DriversService {
+export class DriversService implements OnModuleInit {
   private readonly logger = new Logger(DriversService.name);
 
   constructor(
@@ -38,6 +39,26 @@ export class DriversService {
     private readonly traccar: TraccarProvisioningService,
     private readonly authService: AuthService,
   ) {}
+
+  /**
+   * Startup reconciliation: enqueue an idempotent Traccar `ensure` for every
+   * paired, non-deactivated driver. Seeded/restored databases (fresh deploys,
+   * volume restores) otherwise have drivers that never went through a mutation
+   * and so were never provisioned. Jobs are queued with retry/backoff, so
+   * Traccar not being up yet at boot is fine.
+   */
+  async onModuleInit(): Promise<void> {
+    const drivers = await this.driverRepo.find({
+      where: { status: Not('inactive') },
+    });
+    const paired = drivers.filter((d) => d.deviceId);
+    for (const d of paired) {
+      await this.traccar.ensureDevice(d.deviceId, d.name);
+    }
+    if (paired.length > 0) {
+      this.logger.log(`Traccar startup sync: ${paired.length} device(s) enqueued`);
+    }
+  }
 
   async findAll(tenantId?: string): Promise<Array<Driver & { hasLogin?: boolean }>> {
     if (!tenantId) {
