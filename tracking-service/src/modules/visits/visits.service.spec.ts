@@ -310,8 +310,10 @@ describe('VisitsService', () => {
   });
 
   describe('markDeparted', () => {
+    const arrivedAt = new Date('2026-09-26T14:00:00Z');
+
     it('stamps departedAt for an arrived visit', async () => {
-      visitRepo.findOne.mockResolvedValue(makeVisit({ status: 'arrived' }));
+      visitRepo.findOne.mockResolvedValue(makeVisit({ status: 'arrived', arrivedAt }));
 
       await service.markDeparted('visit-1');
 
@@ -320,12 +322,49 @@ describe('VisitsService', () => {
       );
     });
 
-    it('ignores departure for a visit that is not arrived or in progress', async () => {
-      visitRepo.findOne.mockResolvedValue(makeVisit({ status: 'completed' }));
+    it('stamps departedAt for a visit completed before the driver drove off', async () => {
+      visitRepo.findOne.mockResolvedValue(makeVisit({ status: 'completed', arrivedAt }));
+
+      await service.markDeparted('visit-1');
+
+      expect(visitRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'completed', departedAt: expect.any(Date) }),
+      );
+    });
+
+    it('never overwrites an existing departure', async () => {
+      const departedAt = new Date('2026-09-26T14:10:00Z');
+      visitRepo.findOne.mockResolvedValue(
+        makeVisit({ status: 'completed', arrivedAt, departedAt }),
+      );
 
       await service.markDeparted('visit-1');
 
       expect(visitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('ignores departure for a visit the driver never arrived at', async () => {
+      visitRepo.findOne.mockResolvedValue(makeVisit({ status: 'pending' }));
+
+      await service.markDeparted('visit-1');
+
+      expect(visitRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getOnSiteVisitForDriver', () => {
+    it('finds the latest arrived-but-not-departed visit scheduled today or later', async () => {
+      const onSite = makeVisit({ id: 'visit-5', status: 'completed' });
+      queryBuilder.getOne.mockResolvedValue(onSite);
+
+      const result = await service.getOnSiteVisitForDriver('drv-1');
+
+      expect(result).toBe(onSite);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('v.status IN (:...statuses)', {
+        statuses: ['arrived', 'in_progress', 'completed'],
+      });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('v.departed_at IS NULL');
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('v.arrived_at', 'DESC');
     });
   });
 

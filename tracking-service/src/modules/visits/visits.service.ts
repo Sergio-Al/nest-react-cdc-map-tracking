@@ -97,6 +97,26 @@ export class VisitsService {
   }
 
   /**
+   * The visit the driver is currently parked at: arrived (auto or manual) but
+   * not yet departed. Includes 'completed' because a driver usually completes
+   * the stop before driving off — departure is still pending then.
+   */
+  async getOnSiteVisitForDriver(driverId: string): Promise<PlannedVisit | null> {
+    const today = new Date().toISOString().split('T')[0];
+    return this.visitRepo
+      .createQueryBuilder('v')
+      .where('v.driver_id = :driverId', { driverId })
+      .andWhere('v.status IN (:...statuses)', {
+        statuses: ['arrived', 'in_progress', 'completed'],
+      })
+      .andWhere('v.arrived_at IS NOT NULL')
+      .andWhere('v.departed_at IS NULL')
+      .andWhere('v.scheduled_date >= :today', { today })
+      .orderBy('v.arrived_at', 'DESC')
+      .getOne();
+  }
+
+  /**
    * Update visit status with lifecycle management
    */
   async updateStatus(
@@ -204,9 +224,11 @@ export class VisitsService {
    */
   async markDeparted(id: string): Promise<void> {
     const visit = await this.findById(id);
-    if (visit.status === 'arrived' || visit.status === 'in_progress') {
+    const onSite = ['arrived', 'in_progress', 'completed'].includes(visit.status);
+    if (onSite && visit.arrivedAt && !visit.departedAt) {
       visit.departedAt = new Date();
       await this.visitRepo.save(visit);
+      this.logger.log(`Visit ${id} departed (status=${visit.status})`);
     }
   }
 

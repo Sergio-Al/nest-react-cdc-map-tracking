@@ -51,7 +51,9 @@ describe('EnrichmentService', () => {
   let visitsService: {
     getCurrentVisitForDriver: jest.Mock;
     getNextVisitForDriver: jest.Mock;
+    getOnSiteVisitForDriver: jest.Mock;
     markArrived: jest.Mock;
+    markDeparted: jest.Mock;
   };
   let routesService: { findActiveRouteIdByDriver: jest.Mock };
   let timescale: { insertEnrichedPositionBatch: jest.Mock };
@@ -81,7 +83,9 @@ describe('EnrichmentService', () => {
     visitsService = {
       getCurrentVisitForDriver: jest.fn().mockResolvedValue(null),
       getNextVisitForDriver: jest.fn().mockResolvedValue(null),
+      getOnSiteVisitForDriver: jest.fn().mockResolvedValue(null),
       markArrived: jest.fn().mockResolvedValue(undefined),
+      markDeparted: jest.fn().mockResolvedValue(undefined),
     };
     routesService = { findActiveRouteIdByDriver: jest.fn().mockResolvedValue(null) };
     timescale = { insertEnrichedPositionBatch: jest.fn().mockResolvedValue(undefined) };
@@ -336,6 +340,27 @@ describe('EnrichmentService', () => {
       expect(publishedEnriched().insideGeofence).toBe(true);
     });
 
+    it('does not arrive the next visit while parked inside the current visit fence', async () => {
+      // Regression: an in-progress stop + a pending next stop elsewhere. Fixes
+      // inside the current stop's fence must not mark the NEXT visit arrived.
+      visitsService.getCurrentVisitForDriver.mockResolvedValue({
+        id: 'visit-0',
+        status: 'in_progress',
+        customerId: CUSTOMER.id,
+      });
+      visitsService.getNextVisitForDriver.mockResolvedValue({
+        id: 'visit-1',
+        status: 'pending',
+        customerId: 99,
+      });
+      customerCache.getById.mockResolvedValue(CUSTOMER);
+
+      await handler(payloadFor({ latitude: CUSTOMER.latitude, longitude: CUSTOMER.longitude }));
+
+      expect(visitsService.markArrived).not.toHaveBeenCalled();
+      expect(publishedEnriched().visitAutoArrival).toBe(false);
+    });
+
     it('survives a markArrived failure and reports visitAutoArrival=false', async () => {
       visitsService.getNextVisitForDriver.mockResolvedValue(pendingVisit);
       customerCache.getById.mockResolvedValue(CUSTOMER);
@@ -346,6 +371,61 @@ describe('EnrichmentService', () => {
       const enriched = publishedEnriched();
       expect(enriched.insideGeofence).toBe(true);
       expect(enriched.visitAutoArrival).toBe(false);
+    });
+  });
+
+  // ── Geofence auto-departure ──────────────────────────────
+
+  describe('geofence auto-departure', () => {
+    const onSiteVisit = { id: 'visit-1', status: 'completed', customerId: CUSTOMER.id };
+    // 1° of latitude ≈ 111 km, so these offsets are ~555 m and ~120 m north.
+    const farAway = { latitude: CUSTOMER.latitude + 0.005, longitude: CUSTOMER.longitude };
+    const withinMargin = { latitude: CUSTOMER.latitude + 0.00108, longitude: CUSTOMER.longitude };
+
+    beforeEach(() => {
+      visitsService.getOnSiteVisitForDriver.mockResolvedValue(onSiteVisit);
+      customerCache.getById.mockResolvedValue(CUSTOMER);
+    });
+
+    it('marks the on-site visit departed after consecutive fixes outside the fence', async () => {
+      await handler(payloadFor(farAway));
+      await handler(payloadFor(farAway));
+      expect(visitsService.markDeparted).not.toHaveBeenCalled();
+
+      await handler(payloadFor(farAway));
+      expect(visitsService.markDeparted).toHaveBeenCalledWith('visit-1');
+    });
+
+    it('resets the streak when a fix lands back inside the fence', async () => {
+      await handler(payloadFor(farAway));
+      await handler(payloadFor(farAway));
+      await handler(payloadFor({ latitude: CUSTOMER.latitude, longitude: CUSTOMER.longitude }));
+      await handler(payloadFor(farAway));
+      await handler(payloadFor(farAway));
+
+      expect(visitsService.markDeparted).not.toHaveBeenCalled();
+    });
+
+    it('ignores jitter just beyond the radius but within the departure margin', async () => {
+      for (let i = 0; i < 5; i++) await handler(payloadFor(withinMargin));
+
+      expect(visitsService.markDeparted).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the driver is not parked at any visit', async () => {
+      visitsService.getOnSiteVisitForDriver.mockResolvedValue(null);
+      for (let i = 0; i < 3; i++) await handler(payloadFor(farAway));
+
+      expect(visitsService.markDeparted).not.toHaveBeenCalled();
+    });
+
+    it('survives a markDeparted failure without breaking the pipeline', async () => {
+      visitsService.markDeparted.mockRejectedValue(new Error('db down'));
+
+      for (let i = 0; i < 3; i++) {
+        await expect(handler(payloadFor(farAway))).resolves.toBeUndefined();
+      }
+      expect(publishedEnriched()).toMatchObject({ driverId: DRIVER.id });
     });
   });
 });
