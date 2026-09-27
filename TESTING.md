@@ -4,11 +4,11 @@
 
 Documentation for the project's unit tests. They cover the most critical business services in `tracking-service` and the command handlers in `integration-service-nest`.
 
-**Current state: 154 tests across 10 suites, all green.**
+**Current state: 178 tests across 12 suites, all green.**
 
 | Service | Suites | Tests | Approx. time |
 |---|---|---|---|
-| `tracking-service` | 8 | 130 | ~7 s |
+| `tracking-service` | 10 | 154 | ~7 s |
 | `integration-service-nest` | 2 | 24 | ~2 s |
 
 ## How to run them
@@ -51,7 +51,7 @@ Pure geolocation functions:
 - **ETA**: stopped vehicle or negative speed → `null`; rounding to whole seconds.
 - **Geofence**: inside/outside the radius, and the exact boundary counts as *inside* (`<=`).
 
-### `enrichment/enrichment.service.spec.ts` — 18 tests
+### `enrichment/enrichment.service.spec.ts` — 23 tests
 
 The heart of the GPS pipeline, tested through the real `gps.positions` handler:
 
@@ -59,20 +59,23 @@ The heart of the GPS pipeline, tested through the real `gps.positions` handler:
 - **Fan-out**: the enriched position reaches Kafka (`gps.positions.enriched`, key = driverId, tenantId header), Redis (`pos:driver:*`, per-tenant GeoSet, active ZSET) and the PG snapshot. A Kafka failure does **not** sink the other destinations (`Promise.allSettled`).
 - **Proximity**: distance and ETA towards the next visit's customer; fields left `null` when the customer has no coordinates.
 - **Geofence auto-arrival**: fires for `pending` and `en_route` visits; does **not** fire while a visit is `in_progress`; if `markArrived` fails, the handler survives and publishes `visitAutoArrival: false`.
+- **No cascade arrival** (regression): fixes inside the *current* in-progress stop's fence must not mark the *next* visit arrived — this once marked every remaining stop on a route as arrived.
+- **Geofence auto-departure**: the on-site visit is departed only after 3 consecutive fixes beyond radius + 50 m; a fix back inside resets the streak, jitter within the margin is ignored, and a `markDeparted` failure doesn't break the pipeline.
 - **Driver status**: marked `active` only once per process, not on every position.
 - **TimescaleDB buffer**: pending rows are written on service shutdown (`onModuleDestroy`).
 
-### `visits/visits.service.spec.ts` — 22 tests
+### `visits/visits.service.spec.ts` — 24 tests
 
 The visit lifecycle the driver app depends on:
 
 - **Natural idempotency**: a redundant transition into the current status is a pure no-op — no save, no Kafka event, no duplicate history row. This is what makes the app's offline outbox and repeated geofence triggers safe.
 - **Per-status timestamps**: `arrivedAt` / `completedAt` / `departedAt` depending on the transition; history (`visit_completions` in TimescaleDB) is written **only** on entering a terminal state (`completed`/`skipped`/`failed`), with `durationSec` (arrival→completion) and `onTime` computed against the time window.
 - **Orders**: completing a visit with an `orderId` delegates to `OrdersService.setOrderStatus`; without an `orderId` nothing is touched. Order, Kafka or TimescaleDB failures do **not** prevent the visit from completing (best-effort).
-- **Driver queries**: `getNextVisitForDriver` only considers `pending`/`en_route` visits from today onward (the guard against stale visits hijacking the ETA/geofence context); `getCurrentVisitForDriver` looks up the `in_progress` visit.
+- **Driver queries**: `getNextVisitForDriver` only considers `pending`/`en_route` visits from today onward (the guard against stale visits hijacking the ETA/geofence context); `getCurrentVisitForDriver` looks up the `in_progress` visit; `getOnSiteVisitForDriver` finds the latest arrived-but-not-departed visit (including ones completed before driving off).
+- **Departure**: `markDeparted` stamps `departedAt` for arrived / in-progress / completed visits, never overwrites an existing departure, and ignores visits the driver never arrived at.
 - **CRUD**: creation as `pending` + route stop-count increment; deletion only allowed while `pending`; tenant-scoped lookups that 404 instead of leaking cross-tenant data.
 
-### `auth/auth.service.spec.ts` — 26 tests
+### `auth/auth.service.spec.ts` — 28 tests
 
 Authentication against `cached_users` (PG-owned):
 
@@ -83,7 +86,7 @@ Authentication against `cached_users` (PG-owned):
 - **Refresh / logout**: refresh-token rotation (the old one is deleted from Redis), rejection of unknown tokens and deactivated users.
 - **`validateUser`** (per-request JWT validation): a 60 s Redis cache that avoids hitting PG on every request — a cache hit skips the DB, the password is **never** cached, and inactive users return `null` without being cached.
 
-### `drivers/drivers.service.spec.ts` — 19 tests
+### `drivers/drivers.service.spec.ts` — 20 tests
 
 PG-owned drivers and their side-effect contracts:
 
@@ -94,7 +97,7 @@ PG-owned drivers and their side-effect contracts:
 - **`provisionAppDevice`** (driver mobile app): mints a stable `APP-<driverId>` id for unpaired drivers; idempotent for already-paired ones (keeps the id, only re-ensures Traccar).
 - **Tenant scoping**: cross-tenant ids 404 before any side effect; startup reconciliation only re-provisions paired, non-inactive drivers.
 
-### `orders/orders.service.spec.ts` — 10 tests
+### `orders/orders.service.spec.ts` — 9 tests
 
 The dual-mode orders entry point:
 
@@ -109,6 +112,20 @@ Both write strategies, side by side:
 
 - **`StandaloneOrderWriter`** (PG-owned, synchronous): direct insert returning the row (`mode: 'sync'` → HTTP 201); `ORD-######` number minted from the sequence when the DTO doesn't supply one; partial updates only touch present fields; a missing row → 404 on update but warn-and-continue on status writes.
 - **`IntegratedOrderWriter`** (Kafka, asynchronous): each operation emits the right command on `commands.orders` (`op: create/update/status`, key = tenantId, correlationId returned as `mode: 'async'` → HTTP 202), including the completion metadata (`driverId`, `visitId`) on status commands.
+
+### `drivers/driver-events.spec.ts` — 12 tests
+
+The derived activity feed behind `GET /drivers/:id/events` (pure functions, no mocks needed):
+
+- **Visit events**: arrived / completed (with time on site) / departed; skipped and failed reported at their close-out time instead of "departed"; timestamps outside the window ignored.
+- **Shift start**: the first fix of the window.
+- **Idle**: stopped ≥ 5 min away from any stop; short stops (traffic lights) ignored; parking at a customer is not idle — the on-site window stays open after completion until the driver departs; device gaps break a stretch (phone off is not idling).
+- **Speeding**: one event per run at its peak speed; a single-fix spike (GPS noise) is ignored.
+- Everything merged newest first.
+
+### `traccar/traccar.controller.spec.ts` — 3 tests
+
+- **Speed units**: Traccar `PositionData` speed is converted from knots to km/h (single and array payloads); the flat manual / load-test format passes through unchanged (already km/h).
 
 ### `kafka/dlq.service.spec.ts` — 14 tests *(pre-existing)*
 
@@ -134,7 +151,8 @@ Same as customers for the three operations (`create`/`update`/`status`), plus:
 
 ## What is NOT unit-tested (and why)
 
-- **Controllers, gateways and infrastructure modules** (`redis`, `timescale`, Kafka wrappers): they are thin glue; better covered by e2e against the Docker stack.
+- **Controllers, gateways and infrastructure modules** (`redis`, `timescale`, Kafka wrappers): they are thin glue; better covered by e2e against the Docker stack. (Exception: the Traccar webhook's payload normalization, which carries the knots → km/h conversion.)
+- **End-to-end pipeline behaviour** (Traccar → Kafka → enrichment → geofence → visits): exercised live with `scripts/simulate-route.mts` (see the README).
 - **TypeORM query-builder internals**: the observable result is asserted, not the call chain (except where the clause IS the logic, like the date filter in `getNextVisitForDriver`).
 - The full CDC flow MySQL → Debezium → Kafka → cache already has its own e2e verification: `scripts/` (`smoke-orders-dual-mode.sh`) and the `/verify-cdc` skill.
 

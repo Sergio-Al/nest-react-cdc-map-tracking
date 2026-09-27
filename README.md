@@ -1139,7 +1139,7 @@ The frontend's `src/lib/apiError.ts` `translateApiError()` helper inspects `erro
 
 ## 🧪 Manual Testing
 
-> **Automated unit tests** (154 tests covering enrichment, visits, auth, drivers, orders and the integration-service command handlers) are documented in [TESTING.md](TESTING.md) ([Spanish version](TESTING.es.md)). Run them with `npm test` inside `tracking-service/` or `integration-service-nest/` — no Docker needed.
+> **Automated unit tests** (178 tests covering enrichment, visits, auth, drivers, driver events, orders and the integration-service command handlers) are documented in [TESTING.md](TESTING.md) ([Spanish version](TESTING.es.md)). Run them with `npm test` inside `tracking-service/` or `integration-service-nest/` — no Docker needed.
 
 ### Verify CDC synchronization
 

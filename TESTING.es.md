@@ -4,11 +4,11 @@
 
 Documentación de las pruebas unitarias del proyecto. Cubren los servicios de negocio más críticos de `tracking-service` y los handlers de comandos de `integration-service-nest`.
 
-**Estado actual: 154 pruebas en 10 suites, todas en verde.**
+**Estado actual: 178 pruebas en 12 suites, todas en verde.**
 
 | Servicio | Suites | Pruebas | Tiempo aprox. |
 |---|---|---|---|
-| `tracking-service` | 8 | 130 | ~7 s |
+| `tracking-service` | 10 | 154 | ~7 s |
 | `integration-service-nest` | 2 | 24 | ~2 s |
 
 ## Cómo ejecutarlas
@@ -51,7 +51,7 @@ Funciones puras de geolocalización:
 - **ETA**: vehículo detenido o velocidad negativa → `null`; redondeo a segundos enteros.
 - **Geocerca**: dentro/fuera del radio, y el borde exacto cuenta como *dentro* (`<=`).
 
-### `enrichment/enrichment.service.spec.ts` — 18 pruebas
+### `enrichment/enrichment.service.spec.ts` — 23 pruebas
 
 El corazón del pipeline GPS, probado a través del handler real de `gps.positions`:
 
@@ -59,20 +59,23 @@ El corazón del pipeline GPS, probado a través del handler real de `gps.positio
 - **Fan-out**: la posición enriquecida llega a Kafka (`gps.positions.enriched`, key = driverId, header tenantId), Redis (`pos:driver:*`, GeoSet por tenant, ZSET de activos) y el snapshot en PG. Un fallo de Kafka **no** hunde los otros destinos (`Promise.allSettled`).
 - **Proximidad**: distancia y ETA hacia el cliente de la siguiente visita; campos en `null` cuando el cliente no tiene coordenadas.
 - **Auto-llegada por geocerca**: dispara para visitas `pending` y `en_route`; **no** dispara mientras hay una visita `in_progress`; si `markArrived` falla, el handler sobrevive y publica `visitAutoArrival: false`.
+- **Sin llegadas en cascada** (regresión): posiciones dentro de la geocerca de la parada *actual* en curso no deben marcar como llegada la *siguiente* visita — esto llegó a marcar todas las paradas restantes de una ruta.
+- **Salida automática por geocerca**: la visita en sitio se marca como salida solo tras 3 posiciones consecutivas más allá del radio + 50 m; una posición de vuelta adentro reinicia la racha, el ruido dentro del margen se ignora y un fallo de `markDeparted` no rompe el pipeline.
 - **Estado del conductor**: se marca `active` una sola vez por proceso, no en cada posición.
 - **Buffer de TimescaleDB**: las filas pendientes se escriben al apagar el servicio (`onModuleDestroy`).
 
-### `visits/visits.service.spec.ts` — 22 pruebas
+### `visits/visits.service.spec.ts` — 24 pruebas
 
 El ciclo de vida de visitas del que depende la app de conductores:
 
 - **Idempotencia natural**: una transición redundante al estado actual es un no-op puro — sin save, sin evento Kafka, sin fila duplicada de historial. Esto es lo que hace seguros el outbox offline de la app y los disparos repetidos de geocerca.
 - **Timestamps por estado**: `arrivedAt` / `completedAt` / `departedAt` según la transición; el historial (`visit_completions` en TimescaleDB) se escribe **solo** al entrar a un estado terminal (`completed`/`skipped`/`failed`), con `durationSec` (llegada→completado) y `onTime` calculado contra la ventana horaria.
 - **Pedidos**: al completar una visita con `orderId` se delega a `OrdersService.setOrderStatus`; sin `orderId` no se toca nada. Fallos de pedidos, Kafka o TimescaleDB **no** impiden completar la visita (best-effort).
-- **Consultas del conductor**: `getNextVisitForDriver` solo considera visitas `pending`/`en_route` de hoy en adelante (el guard contra visitas viejas que secuestran el contexto de ETA/geocerca); `getCurrentVisitForDriver` busca la visita `in_progress`.
+- **Consultas del conductor**: `getNextVisitForDriver` solo considera visitas `pending`/`en_route` de hoy en adelante (el guard contra visitas viejas que secuestran el contexto de ETA/geocerca); `getCurrentVisitForDriver` busca la visita `in_progress`; `getOnSiteVisitForDriver` encuentra la última visita con llegada y sin salida (incluidas las completadas antes de irse).
+- **Salida**: `markDeparted` marca `departedAt` en visitas llegadas / en curso / completadas, nunca sobrescribe una salida existente e ignora visitas a las que el conductor nunca llegó.
 - **CRUD**: creación con estado `pending` + incremento de paradas de la ruta; borrado solo permitido en `pending`; búsquedas con scope de tenant que devuelven 404 en vez de filtrar datos cruzados.
 
-### `auth/auth.service.spec.ts` — 26 pruebas
+### `auth/auth.service.spec.ts` — 28 pruebas
 
 Autenticación contra `cached_users` (PG-owned):
 
@@ -83,7 +86,7 @@ Autenticación contra `cached_users` (PG-owned):
 - **Refresh / logout**: rotación del refresh token (el viejo se borra de Redis), rechazo de tokens desconocidos y de usuarios desactivados.
 - **`validateUser`** (validación JWT por request): cache en Redis de 60 s que evita golpear PG en cada request — el hit de cache no consulta la BD, la contraseña **nunca** se cachea, y usuarios inactivos devuelven `null` sin cachearse.
 
-### `drivers/drivers.service.spec.ts` — 19 pruebas
+### `drivers/drivers.service.spec.ts` — 20 pruebas
 
 Conductores PG-owned y sus contratos de efectos secundarios:
 
@@ -94,7 +97,7 @@ Conductores PG-owned y sus contratos de efectos secundarios:
 - **`provisionAppDevice`** (app móvil del conductor): acuña un id estable `APP-<driverId>` para conductores sin dispositivo; idempotente para los ya emparejados (mantiene el id, solo re-asegura Traccar).
 - **Scope de tenant**: ids cruzados dan 404 antes de cualquier efecto; la reconciliación de arranque solo re-provisiona conductores emparejados no inactivos.
 
-### `orders/orders.service.spec.ts` — 10 pruebas
+### `orders/orders.service.spec.ts` — 9 pruebas
 
 El punto de entrada dual-mode de pedidos:
 
@@ -109,6 +112,20 @@ Las dos estrategias de escritura, lado a lado:
 
 - **`StandaloneOrderWriter`** (PG es dueño, síncrono): insert directo que devuelve la fila (`mode: 'sync'` → HTTP 201); número `ORD-######` acuñado desde la secuencia cuando el DTO no lo trae; updates parciales que solo tocan campos presentes; fila inexistente → 404 en update pero warn-y-continúa en status.
 - **`IntegratedOrderWriter`** (Kafka, asíncrono): cada operación emite el comando correcto en `commands.orders` (`op: create/update/status`, key = tenantId, correlationId devuelto como `mode: 'async'` → HTTP 202), incluyendo la metadata de completado (`driverId`, `visitId`) en los comandos de status.
+
+### `drivers/driver-events.spec.ts` — 12 pruebas
+
+El feed de actividad derivado detrás de `GET /drivers/:id/events` (funciones puras, sin mocks):
+
+- **Eventos de visita**: llegada / completada (con tiempo en sitio) / salida; omitidas y fallidas se reportan en su hora de cierre en lugar de "salida"; se ignoran marcas fuera de la ventana.
+- **Inicio de turno**: la primera posición de la ventana.
+- **Inactividad**: detenido ≥ 5 min lejos de cualquier parada; las paradas cortas (semáforos) se ignoran; estacionar en un cliente no es inactividad — la ventana en sitio sigue abierta tras completar hasta que el conductor sale; los huecos del dispositivo cortan el tramo (teléfono apagado no es inactividad).
+- **Exceso de velocidad**: un evento por tramo en su velocidad pico; un pico de una sola posición (ruido GPS) se ignora.
+- Todo combinado del más reciente al más antiguo.
+
+### `traccar/traccar.controller.spec.ts` — 3 pruebas
+
+- **Unidades de velocidad**: la velocidad del `PositionData` de Traccar se convierte de nudos a km/h (payload simple y arreglo); el formato plano manual / de pruebas de carga pasa sin cambios (ya está en km/h).
 
 ### `kafka/dlq.service.spec.ts` — 14 pruebas *(preexistente)*
 
@@ -134,7 +151,8 @@ Lo mismo que customers para las tres operaciones (`create`/`update`/`status`), m
 
 ## Qué NO se prueba unitariamente (y por qué)
 
-- **Controllers, gateways y módulos de infraestructura** (`redis`, `timescale`, wrappers de Kafka): son pegamento fino; se cubren mejor con e2e contra el stack de Docker.
+- **Controllers, gateways y módulos de infraestructura** (`redis`, `timescale`, wrappers de Kafka): son pegamento fino; se cubren mejor con e2e contra el stack de Docker. (Excepción: la normalización de payloads del webhook de Traccar, que hace la conversión nudos → km/h.)
+- **Comportamiento del pipeline de punta a punta** (Traccar → Kafka → enrichment → geocerca → visitas): se ejercita en vivo con `scripts/simulate-route.mts` (ver el README).
 - **Internals de query builders de TypeORM**: se asserta el resultado observable, no la cadena de llamadas (salvo donde la cláusula ES la lógica, como el filtro de fechas de `getNextVisitForDriver`).
 - El flujo CDC completo MySQL → Debezium → Kafka → cache ya tiene verificación e2e propia: `scripts/` (`smoke-orders-dual-mode.sh`) y el skill `/verify-cdc`.
 
