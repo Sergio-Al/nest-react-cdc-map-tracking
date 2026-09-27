@@ -6,6 +6,8 @@
 #   EC2_HOST     — the Elastic IP
 #   EC2_SSH_KEY  — contents of ~/.ssh/tracking-demo-key.pem
 # Required repository variables:
+#   DEPLOY_ENABLED — set to "true" to run the deploy job. Unset = build/push
+#                    images only (the EC2 demo host was torn down 2026-09-26).
 #   VITE_API_URL — e.g. http://<elastic-ip>:3000  (baked into the frontend bundle)
 #   VITE_WS_URL  — e.g. http://<elastic-ip>:3000
 #
@@ -72,6 +74,9 @@ jobs:
 
   deploy:
     needs: build
+    # Skipped unless the repo variable DEPLOY_ENABLED is "true" — there is no
+    # host to deploy to right now. Re-enable after deploy/aws/provision.sh.
+    if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy over SSH
