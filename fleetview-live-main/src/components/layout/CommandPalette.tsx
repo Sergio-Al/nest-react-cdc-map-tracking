@@ -17,7 +17,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useDashboardStore } from "@/stores/dashboard.store";
 import { useMapStore } from "@/stores/map.store";
 import { useDrivers } from "@/hooks/api/useDrivers";
-import { getMockRouteSummary } from "@/lib/mock/driverMock";
+import { useDriverRouteSummaries } from "@/hooks/api/useDriverDetail";
 import { navItems, canSee, hasFeature } from "./nav";
 import { useEntitlements } from "@/hooks/api/useEntitlements";
 
@@ -37,6 +37,7 @@ export function CommandPalette() {
   const { t } = useTranslation("nav");
 
   const { data: drivers = [] } = useDrivers();
+  const routeSummaries = useDriverRouteSummaries(drivers.map((driver) => driver.id), open);
   const selectDriver = useMapStore((s) => s.selectDriver);
   const focusSelected = useMapStore((s) => s.focusSelected);
   const selectedDriverId = useMapStore((s) => s.selectedDriverId);
@@ -89,7 +90,7 @@ export function CommandPalette() {
                 <Users className="mr-2 h-4 w-4 text-mc-text-dim" />
                 <span>{d.name}</span>
                 <span className="ml-2 font-mono text-xs text-muted-foreground">
-                  {d.vehiclePlate ?? "—"} · {getMockRouteSummary(d.id).routeName}
+                  {d.vehiclePlate ?? "—"} · {routeSummaries[d.id]?.routeName || t("palette.noRoute")}
                 </span>
               </CommandItem>
             ))}

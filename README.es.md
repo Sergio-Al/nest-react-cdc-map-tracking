@@ -1130,6 +1130,8 @@ El helper `translateApiError()` del frontend (`src/lib/apiError.ts`) inspecciona
 
 ## 🧪 Pruebas Manuales
 
+> **Las pruebas unitarias automatizadas** (178 pruebas que cubren enrichment, visitas, auth, conductores, eventos de conductor, pedidos y los handlers de comandos del integration-service) están documentadas en [TESTING.es.md](TESTING.es.md) ([versión en inglés](TESTING.md)). Se ejecutan con `npm test` dentro de `tracking-service/` o `integration-service-nest/` — sin necesidad de Docker.
+
 ### Verificar sincronización CDC
 
 ```bash
@@ -1170,6 +1172,25 @@ curl -s -X POST http://localhost:3000/api/traccar/positions \
     "attributes": { "uniqueId": "DEV001" }
   }]'
 ```
+
+### Simular una ruta planificada completa
+
+`scripts/simulate-route.mts` recorre una ruta planificada real como si el teléfono de un conductor ejecutara Traccar Client: envía posiciones que siguen las calles (OSRM) al puerto OsmAnd de Traccar (5055), así corre todo el pipeline (mapa en vivo, ETA, llegada/salida automática por geocerca, historial). En cada parada espera dentro de la geocerca y completa la visita vía API. La conducción es en tiempo real con la hora del reloj; solo se acorta la espera en cada parada.
+
+Primero crea la ruta para hoy en el Route Builder (`/routes`); el conductor necesita un dispositivo emparejado. Requiere Node ≥ 22.18, sin dependencias.
+
+```bash
+node scripts/simulate-route.mts --list                     # rutas de hoy (fecha UTC)
+node scripts/simulate-route.mts --route <uuid> --dry-run   # vista previa: tramos, distancia, duración
+node scripts/simulate-route.mts --route <uuid>             # recorrerla (Ctrl-C detiene limpiamente)
+node scripts/simulate-route.mts --route <a> --route <b>    # varios conductores a la vez
+node scripts/simulate-route.mts --backfill 30               # genera 30 días laborales pasados para Historial/Reportes
+node scripts/simulate-route.mts --clear-backfill           # elimina exactamente lo que escribió --backfill
+```
+
+`--backfill` genera jornadas pasadas completadas (lun–sáb) para cada conductor con dispositivo emparejado, con las mismas calles y modelo de conducción, y las escribe directamente en PostgreSQL y TimescaleDB (vía `docker exec … psql`) — el pipeline en vivo solo marca llegadas automáticas en visitas de hoy. Omite los días en que el conductor ya tiene ruta y refresca `driver_daily_stats`. Las corridas en vivo también lo refrescan al terminar, así los Reportes las incluyen de inmediato.
+
+Opciones útiles: `--dwell 90` (segundos por parada), `--cruise 32` (km/h), `--interval 5` (segundos entre posiciones), `--no-complete` (deja las visitas para completarlas tú en la UI), `--force` (ignora conflictos del pre-chequeo), `--allow-manual-arrival` (continúa si la llegada automática no se dispara). El encabezado del script documenta todas las opciones.
 
 ### Crear ruta y visita completa
 

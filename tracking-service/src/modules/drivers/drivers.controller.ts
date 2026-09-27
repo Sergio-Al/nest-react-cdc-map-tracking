@@ -6,16 +6,39 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DriversService } from './drivers.service';
 import { TimescaleService } from '../timescale/timescale.service';
+import { DriverEventsService } from './driver-events.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { PairDeviceDto } from './dto/pair-device.dto';
 import { CreateDriverLoginDto } from './dto/create-driver-login.dto';
+
+/** Events/distance scan raw positions — keep windows to about a day. */
+const DAY_RANGE_MAX_H = 48;
+
+function parseDayRange(from: string, to: string): { fromDate: Date; toDate: Date } {
+  if (!from || !to) {
+    throw new BadRequestException({ errorCode: 'drivers.fromToRequired' });
+  }
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime()) || toDate < fromDate) {
+    throw new BadRequestException({ errorCode: 'drivers.fromToInvalid' });
+  }
+  if (toDate.getTime() - fromDate.getTime() > DAY_RANGE_MAX_H * 3600_000) {
+    throw new BadRequestException({
+      errorCode: 'drivers.rangeTooLarge',
+      args: { max: DAY_RANGE_MAX_H },
+    });
+  }
+  return { fromDate, toDate };
+}
 
 @Controller('drivers')
 export class DriversController {
   constructor(
     private readonly driversService: DriversService,
     private readonly timescaleService: TimescaleService,
+    private readonly driverEventsService: DriverEventsService,
   ) {}
 
   @Roles('admin', 'dispatcher')
@@ -38,6 +61,42 @@ export class DriversController {
   async getPosition(@Param('id') id: string, @CurrentUser() user: any) {
     const positions = await this.driversService.getLatestPositions(user.tenantId);
     return positions.find((p) => p.driverId === id) ?? null;
+  }
+
+  /**
+   * Derived activity feed for the dashboard driver panel: visit lifecycle
+   * (arrived/completed/departed/skipped/failed) + shift start, idle and
+   * speeding detected from the position history. Newest first.
+   */
+  @Get(':id/events')
+  async getDriverEvents(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @CurrentUser() user: any,
+  ) {
+    const { fromDate, toDate } = parseDayRange(from, to);
+    // Drivers can only see their own feed (same rule as history)
+    if (user.role === 'driver' && user.driverId !== id) {
+      return [];
+    }
+    return this.driverEventsService.getEvents(id, user.tenantId, fromDate, toDate);
+  }
+
+  /** Distance driven in a window (typically the user's local day), computed server-side. */
+  @Get(':id/distance')
+  async getDriverDistance(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @CurrentUser() user: any,
+  ) {
+    const { fromDate, toDate } = parseDayRange(from, to);
+    if (user.role === 'driver' && user.driverId !== id) {
+      return { distanceKm: 0 };
+    }
+    const km = await this.timescaleService.getDriverDistanceKm(id, fromDate, toDate, user.tenantId);
+    return { distanceKm: Math.round(km * 100) / 100 };
   }
 
   @Get(':id/history')

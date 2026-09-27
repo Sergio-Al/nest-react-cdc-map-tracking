@@ -4,6 +4,7 @@ export interface PlannedVisit {
   routeId: string;
   driverId: string;
   customerId: number;
+  orderId?: number | null;
   sequenceNumber: number;
   visitType: string;
   scheduledDate: string;

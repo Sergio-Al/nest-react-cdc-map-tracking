@@ -10,6 +10,7 @@ import { useMapStore } from '@/stores/map.store';
 import { useDateLocale } from '@/i18n/useDateLocale';
 import { MapControls } from './MapControls';
 import { getDriverStatus, speedKmh, statusColorVar } from '@/lib/driverStatus';
+import { getMapTiles } from '@/lib/mapTiles';
 import { formatDistanceToNow } from 'date-fns';
 import type { EnrichedPosition } from '@/types/position.types';
 
@@ -193,17 +194,15 @@ export function TrackingMap({ selectedDriverId, onSelectDriver, visibleDriverIds
         ]
       : defaultCenter;
 
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const tiles = getMapTiles(isDark);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
       <MapContainer center={mapCenter} zoom={defaultZoom} className="h-full w-full" zoomControl={false}>
         <TileLayer
           key={isDark ? 'dark' : 'light'}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url={tileUrl}
+          attribution={tiles.attribution}
+          url={tiles.url}
         />
 
         <MapController selectedDriverId={selectedDriverId} />

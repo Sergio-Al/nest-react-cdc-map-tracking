@@ -1139,6 +1139,8 @@ The frontend's `src/lib/apiError.ts` `translateApiError()` helper inspects `erro
 
 ## 🧪 Manual Testing
 
+> **Automated unit tests** (178 tests covering enrichment, visits, auth, drivers, driver events, orders and the integration-service command handlers) are documented in [TESTING.md](TESTING.md) ([Spanish version](TESTING.es.md)). Run them with `npm test` inside `tracking-service/` or `integration-service-nest/` — no Docker needed.
+
 ### Verify CDC synchronization
 
 ```bash
@@ -1179,6 +1181,25 @@ curl -s -X POST http://localhost:3000/api/traccar/positions \
     "attributes": { "uniqueId": "DEV001" }
   }]'
 ```
+
+### Simulate a full planned route
+
+`scripts/simulate-route.mts` drives a real planned route as if a driver's phone were running Traccar Client: road-following positions from OSRM are sent to Traccar's OsmAnd port (5055), so the whole pipeline runs (live map, ETA, geofence auto-arrival/departure, history). At each stop it dwells inside the geofence and completes the visit through the API. Driving is real time with wall-clock timestamps; only the dwell is shortened.
+
+Create the route for today in the Route Builder (`/routes`) first; the driver needs a paired device. Requires Node ≥ 22.18, no dependencies.
+
+```bash
+node scripts/simulate-route.mts --list                     # today's routes (UTC date)
+node scripts/simulate-route.mts --route <uuid> --dry-run   # preview legs, distance, duration
+node scripts/simulate-route.mts --route <uuid>             # drive it (Ctrl-C stops cleanly)
+node scripts/simulate-route.mts --route <a> --route <b>    # several drivers at once
+node scripts/simulate-route.mts --backfill 30               # seed 30 past workdays for History/Reports
+node scripts/simulate-route.mts --clear-backfill           # remove exactly what --backfill wrote
+```
+
+`--backfill` generates completed past workdays (Mon–Sat) for every driver with a paired device, using the same streets and driving model, and writes them directly to PostgreSQL and TimescaleDB (via `docker exec … psql`) — the live pipeline only auto-arrives today's visits. It skips days where a driver already has a route and refreshes `driver_daily_stats`. Live runs also refresh it at the end, so Reports include them immediately.
+
+Useful flags: `--dwell 90` (seconds per stop), `--cruise 32` (km/h), `--interval 5` (seconds between fixes), `--no-complete` (leave visits for you to complete in the UI), `--force` (skip pre-flight conflicts), `--allow-manual-arrival` (keep going if auto-arrival doesn't fire). The header of the script documents every option.
 
 ### Create a full route and visit
 

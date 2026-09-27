@@ -55,6 +55,7 @@ export type I18nTranslations = {
             "fromToInvalid": string;
             "notFound": string;
             "deviceInUse": string;
+            "rangeTooLarge": string;
         };
         "orders": {
             "notFound": string;

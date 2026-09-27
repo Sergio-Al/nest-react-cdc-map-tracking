@@ -5,7 +5,8 @@ import type { Driver } from "@/types/driver.types";
 import type { EnrichedPosition } from "@/types/position.types";
 import { getDriverStatus, formatAge, statusColorVar } from "@/lib/driverStatus";
 import type { DriverStatus } from "@/lib/driverStatus";
-import { getMockRouteSummary } from "@/lib/mock/driverMock";
+import { useDriverRouteSummaries } from "@/hooks/api/useDriverDetail";
+import type { RouteSummary } from "@/hooks/api/useDriverDetail";
 import { useDashboardStore } from "@/stores/dashboard.store";
 import { isTypingTarget } from "@/lib/dom";
 import { cn } from "@/lib/utils";
@@ -73,27 +74,28 @@ const InboxRow = memo(function InboxRow({
   driver,
   selected,
   onSelect,
+  route,
 }: {
   driver: DriverWithPosition;
   selected: boolean;
   onSelect: (id: string) => void;
+  route: RouteSummary | null;
 }) {
   const { t } = useTranslation("dashboard");
   const status = getDriverStatus(driver.position);
   const color = statusColorVar(status);
-  const route = getMockRouteSummary(driver.id);
-  const pct = Math.round((route.progress / route.total) * 100);
+  const pct = route && route.total > 0 ? Math.round((route.progress / route.total) * 100) : 0;
 
   const snippet =
     status === "offline"
       ? driver.position
         ? t("inbox.lastSeen", { age: formatAge(driver.position.time) })
         : t("inbox.noSignal")
-      : t("inbox.stopsProgress", {
-          routeName: route.routeName,
+      : route ? t("inbox.stopsProgress", {
+          routeName: route.routeName || t("panel.unnamedRoute"),
           progress: route.progress,
           total: route.total,
-        });
+        }) : t("inbox.noRoute");
 
   return (
     <button
@@ -173,6 +175,7 @@ export function DriverInbox({
   const inboxSheetOpen = useDashboardStore((s) => s.inboxSheetOpen);
   const setInboxSheetOpen = useDashboardStore((s) => s.setInboxSheetOpen);
   const { t } = useTranslation("dashboard");
+  const routeSummaries = useDriverRouteSummaries(drivers.map((driver) => driver.id));
 
   useEffect(() => {
     localStorage.setItem("fleet.inboxSort", sort);
@@ -362,6 +365,7 @@ export function DriverInbox({
               driver={driver}
               selected={driver.id === selectedDriverId}
               onSelect={select}
+              route={routeSummaries[driver.id]}
             />
           ))
         )}

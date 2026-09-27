@@ -59,7 +59,8 @@
     "stopsProgress": "{{routeName}} · {{progress}}/{{total}} stops",
     "lastSeen": "Last seen {{age}}",
     "noSignal": "No recent signal",
-    "idleBadge": "idle"
+    "idleBadge": "idle",
+    "noRoute": "No route today"
   },
   "panel": {
     "status": {
@@ -95,7 +96,11 @@
       "year": "Year",
       "plate": "Plate",
       "odometer": "Odometer",
-      "lastService": "Last service"
+      "lastService": "Last service",
+      "type": "Type",
+      "capacity": "Capacity",
+      "status": "Status",
+      "noTelematics": "Fuel, odometer and service data are unavailable."
     },
     "notes": {
       "placeholder": "Add a note for this driver…",
@@ -105,7 +110,17 @@
       "title": "No driver selected",
       "body": "Select a driver from the inbox to see live details, route stops, and activity."
     },
-    "noPhone": "No phone number on file for this driver."
+    "noPhone": "No phone number on file for this driver.",
+    "unnamedRoute": "Today's route",
+    "emptyRoute": "No route assigned today.",
+    "emptyVehicle": "No vehicle assigned.",
+    "emptyActivity": "No activity today.",
+    "emptySpeed": "No speed data in the last hour.",
+    "stop": { "order": "Order #{{id}}", "eta": "ETA", "skipped": "Skipped", "failed": "Failed" },
+    "visitType": { "delivery": "Delivery", "pickup": "Pickup", "service": "Service" },
+    "event": {
+      "shift_start": "Shift started · vehicle", "arrived": "Arrived at", "completed": "Visit completed ·", "departed": "Departed", "skipped": "Visit skipped ·", "failed": "Visit failed ·", "idle": "Idle ·", "speeding": "Speeding ·", "duration": "{{minutes}} min"
+    }
   },
   "map": {
     "popup": {

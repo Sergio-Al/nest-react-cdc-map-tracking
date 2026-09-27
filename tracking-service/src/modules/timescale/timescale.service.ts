@@ -171,6 +171,57 @@ export class TimescaleService implements OnModuleInit, OnModuleDestroy {
     return result.rows;
   }
 
+  /**
+   * Just time + speed for a window, uncapped — for event detection over a full
+   * day (callers bound the window). Much lighter than full position rows.
+   */
+  async getDriverSpeedSamples(
+    driverId: string,
+    from: Date,
+    to: Date,
+    tenantId: string,
+  ): Promise<{ time: Date; speed: number }[]> {
+    const result = await this.pool.query(
+      `SELECT time, speed FROM enriched_positions
+       WHERE driver_id = $1 AND tenant_id = $2 AND time >= $3 AND time <= $4
+       ORDER BY time ASC`,
+      [driverId, tenantId, from, to],
+    );
+    return result.rows;
+  }
+
+  /**
+   * Distance driven (km) in a window: haversine between consecutive fixes,
+   * computed in SQL so a whole day never has to leave the database. Hops over
+   * 1 km between fixes are GPS jumps / device-off gaps and are ignored.
+   */
+  async getDriverDistanceKm(
+    driverId: string,
+    from: Date,
+    to: Date,
+    tenantId: string,
+  ): Promise<number> {
+    const sql = `
+      SELECT COALESCE(SUM(km), 0) AS km FROM (
+        SELECT 2 * 6371 * asin(sqrt(
+                 power(sin(radians(latitude - prev_lat) / 2), 2) +
+                 cos(radians(prev_lat)) * cos(radians(latitude)) *
+                 power(sin(radians(longitude - prev_lon) / 2), 2))) AS km
+        FROM (
+          SELECT latitude, longitude,
+                 lag(latitude)  OVER (ORDER BY time) AS prev_lat,
+                 lag(longitude) OVER (ORDER BY time) AS prev_lon
+          FROM enriched_positions
+          WHERE driver_id = $1 AND tenant_id = $2 AND time >= $3 AND time <= $4
+        ) fixes
+        WHERE prev_lat IS NOT NULL
+      ) hops
+      WHERE km <= 1
+    `;
+    const result = await this.pool.query(sql, [driverId, tenantId, from, to]);
+    return Number(result.rows[0]?.km ?? 0);
+  }
+
   async getRoutePositionHistory(
     routeId: string,
     from: Date,

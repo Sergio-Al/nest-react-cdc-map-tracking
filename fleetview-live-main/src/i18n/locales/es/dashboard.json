@@ -59,7 +59,8 @@
     "stopsProgress": "{{routeName}} · {{progress}}/{{total}} paradas",
     "lastSeen": "Última señal {{age}}",
     "noSignal": "Sin señal reciente",
-    "idleBadge": "inactivo"
+    "idleBadge": "inactivo",
+    "noRoute": "Sin ruta hoy"
   },
   "panel": {
     "status": {
@@ -95,7 +96,11 @@
       "year": "Año",
       "plate": "Placa",
       "odometer": "Odómetro",
-      "lastService": "Último servicio"
+      "lastService": "Último servicio",
+      "type": "Tipo",
+      "capacity": "Capacidad",
+      "status": "Estado",
+      "noTelematics": "No hay datos de combustible, odómetro ni mantenimiento."
     },
     "notes": {
       "placeholder": "Añade una nota para este conductor…",
@@ -105,7 +110,17 @@
       "title": "Ningún conductor seleccionado",
       "body": "Selecciona un conductor de la bandeja para ver detalles en vivo, paradas y actividad."
     },
-    "noPhone": "No hay número de teléfono registrado para este conductor."
+    "noPhone": "No hay número de teléfono registrado para este conductor.",
+    "unnamedRoute": "Ruta de hoy",
+    "emptyRoute": "No hay ruta asignada hoy.",
+    "emptyVehicle": "No hay vehículo asignado.",
+    "emptyActivity": "Sin actividad hoy.",
+    "emptySpeed": "Sin datos de velocidad en la última hora.",
+    "stop": { "order": "Pedido #{{id}}", "eta": "Llegada", "skipped": "Omitida", "failed": "Fallida" },
+    "visitType": { "delivery": "Entrega", "pickup": "Recogida", "service": "Servicio" },
+    "event": {
+      "shift_start": "Turno iniciado · vehículo", "arrived": "Llegó a", "completed": "Visita completada ·", "departed": "Salió de", "skipped": "Visita omitida ·", "failed": "Visita fallida ·", "idle": "Inactivo ·", "speeding": "Exceso de velocidad ·", "duration": "{{minutes}} min"
+    }
   },
   "map": {
     "popup": {

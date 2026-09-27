@@ -24,6 +24,11 @@ const REDIS_GEO_KEY = 'geo:drivers';
 const REDIS_ACTIVE_SET_PREFIX = 'active:drivers:'; // per-tenant ZSET, score = last-seen ms
 const TIMESCALE_FLUSH_INTERVAL_MS = 1000;
 const TIMESCALE_FLUSH_THRESHOLD = 100;
+// Auto-departure hysteresis: the driver must be this far beyond the fence, for
+// this many consecutive fixes, before the on-site visit is marked departed —
+// so GPS jitter at the fence edge doesn't depart a driver who's still parked.
+const DEPARTURE_MARGIN_M = 50;
+const DEPARTURE_CONSECUTIVE_FIXES = 3;
 
 @Injectable()
 export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
@@ -40,6 +45,9 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
 
   /** Drivers already marked 'active' this process — skip the redundant per-message status UPDATE. */
   private activeDrivers = new Set<string>();
+
+  /** Consecutive outside-fence fixes per on-site visit id (auto-departure hysteresis). */
+  private departureStreaks = new Map<string, number>();
 
   /** Buffer of enriched rows pending a batched TimescaleDB write. */
   private timescaleBuffer: EnrichedPositionRow[] = [];
@@ -209,9 +217,13 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
 
         if (insideGeofence) {
           geofenceCustomerId = customer.id;
-          // Auto-arrival: if next visit is pending/en_route and driver entered geofence
+          // Auto-arrival: if next visit is pending/en_route and driver entered
+          // ITS geofence. While a visit is in progress the fence being checked
+          // is the current stop's — arriving the next visit there would cascade
+          // down the whole route while the driver is still parked.
           if (
             nextVisit &&
+            targetVisit === nextVisit &&
             (nextVisit.status === 'pending' || nextVisit.status === 'en_route')
           ) {
             try {
@@ -227,6 +239,9 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
         }
       }
     }
+
+    // 3b. Auto-departure from the stop the driver is parked at
+    await this.checkDeparture(driverId, driverName, raw.latitude, raw.longitude);
 
     // 4. Build enriched position
     const enriched: EnrichedPosition = {
@@ -279,6 +294,52 @@ export class EnrichmentService implements OnModuleInit, OnModuleDestroy {
 
     // 6. Update driver status to 'active' if offline
     await this.ensureDriverActive(driverId);
+  }
+
+  // ── Geofence auto-departure ──────────────────────────────
+
+  /**
+   * Mark the driver's on-site visit (arrived, not yet departed) as departed once
+   * they've clearly left its geofence. Best-effort: never fails the pipeline.
+   */
+  private async checkDeparture(
+    driverId: string,
+    driverName: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void> {
+    try {
+      const onSite = await this.visitsService.getOnSiteVisitForDriver(driverId);
+      if (!onSite) return;
+
+      const customer = await this.customerCache.getById(onSite.customerId);
+      if (!customer || customer.latitude == null || customer.longitude == null) return;
+
+      const distanceM = haversineDistanceM(
+        latitude,
+        longitude,
+        customer.latitude,
+        customer.longitude,
+      );
+      if (distanceM <= customer.geofenceRadiusMeters + DEPARTURE_MARGIN_M) {
+        this.departureStreaks.delete(onSite.id);
+        return;
+      }
+
+      const streak = (this.departureStreaks.get(onSite.id) ?? 0) + 1;
+      if (streak < DEPARTURE_CONSECUTIVE_FIXES) {
+        this.departureStreaks.set(onSite.id, streak);
+        return;
+      }
+
+      this.departureStreaks.delete(onSite.id);
+      await this.visitsService.markDeparted(onSite.id);
+      this.logger.log(
+        `Auto-departure: driver ${driverName} left ${customer.name} (visit ${onSite.id})`,
+      );
+    } catch (err) {
+      this.logger.error(`Auto-departure check failed for driver ${driverId}`, err);
+    }
   }
 
   // ── Redis latest position ────────────────────────────────
