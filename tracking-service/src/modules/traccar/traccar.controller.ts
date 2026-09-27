@@ -12,6 +12,8 @@ import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { TraccarIngestionService } from './traccar-ingestion.service';
 import { TraccarPositionDto, TraccarEventDto } from './dto';
 
+const KNOTS_TO_KMH = 1.852;
+
 // @Public() bypasses the global JWT guard (Traccar has no JWT); ApiKeyGuard then
 // enforces the shared secret via the `x-api-key` header so the webhook isn't open.
 @Public()
@@ -111,7 +113,9 @@ export class TraccarController {
       latitude: pos.latitude,
       longitude: pos.longitude,
       altitude: pos.altitude,
-      speed: pos.speed,
+      // Traccar reports speed in knots; everything downstream (ETA, UI,
+      // history, reports) works in km/h.
+      speed: typeof pos.speed === 'number' ? pos.speed * KNOTS_TO_KMH : pos.speed,
       course: pos.course,
       accuracy: pos.accuracy,
       attributes: {
