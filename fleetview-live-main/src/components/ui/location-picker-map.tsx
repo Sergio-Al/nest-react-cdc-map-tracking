@@ -4,6 +4,7 @@ import { DivIcon, type LatLngExpression } from 'leaflet';
 import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import { cn } from '@/lib/utils';
+import { getMapTiles } from '@/lib/mapTiles';
 
 const DEFAULT_CENTER: [number, number] = [-16.5, -68.15]; // La Paz
 
@@ -58,9 +59,7 @@ export function LocationPickerMap({
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const tiles = getMapTiles(isDark);
 
   const hasPin = lat != null && lng != null;
   const center: LatLngExpression = useMemo(
@@ -89,8 +88,8 @@ export function LocationPickerMap({
       >
         <TileLayer
           key={isDark ? 'dark' : 'light'}
-          attribution='&copy; OpenStreetMap &copy; CARTO'
-          url={tileUrl}
+          attribution={tiles.attribution}
+          url={tiles.url}
         />
 
         {onChange && <ClickHandler onChange={onChange} />}

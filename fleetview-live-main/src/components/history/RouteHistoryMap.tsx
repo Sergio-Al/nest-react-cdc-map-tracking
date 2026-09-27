@@ -23,6 +23,7 @@ import type { HistoryPosition } from '@/types/history.types';
 import type { FilterToggles } from './RouteHistoryFilter';
 import type { Driver } from '@/types/driver.types';
 import { fmtDuration } from '@/lib/mock/historyMock';
+import { getMapTiles } from '@/lib/mapTiles';
 
 // La Paz default center
 const DEFAULT_CENTER: LatLngExpression = [-16.5, -68.1];
@@ -210,9 +211,7 @@ export function RouteHistoryMap({ driver, toggles, showPlayback }: RouteHistoryM
   const isDark = resolvedTheme === 'dark';
   const { t } = useTranslation('history');
 
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const tiles = getMapTiles(isDark);
 
   const hasRoute = positions.length > 0;
 
@@ -250,8 +249,8 @@ export function RouteHistoryMap({ driver, toggles, showPlayback }: RouteHistoryM
       >
         <TileLayer
           key={isDark ? 'dark' : 'light'}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url={tileUrl}
+          attribution={tiles.attribution}
+          url={tiles.url}
         />
 
         <FitBounds positions={positions} />

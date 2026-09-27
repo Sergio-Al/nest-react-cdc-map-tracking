@@ -11,6 +11,7 @@ import type { Customer } from '@/types/customer.types';
 import type { RouteGeometry } from '@/hooks/api/useRouteBuilder';
 import { decodePolyline } from '@/lib/polyline';
 import { cn } from '@/lib/utils';
+import { getMapTiles } from '@/lib/mapTiles';
 import { useRouteBuilderStore } from '@/stores/routeBuilder.store';
 import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
 import { useRoutes } from '@/hooks/api/useRoutes';
@@ -251,17 +252,15 @@ export function RouteBuilderMap({
     return pts;
   }, [visitPositions, depotPosition]);
 
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const tiles = getMapTiles(isDark);
 
   return (
     <div className="relative isolate min-w-0 flex-1 overflow-hidden">
       <MapContainer center={[-16.51, -68.1]} zoom={13} className="h-full w-full" zoomControl={false}>
         <TileLayer
           key={isDark ? 'dark' : 'light'}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url={tileUrl}
+          attribution={tiles.attribution}
+          url={tiles.url}
         />
 
         <FitBounds positions={fit} />
