@@ -13,8 +13,8 @@
     "driverLoginExists": "This driver already has a login account",
     "insufficientPermissions": "Insufficient permissions",
     "tokenInvalid": "Invalid session token",
-    "workspaceTaken": "Workspace '{{id}}' is already taken",
-    "workspaceReserved": "Workspace '{{id}}' is reserved",
+    "workspaceTaken": "Workspace '{id}' is already taken",
+    "workspaceReserved": "Workspace '{id}' is reserved",
     "workspaceInvalid": "Workspace id must be 3-30 characters: lowercase letters, numbers, hyphens"
   },
   "history": {
@@ -24,44 +24,44 @@
   "routes": {
     "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",
     "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates",
-    "notFound": "Route {{id}} not found",
+    "notFound": "Route {id} not found",
     "noVisits": "Route has no visits",
     "noVisitsToOptimize": "Route has no visits to optimize",
     "noPendingVisits": "No pending visits to optimize",
-    "visitNotInRoute": "Visit {{visitId}} does not belong to route {{routeId}}",
-    "customerHasNoCoords": "Customer {{customerId}} not found or has no coordinates",
-    "driverConflict": "Driver already has a route assigned on {{date}}",
+    "visitNotInRoute": "Visit {visitId} does not belong to route {routeId}",
+    "customerHasNoCoords": "Customer {customerId} not found or has no coordinates",
+    "driverConflict": "Driver already has a route assigned on {date}",
     "depotIncomplete": "A depot needs both latitude and longitude"
   },
   "visits": {
-    "notFound": "Visit {{id}} not found",
-    "cannotDeleteInStatus": "Cannot delete visit in '{{status}}' status",
+    "notFound": "Visit {id} not found",
+    "cannotDeleteInStatus": "Cannot delete visit in '{status}' status",
     "cannotAccessOtherDriver": "Cannot access other drivers visits",
     "cannotUpdateOtherDriver": "Cannot update visits for other drivers"
   },
   "vehicles": {
-    "plateExists": "Vehicle with plate {{plate}} already exists",
-    "notFound": "Vehicle {{id}} not found"
+    "plateExists": "Vehicle with plate {plate} already exists",
+    "notFound": "Vehicle {id} not found"
   },
   "drivers": {
     "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",
     "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates",
-    "notFound": "Driver {{id}} not found",
-    "deviceInUse": "Device {{deviceId}} is already paired to another driver"
+    "notFound": "Driver {id} not found",
+    "deviceInUse": "Device {deviceId} is already paired to another driver"
   },
   "orders": {
-    "notFound": "Order {{id}} not found",
+    "notFound": "Order {id} not found",
     "appCreateDisabled": "Order creation from the app is disabled for this tenant; orders are managed by your integrated system"
   },
   "subscriptions": {
-    "seatLimitReached": "Driver seat limit reached ({{limit}}). Upgrade your plan or add seats to add more drivers",
-    "featureNotInPlan": "The '{{feature}}' feature is not included in your current plan",
+    "seatLimitReached": "Driver seat limit reached ({limit}). Upgrade your plan or add seats to add more drivers",
+    "featureNotInPlan": "The '{feature}' feature is not included in your current plan",
     "integrationNotAllowed": "System integration is not available on your current plan; upgrade to enable it",
     "billingNotConfigured": "Billing is not configured on this server",
     "webhookNoBody": "Missing request body",
     "webhookSignatureInvalid": "Invalid or missing Stripe signature",
-    "planNotFound": "Plan '{{plan}}' does not exist",
-    "planNotPurchasable": "Plan '{{plan}}' is not available for self-serve checkout",
+    "planNotFound": "Plan '{plan}' does not exist",
+    "planNotPurchasable": "Plan '{plan}' is not available for self-serve checkout",
     "noBillingCustomer": "No billing account yet — start a checkout first"
   },
   "osrm": {
