@@ -1130,6 +1130,8 @@ El helper `translateApiError()` del frontend (`src/lib/apiError.ts`) inspecciona
 
 ## 🧪 Pruebas Manuales
 
+> **Las pruebas unitarias automatizadas** (154 pruebas que cubren enrichment, visitas, auth, conductores, pedidos y los handlers de comandos del integration-service) están documentadas en [TESTING.es.md](TESTING.es.md) ([versión en inglés](TESTING.md)). Se ejecutan con `npm test` dentro de `tracking-service/` o `integration-service-nest/` — sin necesidad de Docker.
+
 ### Verificar sincronización CDC
 
 ```bash
