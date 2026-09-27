@@ -18,6 +18,7 @@
     "logoutFailed": "Logout failed"
   },
   "palette": {
+    "noRoute": "No route today",
     "placeholder": "Search drivers or type a command…",
     "empty": "No results found.",
     "groups": {

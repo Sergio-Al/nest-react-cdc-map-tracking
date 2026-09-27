@@ -18,6 +18,7 @@
     "logoutFailed": "No se pudo cerrar sesión"
   },
   "palette": {
+    "noRoute": "Sin ruta hoy",
     "placeholder": "Busca conductores o escribe un comando…",
     "empty": "Sin resultados",
     "groups": {

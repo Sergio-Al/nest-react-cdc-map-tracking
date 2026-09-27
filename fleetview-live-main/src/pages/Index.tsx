@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { socketService } from "@/lib/socket";
 import { DriverInbox } from "@/components/dashboard/DriverInbox";
 import { MapWorkspace } from "@/components/dashboard/MapWorkspace";
 import { DriverPanel, DriverPanelBody } from "@/components/dashboard/DriverPanel";
@@ -20,6 +22,17 @@ const Index = () => {
   const selectDriver = useMapStore((state) => state.selectDriver);
 
   const { isConnected } = useSocket();
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!isConnected) return;
+    const onVisit = (event: { driverId: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['driver-route', event.driverId] });
+      queryClient.invalidateQueries({ queryKey: ['driver-events', event.driverId] });
+      queryClient.invalidateQueries({ queryKey: ['driver-route-summaries'] });
+    };
+    socketService.onVisitUpdate(onVisit);
+    return () => socketService.offVisitUpdate(onVisit);
+  }, [isConnected, queryClient]);
   useDriverPositions(isConnected);
   useDashboardHotkeys();
 

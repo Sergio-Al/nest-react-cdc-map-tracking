@@ -47,7 +47,8 @@
     "fromToRequired": "Query params \"from\" and \"to\" are required (ISO 8601)",
     "fromToInvalid": "\"from\" and \"to\" must be valid ISO 8601 dates",
     "notFound": "Driver {id} not found",
-    "deviceInUse": "Device {deviceId} is already paired to another driver"
+    "deviceInUse": "Device {deviceId} is already paired to another driver",
+    "rangeTooLarge": "The time range can be at most {max} hours"
   },
   "orders": {
     "notFound": "Order {id} not found",

@@ -47,7 +47,8 @@
     "fromToRequired": "Los parámetros \"from\" y \"to\" son obligatorios (ISO 8601)",
     "fromToInvalid": "\"from\" y \"to\" deben ser fechas ISO 8601 válidas",
     "notFound": "Conductor {id} no encontrado",
-    "deviceInUse": "El dispositivo {deviceId} ya está vinculado a otro conductor"
+    "deviceInUse": "El dispositivo {deviceId} ya está vinculado a otro conductor",
+    "rangeTooLarge": "El rango de tiempo puede ser de máximo {max} horas"
   },
   "orders": {
     "notFound": "Pedido {id} no encontrado",
