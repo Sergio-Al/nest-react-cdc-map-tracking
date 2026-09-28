@@ -118,13 +118,13 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Binlog configuration (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tables + seed data (accounts, customers, products, orders)
+│   │       ├── 02-seed-customers-lapaz.sql # La Paz customers (20 tenant-1, 3 tenant-2) — MySQL-owned, reach PG via CDC
 │   │       └── 03-drivers.sql        # MySQL drivers table (legacy; drivers now PG-owned, kept for dormant inbound-sync)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Cache schema (sync, drivers, routes, visits, positions)
 │   │       ├── 02-cached-users.sql   # Users table (source of truth, owned by tracking-service) + admin seed accounts
 │   │       ├── 03-route-optimizer.sql # Route optimization columns (routes & planned_visits)
-│   │       ├── 04-seed-customers-lapaz.sql # La Paz customer seed data (20 tenant-1, 3 tenant-2)
 │   │       ├── 05-vehicles.sql       # Vehicles table + seed data
 │   │       ├── 06-routes-unique-driver-date.sql # One active route per driver per day (partial unique index)
 │   │       ├── 07-routes-depot.sql    # Per-route depot columns
@@ -349,9 +349,10 @@ This downloads the Bolivia OSM extract from Geofabrik, clips it to the La Paz bo
 docker exec -i cache-db psql -U tracking -d tracking_cache \
   < infrastructure/cache-db/init/03-route-optimizer.sql
 
-# Seed 23 La Paz customers with real coordinates
-docker exec -i cache-db psql -U tracking -d tracking_cache \
-  < infrastructure/cache-db/init/04-seed-customers-lapaz.sql
+# Seed 23 La Paz customers with real coordinates. They are MySQL-owned (the demo
+# tenants are integrated), so they go into MySQL and reach PostgreSQL via CDC.
+docker exec -i mysql mysql -uroot -proot_secret core_business \
+  < infrastructure/mysql/init/02-seed-customers-lapaz.sql
 
 # Enforce one active route per driver per day (partial unique index).
 # Fails if existing data double-books a driver — cancel/reassign the extras first.

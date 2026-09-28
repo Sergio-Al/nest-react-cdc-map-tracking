@@ -118,13 +118,13 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Configuración de binlog (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tablas + datos semilla (accounts, customers, products, orders)
+│   │       ├── 02-seed-customers-lapaz.sql # Clientes de La Paz (20 tenant-1, 3 tenant-2) — de MySQL, llegan a PG vía CDC
 │   │       └── 03-drivers.sql        # Tabla drivers MySQL (legacy; ahora PG-owned, se conserva para sync de entrada dormido)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Esquema del caché (sync, drivers, routes, visits, positions)
 │   │       ├── 02-cached-users.sql   # Tabla users (fuente de verdad, propia de tracking-service) + cuentas admin semilla
 │   │       ├── 03-route-optimizer.sql # Columnas de optimización de rutas (routes & planned_visits)
-│   │       ├── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
 │   │       ├── 05-vehicles.sql       # Tabla de vehículos + datos semilla
 │   │       ├── 06-routes-unique-driver-date.sql # Una ruta activa por conductor por día (índice único parcial)
 │   │       ├── 07-routes-depot.sql    # Columnas de depósito por ruta
@@ -349,9 +349,10 @@ Esto descarga el extracto OSM de Bolivia desde Geofabrik, lo recorta al bounding
 docker exec -i cache-db psql -U tracking -d tracking_cache \
   < infrastructure/cache-db/init/03-route-optimizer.sql
 
-# Semillar 23 clientes de La Paz con coordenadas reales
-docker exec -i cache-db psql -U tracking -d tracking_cache \
-  < infrastructure/cache-db/init/04-seed-customers-lapaz.sql
+# Semillar 23 clientes de La Paz con coordenadas reales. Pertenecen a MySQL (los
+# tenants demo son integrados), así que van a MySQL y llegan a PostgreSQL vía CDC.
+docker exec -i mysql mysql -uroot -proot_secret core_business \
+  < infrastructure/mysql/init/02-seed-customers-lapaz.sql
 
 # Forzar una ruta activa por conductor por día (índice único parcial).
 # Falla si los datos existentes duplican un conductor — cancela/reasigna los extras primero.

@@ -121,9 +121,8 @@ AUTH=(-H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json")
 
 # A customer id to attach orders/visits to. The integrated path inserts into
 # MySQL `orders`, whose customer_id FK requires the row to exist in MySQL
-# `customers` (source of truth) — not just the PG cache (which the La Paz seed
-# populates directly with extra customers). So pick from MySQL: that id is
-# guaranteed in the PG cache too (via CDC), satisfying both modes.
+# `customers` (source of truth). All seeded customers (incl. the La Paz ones)
+# live in MySQL and reach the PG cache via CDC, so a MySQL id satisfies both modes.
 CUST=$(mysqldb "SELECT id FROM customers WHERE tenant_id='$TENANT' ORDER BY id LIMIT 1;")
 [ -n "$CUST" ] || { echo "no MySQL customers for $TENANT — seed customers first"; exit 1; }
 echo "using customer_id=$CUST, driver_id=$DRIVER_ID"
