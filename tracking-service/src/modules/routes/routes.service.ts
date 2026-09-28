@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { localDate } from '../../common/utils/local-date';
 import {
   Injectable,
   NotFoundException,
@@ -20,6 +22,7 @@ export class RoutesService {
     private readonly routeRepo: Repository<Route>,
     @InjectRepository(PlannedVisit, 'cacheDb')
     private readonly visitRepo: Repository<PlannedVisit>,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -160,7 +163,8 @@ export class RoutesService {
   }
 
   async findTodayByDriver(driverId: string): Promise<Route | null> {
-    const today = new Date().toISOString().split('T')[0];
+    // Local day, not UTC — see localDate().
+    const today = localDate(this.config.get<string>('defaultTz') ?? 'America/La_Paz');
     return this.routeRepo.findOne({
       where: { driverId, scheduledDate: today },
       relations: ['visits'],
