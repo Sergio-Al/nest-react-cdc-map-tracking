@@ -3,6 +3,7 @@ export const WS_EVENTS = {
   POSITION_UPDATE: 'position:update',
   VISIT_UPDATE: 'visit:update',
   CDC_LAG: 'cdc:lag',
+  CDC_CHANGE: 'cdc:change',
   ERROR: 'error',
 
   // Client → Server
@@ -30,4 +31,14 @@ export interface JoinRouteDto {
 export interface ActiveDriversResponse {
   drivers: string[];
   count: number;
+}
+
+export interface CdcChangeEvent {
+  table: 'accounts' | 'customers' | 'products' | 'orders';
+  op: 'c' | 'u' | 'd';
+  id: number;
+  tenantId: string;
+  sourceTsMs: number | null;
+  appliedAt: string;
+  latencyMs: number | null;
 }

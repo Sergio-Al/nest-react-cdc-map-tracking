@@ -40,6 +40,7 @@ export function useRouteBuilderActions() {
     async (
       customerIds: number[],
       window: { start?: string; end?: string } = {},
+      orderId?: number,
     ) => {
       if (!selectedRouteId || !selectedDriverId || !user?.tenantId || customerIds.length === 0) {
         return;
@@ -53,6 +54,7 @@ export function useRouteBuilderActions() {
               routeId: selectedRouteId,
               driverId: selectedDriverId,
               customerId,
+              orderId: customerIds.length === 1 ? orderId : undefined,
               sequenceNumber: localVisits.length + i + 1,
               scheduledDate,
               timeWindowStart: window.start ? `${window.start}:00` : undefined,

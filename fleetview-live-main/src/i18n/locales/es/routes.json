@@ -142,6 +142,10 @@
     "statusFailed": "No se pudo actualizar el estado de la ruta"
   },
   "palette": {
+    "orderLabel": "Vincular pedido",
+    "orderNone": "Sin pedido vinculado",
+    "orderPickOne": "Selecciona un cliente para vincular un pedido",
+    "orderUnavailable": "No hay pedidos sin asignar para este cliente",
     "searchPlaceholder": "Busca clientes por nombre o dirección…",
     "chips": {
       "all": "Todos",

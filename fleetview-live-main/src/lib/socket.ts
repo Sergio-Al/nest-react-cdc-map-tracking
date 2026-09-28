@@ -11,6 +11,7 @@ import type {
   JoinDriverDto,
   JoinRouteDto,
   ActiveDriversResponse,
+  CdcChangeEvent,
 } from '@/types/ws-events.types';
 import type { CdcLagSnapshot } from '@/types/monitoring.types';
 
@@ -217,6 +218,14 @@ class SocketService {
   offCdcLag(callback: (data: CdcLagSnapshot) => void): void {
     if (!this.socket) return;
     this.socket.off(WS_EVENTS.CDC_LAG, callback);
+  }
+
+  onCdcChange(callback: (data: CdcChangeEvent) => void): void {
+    this.socket?.on(WS_EVENTS.CDC_CHANGE, callback);
+  }
+
+  offCdcChange(callback: (data: CdcChangeEvent) => void): void {
+    this.socket?.off(WS_EVENTS.CDC_CHANGE, callback);
   }
 
   // Request active drivers
