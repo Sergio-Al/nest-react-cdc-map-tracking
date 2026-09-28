@@ -25,6 +25,7 @@ import {
   JoinRouteDto,
   ActiveDriversResponse,
   GatewayStats,
+  CdcChangeEvent,
   WS_EVENTS,
 } from './ws.types';
 import { CdcLagSnapshot } from '../sync/cdc-metrics.service';
@@ -303,6 +304,14 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.logger.debug(
       `Broadcast visit event ${event.visitId} (${event.currentStatus}) to ${rooms.length} rooms`,
     );
+  }
+
+  /**
+   * Broadcast a CDC business-data change to the owning tenant.
+   */
+  broadcastCdcChange(event: CdcChangeEvent): void {
+    this.server.to(`tenant:${event.tenantId}`).emit(WS_EVENTS.CDC_CHANGE, event);
+    this.logger.debug(`Broadcast cdc:change ${event.table}#${event.id} (${event.op}) to tenant:${event.tenantId}`);
   }
 
   /**
