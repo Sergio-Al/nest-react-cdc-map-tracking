@@ -153,7 +153,7 @@ services:
 
   # ─── CDC Connector Init (register Debezium connector) ─────
   # One-shot: upserts the MySQL CDC connector so a fresh clone needs no manual
-  # scripts/register-cdc-connector.sh run (that script stays for re-runs/tweaks).
+  # scripts/cdc/register-cdc-connector.sh run (that script stays for re-runs/tweaks).
   cdc-connector-init:
     image: curlimages/curl:latest
     container_name: cdc-connector-init
@@ -161,7 +161,7 @@ services:
       kafka-connect:
         condition: service_healthy
     volumes:
-      - ./scripts/cdc-connector-config.json:/cdc-connector-config.json:ro
+      - ./scripts/cdc/cdc-connector-config.json:/cdc-connector-config.json:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

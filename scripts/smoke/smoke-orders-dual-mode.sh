@@ -12,8 +12,8 @@
 # Prereqs: infra up (docker), tracking-service on :3000, integration-service
 #          rebuilt, the migration applied, and `jq` installed.
 #
-# Usage:   bash scripts/smoke-orders-dual-mode.sh
-#          CLEAN=1 bash scripts/smoke-orders-dual-mode.sh    # remove seeded rows
+# Usage:   bash scripts/smoke/smoke-orders-dual-mode.sh
+#          CLEAN=1 bash scripts/smoke/smoke-orders-dual-mode.sh    # remove seeded rows
 #
 # Env overrides: BASE_URL, LOGIN_EMAIL, LOGIN_PASS, TENANT_ID, DRIVER_ID
 # Note: this flips tenant-1's ingest_mode while running and restores it to
@@ -72,11 +72,11 @@ preflight_cdc(){
     fi
     echo "❌ CDC connector '$name' captures orders but is unhealthy (connector=$cstate, non-running tasks=${tfail:-?})."
     echo "   Inspect:      curl $CONNECT/connectors/$name/status | jq"
-    echo "   Re-register:  bash scripts/register-cdc-connector.sh"
+    echo "   Re-register:  bash scripts/cdc/register-cdc-connector.sh"
     exit 1
   done
   echo "❌ No Debezium connector captures core_business.orders — integrated mode can't sync to orders_cache."
-  echo "   Register it:  bash scripts/register-cdc-connector.sh"
+  echo "   Register it:  bash scripts/cdc/register-cdc-connector.sh"
   echo "   (or run standalone-only with SKIP_CDC_CHECK=1)"
   exit 1
 }

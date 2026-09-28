@@ -277,7 +277,7 @@ docker exec -i mysql mysql -uroot -proot_secret core_business \
 
 ```bash
 # Esperar a que Kafka Connect esté listo, luego registrar el conector
-bash scripts/register-cdc-connector.sh
+bash scripts/cdc/register-cdc-connector.sh
 ```
 
 Esto configura Debezium para capturar cambios de las tablas `accounts`, `customers`, `products` y `orders` de MySQL y publicarlos en los tópicos `cdc.*` de Kafka.

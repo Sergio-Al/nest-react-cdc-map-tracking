@@ -17,12 +17,12 @@
  * beforehand in the Route Builder (/routes) and must be scheduled for today (La Paz day).
  *
  * Usage:
- *   node scripts/simulate-route.mts --list                     # today's routes
- *   node scripts/simulate-route.mts --route <uuid> --dry-run   # preview, sends nothing
- *   node scripts/simulate-route.mts --route <uuid>             # drive it
- *   node scripts/simulate-route.mts --route <a> --route <b>    # several drivers at once
- *   node scripts/simulate-route.mts --backfill 14              # seed 14 past workdays for Reports
- *   node scripts/simulate-route.mts --clear-backfill           # remove everything --backfill wrote
+ *   node scripts/simulators/simulate-route.mts --list                     # today's routes
+ *   node scripts/simulators/simulate-route.mts --route <uuid> --dry-run   # preview, sends nothing
+ *   node scripts/simulators/simulate-route.mts --route <uuid>             # drive it
+ *   node scripts/simulators/simulate-route.mts --route <a> --route <b>    # several drivers at once
+ *   node scripts/simulators/simulate-route.mts --backfill 14              # seed 14 past workdays for Reports
+ *   node scripts/simulators/simulate-route.mts --clear-backfill           # remove everything --backfill wrote
  *
  * Backfill mode generates COMPLETED past workdays (Mon–Sat) for every driver with
  * a paired device: routes + visits in PostgreSQL, positions + visit completions
@@ -919,8 +919,8 @@ async function listRoutes(api: Api): Promise<void> {
 async function main(): Promise<void> {
   if (opts['clear-backfill']) return clearBackfill();
   if (opts.help || (!opts.list && !opts.route?.length && !opts.backfill)) {
-    console.log('Usage: node scripts/simulate-route.mts --list | --route <uuid> [--route <uuid>…] [--dry-run] [--dwell 90] [--interval 5] [--cruise 32] [--no-complete] [--force]');
-    console.log('       node scripts/simulate-route.mts --backfill <days> [--stops 4-7] [--dry-run] | --clear-backfill');
+    console.log('Usage: node scripts/simulators/simulate-route.mts --list | --route <uuid> [--route <uuid>…] [--dry-run] [--dwell 90] [--interval 5] [--cruise 32] [--no-complete] [--force]');
+    console.log('       node scripts/simulators/simulate-route.mts --backfill <days> [--stops 4-7] [--dry-run] | --clear-backfill');
     return;
   }
 

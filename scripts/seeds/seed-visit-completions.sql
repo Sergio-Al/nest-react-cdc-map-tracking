@@ -21,7 +21,7 @@
 -- would be evaluated ONCE for the whole statement — do not use that here.
 --
 -- Run:  docker exec -i timescale psql -U timescale -d tracking_history \
---         < scripts/seed-visit-completions.sql
+--         < scripts/seeds/seed-visit-completions.sql
 -- ════════════════════════════════════════════════════════════════════════
 
 DELETE FROM visit_completions;

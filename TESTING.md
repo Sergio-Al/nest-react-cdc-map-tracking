@@ -152,7 +152,7 @@ Same as customers for the three operations (`create`/`update`/`status`), plus:
 ## What is NOT unit-tested (and why)
 
 - **Controllers, gateways and infrastructure modules** (`redis`, `timescale`, Kafka wrappers): they are thin glue; better covered by e2e against the Docker stack. (Exception: the Traccar webhook's payload normalization, which carries the knots → km/h conversion.)
-- **End-to-end pipeline behaviour** (Traccar → Kafka → enrichment → geofence → visits): exercised live with `scripts/simulate-route.mts` (see the README).
+- **End-to-end pipeline behaviour** (Traccar → Kafka → enrichment → geofence → visits): exercised live with `scripts/simulators/simulate-route.mts` (see the README).
 - **TypeORM query-builder internals**: the observable result is asserted, not the call chain (except where the clause IS the logic, like the date filter in `getNextVisitForDriver`).
 - The full CDC flow MySQL → Debezium → Kafka → cache already has its own e2e verification: `scripts/` (`smoke-orders-dual-mode.sh`) and the `/verify-cdc` skill.
 

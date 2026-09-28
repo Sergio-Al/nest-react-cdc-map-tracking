@@ -2,12 +2,12 @@
  * External ERP demo: write to MySQL directly, then observe Debezium → Kafka → PG.
  * Node >=22.18, no npm dependencies. Requires the local Docker stack for live modes.
  *
- *   node scripts/simulate-erp.mts --once [--with-routes --drive]
- *   node scripts/simulate-erp.mts --once --pause-connector
- *   node scripts/simulate-erp.mts --business-day --interval 60
- *   node scripts/simulate-erp.mts --dry-run --once
- *   node scripts/simulate-erp.mts --list-runs
- *   node scripts/simulate-erp.mts --clear <run-id>
+ *   node scripts/simulators/simulate-erp.mts --once [--with-routes --drive]
+ *   node scripts/simulators/simulate-erp.mts --once --pause-connector
+ *   node scripts/simulators/simulate-erp.mts --business-day --interval 60
+ *   node scripts/simulators/simulate-erp.mts --dry-run --once
+ *   node scripts/simulators/simulate-erp.mts --list-runs
+ *   node scripts/simulators/simulate-erp.mts --clear <run-id>
  *
  * Mutations are tagged and saved in scripts/.erp-runs/<run-id>.json. --clear
  * restores pre-existing rows, deletes run-created orders/products, and removes
@@ -39,7 +39,8 @@ const { values: opts } = parseArgs({ options: {
   help: { type: 'boolean', short: 'h', default: false },
 } });
 
-const RUN_DIR = join(dirname(fileURLToPath(import.meta.url)), '.erp-runs');
+// Run manifests live in scripts/.erp-runs (gitignored), next to — not inside — simulators/.
+const RUN_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '.erp-runs');
 const API = opts.api!.replace(/\/$/, '') + '/api';
 const CONNECT = opts.connect!.replace(/\/$/, '');
 const CONNECTOR = 'mysql-cdc-v4';
@@ -349,7 +350,7 @@ async function once(api: Api, customers: CustomerRow[], m: RunManifest): Promise
     const record = await routeOrders(api, m);
     if (opts.drive) await driveRoute(api, m, record);
   }
-  console.log(`Done. Open /orders, /customers, /routes and /monitoring. Cleanup: node scripts/simulate-erp.mts --clear ${m.id}`);
+  console.log(`Done. Open /orders, /customers, /routes and /monitoring. Cleanup: node scripts/simulators/simulate-erp.mts --clear ${m.id}`);
 }
 
 async function businessDay(customers: CustomerRow[], m: RunManifest, intervalSeconds: number): Promise<void> {
@@ -364,7 +365,7 @@ async function businessDay(customers: CustomerRow[], m: RunManifest, intervalSec
     if (n % 7 === 0) await editProduct(m);
     if (!stopping) await sleep(intervalSeconds * 1000);
   }
-  console.log(`Stopped. Cleanup: node scripts/simulate-erp.mts --clear ${m.id}`);
+  console.log(`Stopped. Cleanup: node scripts/simulators/simulate-erp.mts --clear ${m.id}`);
 }
 
 async function clearRun(m: RunManifest): Promise<void> {

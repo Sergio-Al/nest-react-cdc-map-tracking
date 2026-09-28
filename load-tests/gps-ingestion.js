@@ -13,7 +13,7 @@ import { Rate, Trend } from 'k6/metrics';
  *   1. Infrastructure running: docker compose up -d
  *   2. Tracking service running: cd tracking-service && npm run start:dev
  *   3. Load test drivers seeded:
- *      docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seed-load-test-drivers.sql
+ *      docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seeds/seed-load-test-drivers.sql
  *
  * Run:
  *   k6 run load-tests/gps-ingestion.js

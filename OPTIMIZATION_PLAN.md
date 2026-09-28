@@ -199,7 +199,7 @@ Findings from a full-project review (2026-06-09), organized into executable phas
 **Fix:** In both target files, convert to named exports (`export function gpsIngestion() {...}`) and keep `export default` for standalone runs.
 
 ### 5.2 Seed script fails against the partial unique index
-**Files:** `scripts/seed-load-test-drivers.sql:44`, cf. `infrastructure/cache-db/init/09-drivers-device-unique.sql:21-23`
+**Files:** `scripts/seeds/seed-load-test-drivers.sql:44`, cf. `infrastructure/cache-db/init/09-drivers-device-unique.sql:21-23`
 **Problem:** `ON CONFLICT (device_id)` can't be inferred from the partial index `... WHERE device_id IS NOT NULL`.
 **Fix:** `ON CONFLICT (device_id) WHERE device_id IS NOT NULL DO UPDATE ...`.
 
@@ -224,7 +224,7 @@ Run: seed → `k6 run load-tests/full-scenario.js` → watch consumer lag (Kafka
 - `main.ts:54` — floating `bootstrap()` promise → add `.catch()`.
 - **Compose:** add a healthcheck to `integration-service` (note: node:alpine has no curl — use wget) and make `/healthz` reflect consumer-running state (`startWithRetry` gives up after 12 attempts while healthz keeps returning ok). Add memory limits to kafka/mysql/timescale/cache-db/redis/traccar. Pin `kafka-ui` and `osrm` image tags (currently `:latest`). Remove the stale `cdc.users` topic from kafka-init (`docker-compose.yml:101`) — users were cut from CDC.
 - **integration-service Dockerfile:** `npm ci` instead of `npm install`, add `USER node`.
-- **Debezium as MySQL root:** `scripts/register-cdc-connector.sh:31-34` — create a `debezium` MySQL user with only `SELECT, RELOAD, REPLICATION SLAVE, REPLICATION CLIENT` on `core_business`.
+- **Debezium as MySQL root:** `scripts/cdc/register-cdc-connector.sh:31-34` — create a `debezium` MySQL user with only `SELECT, RELOAD, REPLICATION SLAVE, REPLICATION CLIENT` on `core_business`.
 - `infrastructure/mysql/conf/my.cnf:6` — deprecated `expire_logs_days` → `binlog_expire_logs_seconds`.
 - **Dev port mismatch:** `fleetview-live-main/vite.config.ts` sets `port: 3001` but docs say 5173 → align (prefer fixing config to 5173 to match all docs).
 - Expired in-process customer-cache entries only evicted on read (`customer-cache.service.ts:19`) → add periodic sweep or max size.

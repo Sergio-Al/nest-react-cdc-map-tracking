@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────
 # Register the Debezium MySQL CDC connector with Kafka Connect
-# Usage:  ./scripts/register-cdc-connector.sh
+# Usage:  ./scripts/cdc/register-cdc-connector.sh
 # ─────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -19,7 +19,7 @@ echo "📡 Registering MySQL CDC connector (upsert)..."
 # and updates it in place if it already exists — so re-running this script is
 # safe and never 409s (unlike POST /connectors). Body is the bare config object
 # (no {name, config} envelope) shared with the cdc-connector-init compose
-# service: scripts/cdc-connector-config.json — edit it there, not here.
+# service: scripts/cdc/cdc-connector-config.json — edit it there, not here.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 curl -sf -X PUT "${CONNECT_URL}/connectors/mysql-cdc-v4/config" \
   -H "Content-Type: application/json" \

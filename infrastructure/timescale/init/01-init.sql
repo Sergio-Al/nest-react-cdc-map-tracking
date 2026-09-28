@@ -80,7 +80,7 @@ SELECT add_retention_policy('enriched_positions', INTERVAL '365 days', if_not_ex
 -- Daily driver stats.
 -- Buckets in the deployment-default timezone (America/La_Paz) so "daily" means
 -- the local civil day, not a UTC day. One tz per deployment — keep in sync with
--- tracking-service DEFAULT_TZ. (Existing DBs: run scripts/migrate-daily-stats-tz.sql.)
+-- tracking-service DEFAULT_TZ. (Existing DBs: run scripts/migrations/migrate-daily-stats-tz.sql.)
 CREATE MATERIALIZED VIEW IF NOT EXISTS driver_daily_stats
 WITH (timescaledb.continuous) AS
 SELECT
