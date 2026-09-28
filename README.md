@@ -1190,7 +1190,7 @@ curl -s -X POST http://localhost:3000/api/traccar/positions \
 Create the route for today in the Route Builder (`/routes`) first; the driver needs a paired device. Requires Node ≥ 22.18, no dependencies.
 
 ```bash
-node scripts/simulate-route.mts --list                     # today's routes (UTC date)
+node scripts/simulate-route.mts --list                     # today's routes
 node scripts/simulate-route.mts --route <uuid> --dry-run   # preview legs, distance, duration
 node scripts/simulate-route.mts --route <uuid>             # drive it (Ctrl-C stops cleanly)
 node scripts/simulate-route.mts --route <a> --route <b>    # several drivers at once
@@ -1201,6 +1201,21 @@ node scripts/simulate-route.mts --clear-backfill           # remove exactly what
 `--backfill` generates completed past workdays (Mon–Sat) for every driver with a paired device, using the same streets and driving model, and writes them directly to PostgreSQL and TimescaleDB (via `docker exec … psql`) — the live pipeline only auto-arrives today's visits. It skips days where a driver already has a route and refreshes `driver_daily_stats`. Live runs also refresh it at the end, so Reports include them immediately.
 
 Useful flags: `--dwell 90` (seconds per stop), `--cruise 32` (km/h), `--interval 5` (seconds between fixes), `--no-complete` (leave visits for you to complete in the UI), `--force` (skip pre-flight conflicts), `--allow-manual-arrival` (keep going if auto-arrival doesn't fire). The header of the script documents every option.
+
+### Simulate the tenant's ERP (Business-tier CDC demo)
+
+CDC integration is the **Business-tier** upsell: in `integrated` mode MySQL `core_business` is the tenant's own system of record, and the platform follows it through Debezium. `scripts/simulate-erp.mts` plays that external system — it writes **directly to MySQL** (never through the app) and measures how long each change takes to become visible in PostgreSQL. The dashboard refreshes live via the `cdc:change` WebSocket event and shows a toast such as *"Cambio recibido desde tu sistema · pedido #9 · 0.2 s"*.
+
+```bash
+node scripts/simulate-erp.mts --dry-run --once               # preview, writes nothing
+node scripts/simulate-erp.mts --once                         # orders, customer move, price change, cancellation
+node scripts/simulate-erp.mts --once --with-routes --drive   # full loop, see below
+node scripts/simulate-erp.mts --once --pause-connector       # pause Debezium, write, resume: catch-up from offsets
+node scripts/simulate-erp.mts --business-day --interval 60   # continuous stream of ERP changes
+node scripts/simulate-erp.mts --list-runs | --clear <run-id> # undo exactly what a run did
+```
+
+`--with-routes --drive` closes the loop: ERP orders → CDC → a route with the orders attached → `simulate-route.mts` drives it → each completed visit writes the order status back to MySQL (`commands.orders`) → CDC confirms it in PostgreSQL. The script refuses to run unless the tenant's plan allows integration **and** it is switched on (`GET /api/me/entitlements`). Run manifests live in `scripts/.erp-runs/` (gitignored).
 
 ### Create a full route and visit
 

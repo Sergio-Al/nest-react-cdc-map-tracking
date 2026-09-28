@@ -1181,7 +1181,7 @@ curl -s -X POST http://localhost:3000/api/traccar/positions \
 Primero crea la ruta para hoy en el Route Builder (`/routes`); el conductor necesita un dispositivo emparejado. Requiere Node ≥ 22.18, sin dependencias.
 
 ```bash
-node scripts/simulate-route.mts --list                     # rutas de hoy (fecha UTC)
+node scripts/simulate-route.mts --list                     # rutas de hoy
 node scripts/simulate-route.mts --route <uuid> --dry-run   # vista previa: tramos, distancia, duración
 node scripts/simulate-route.mts --route <uuid>             # recorrerla (Ctrl-C detiene limpiamente)
 node scripts/simulate-route.mts --route <a> --route <b>    # varios conductores a la vez
@@ -1192,6 +1192,21 @@ node scripts/simulate-route.mts --clear-backfill           # elimina exactamente
 `--backfill` genera jornadas pasadas completadas (lun–sáb) para cada conductor con dispositivo emparejado, con las mismas calles y modelo de conducción, y las escribe directamente en PostgreSQL y TimescaleDB (vía `docker exec … psql`) — el pipeline en vivo solo marca llegadas automáticas en visitas de hoy. Omite los días en que el conductor ya tiene ruta y refresca `driver_daily_stats`. Las corridas en vivo también lo refrescan al terminar, así los Reportes las incluyen de inmediato.
 
 Opciones útiles: `--dwell 90` (segundos por parada), `--cruise 32` (km/h), `--interval 5` (segundos entre posiciones), `--no-complete` (deja las visitas para completarlas tú en la UI), `--force` (ignora conflictos del pre-chequeo), `--allow-manual-arrival` (continúa si la llegada automática no se dispara). El encabezado del script documenta todas las opciones.
+
+### Simular el ERP del tenant (demo CDC del plan Business)
+
+La integración CDC es el upsell del **plan Business**: en modo `integrated`, MySQL `core_business` es el sistema propio del tenant y la plataforma lo sigue vía Debezium. `scripts/simulate-erp.mts` hace de ese sistema externo — escribe **directamente en MySQL** (nunca a través de la app) y mide cuánto tarda cada cambio en ser visible en PostgreSQL. El dashboard se actualiza en vivo con el evento WebSocket `cdc:change` y muestra un aviso como *"Cambio recibido desde tu sistema · pedido #9 · 0.2 s"*.
+
+```bash
+node scripts/simulate-erp.mts --dry-run --once               # vista previa, no escribe nada
+node scripts/simulate-erp.mts --once                         # pedidos, mover cliente, cambio de precio, cancelación
+node scripts/simulate-erp.mts --once --with-routes --drive   # ciclo completo, ver abajo
+node scripts/simulate-erp.mts --once --pause-connector       # pausar Debezium, escribir, reanudar: se pone al día desde los offsets
+node scripts/simulate-erp.mts --business-day --interval 60   # flujo continuo de cambios del ERP
+node scripts/simulate-erp.mts --list-runs | --clear <run-id> # deshace exactamente lo que hizo una corrida
+```
+
+`--with-routes --drive` cierra el ciclo: pedidos del ERP → CDC → una ruta con los pedidos vinculados → `simulate-route.mts` la recorre → cada visita completada escribe el estado del pedido de vuelta en MySQL (`commands.orders`) → CDC lo confirma en PostgreSQL. El script se niega a correr salvo que el plan del tenant permita la integración **y** esté activada (`GET /api/me/entitlements`). Los manifiestos de cada corrida quedan en `scripts/.erp-runs/` (en .gitignore).
 
 ### Crear ruta y visita completa
 
