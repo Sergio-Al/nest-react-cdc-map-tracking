@@ -12,7 +12,7 @@
 -- no future-dated "completed" visits). Re-run any time to refresh coverage.
 --
 -- IDs match the seeds: customers 1..20 (tenant-1) / 21..23 (tenant-2) from
--- cache-db 04-seed-customers-lapaz.sql; driver UUIDs from the drivers cache.
+-- mysql/init/02-seed-customers-lapaz.sql (synced to PG by CDC); driver UUIDs from the drivers cache.
 -- Zone distribution is driven naturally by how many customers each zone has
 -- (Centro has the most → busiest), so By-zone reflects the real customer map.
 --
@@ -21,13 +21,13 @@
 -- would be evaluated ONCE for the whole statement — do not use that here.
 --
 -- Run:  docker exec -i timescale psql -U timescale -d tracking_history \
---         < scripts/seed-visit-completions.sql
+--         < scripts/seeds/seed-visit-completions.sql
 -- ════════════════════════════════════════════════════════════════════════
 
 DELETE FROM visit_completions;
 
 -- ── tenant-1: 2 drivers, customers 1001..1020, ~18 visits/day for 30 days ─
--- Customer ids track infrastructure/cache-db/init/04-seed-customers-lapaz.sql.
+-- Customer ids track infrastructure/mysql/init/02-seed-customers-lapaz.sql.
 INSERT INTO visit_completions
   (time, visit_id, tenant_id, driver_id, customer_id, route_id,
    visit_type, status, arrived_at, completed_at, duration_sec, on_time)

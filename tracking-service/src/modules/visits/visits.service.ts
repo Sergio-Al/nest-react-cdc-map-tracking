@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { localDate } from '../../common/utils/local-date';
 import { Injectable, NotFoundException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
@@ -20,7 +22,13 @@ export class VisitsService {
     private readonly kafkaProducer: KafkaProducerService,
     private readonly ordersService: OrdersService,
     private readonly timescale: TimescaleService,
+    private readonly config: ConfigService,
   ) {}
+
+  /** Today in the deployment timezone — see localDate(). */
+  private today(): string {
+    return localDate(this.config.get<string>('defaultTz') ?? 'America/La_Paz');
+  }
 
   async create(dto: CreateVisitDto): Promise<PlannedVisit> {
     const visit = this.visitRepo.create({
@@ -77,7 +85,7 @@ export class VisitsService {
   async getNextVisitForDriver(driverId: string): Promise<PlannedVisit | null> {
     // Only today/future visits — otherwise a stale unfinished visit from a past
     // day permanently hijacks the driver's ETA/geofence/auto-arrival context.
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.today();
     return this.visitRepo
       .createQueryBuilder('v')
       .where('v.driver_id = :driverId', { driverId })
@@ -102,7 +110,7 @@ export class VisitsService {
    * the stop before driving off — departure is still pending then.
    */
   async getOnSiteVisitForDriver(driverId: string): Promise<PlannedVisit | null> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.today();
     return this.visitRepo
       .createQueryBuilder('v')
       .where('v.driver_id = :driverId', { driverId })

@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { localDate } from '../../common/utils/local-date';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
@@ -97,6 +99,7 @@ describe('VisitsService', () => {
         { provide: KafkaProducerService, useValue: kafkaProducer },
         { provide: OrdersService, useValue: ordersService },
         { provide: TimescaleService, useValue: timescale },
+        { provide: ConfigService, useValue: { get: () => 'America/La_Paz' } },
       ],
     }).compile();
 
@@ -381,8 +384,26 @@ describe('VisitsService', () => {
       expect(queryBuilder.andWhere).toHaveBeenCalledWith('v.status IN (:...statuses)', {
         statuses: ['pending', 'en_route'],
       });
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDate('America/La_Paz');
       expect(queryBuilder.andWhere).toHaveBeenCalledWith('v.scheduled_date >= :today', { today });
+    });
+
+    it('uses the local day, not the UTC day, after 20:00 in La Paz (regression)', async () => {
+      // 00:30 UTC on Sep 28 is still Sep 27 at 20:30 in La Paz — tonight's route
+      // must stay eligible for auto-arrival.
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-28T00:30:00Z'));
+      try {
+        await service.getNextVisitForDriver('drv-1');
+        await service.getOnSiteVisitForDriver('drv-1');
+      } finally {
+        jest.useRealTimers();
+      }
+
+      const dateFilters = queryBuilder.andWhere.mock.calls.filter(([clause]: [string]) =>
+        clause.startsWith('v.scheduled_date >='),
+      );
+      expect(dateFilters).toHaveLength(2);
+      for (const [, params] of dateFilters) expect(params).toEqual({ today: '2026-09-27' });
     });
   });
 

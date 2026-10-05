@@ -118,13 +118,13 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Configuración de binlog (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tablas + datos semilla (accounts, customers, products, orders)
+│   │       ├── 02-seed-customers-lapaz.sql # Clientes de La Paz (20 tenant-1, 3 tenant-2) — de MySQL, llegan a PG vía CDC
 │   │       └── 03-drivers.sql        # Tabla drivers MySQL (legacy; ahora PG-owned, se conserva para sync de entrada dormido)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Esquema del caché (sync, drivers, routes, visits, positions)
 │   │       ├── 02-cached-users.sql   # Tabla users (fuente de verdad, propia de tracking-service) + cuentas admin semilla
 │   │       ├── 03-route-optimizer.sql # Columnas de optimización de rutas (routes & planned_visits)
-│   │       ├── 04-seed-customers-lapaz.sql # Datos semilla de clientes La Paz (20 tenant-1, 3 tenant-2)
 │   │       ├── 05-vehicles.sql       # Tabla de vehículos + datos semilla
 │   │       ├── 06-routes-unique-driver-date.sql # Una ruta activa por conductor por día (índice único parcial)
 │   │       ├── 07-routes-depot.sql    # Columnas de depósito por ruta
@@ -161,13 +161,21 @@ streaming-tracking-logistic/
 │       ├── modules/metrics/          # Contadores estilo Prometheus
 │       └── modules/health/           # Endpoints /healthz + /metrics
 │
-├── scripts/
-│   ├── register-cdc-connector.sh     # Registra/actualiza el conector Debezium (upsert PUT idempotente)
-│   ├── smoke-orders-dual-mode.sh     # Prueba e2e: pedidos modo standalone (PG) vs integrado (CDC)
-│   ├── seed-visit-completions.sql    # Siembra visitas completadas para demos de reportes/historial
-│   ├── migrate-daily-stats-tz.sql    # Rellena driver_daily_stats agrupado por zona horaria
-│   ├── seed-load-test-drivers.sql    # Genera 1,000 conductores de prueba (LOAD0001-LOAD1000)
-│   └── cleanup-load-test-drivers.sql # Elimina conductores de prueba de carga y sus posiciones
+├── scripts/                          # ver scripts/README.md
+│   ├── simulators/
+│   │   ├── simulate-route.mts        # Recorre rutas planificadas por el pipeline GPS en vivo; --backfill genera historial
+│   │   └── simulate-erp.mts          # ERP del plan Business: escribe en MySQL, muestra el ciclo CDC + latencia
+│   ├── cdc/
+│   │   ├── register-cdc-connector.sh # Registra/actualiza el conector Debezium (upsert PUT idempotente)
+│   │   └── cdc-connector-config.json # Config del conector (también la monta cdc-connector-init)
+│   ├── seeds/
+│   │   ├── seed-visit-completions.sql    # Siembra visitas completadas para demos de reportes/historial
+│   │   ├── seed-load-test-drivers.sql    # Genera 1,000 conductores de prueba (LOAD0001-LOAD1000)
+│   │   └── cleanup-load-test-drivers.sql # Elimina conductores de prueba de carga y sus posiciones
+│   ├── migrations/
+│   │   └── migrate-daily-stats-tz.sql    # Rellena driver_daily_stats agrupado por zona horaria
+│   └── smoke/
+│       └── smoke-orders-dual-mode.sh     # Prueba e2e: pedidos modo standalone (PG) vs integrado (CDC)
 │
 ├── load-tests/                       # Scripts de prueba de carga k6
 │   ├── gps-ingestion.js              # Simulación de 1,000 dispositivos GPS
@@ -349,9 +357,10 @@ Esto descarga el extracto OSM de Bolivia desde Geofabrik, lo recorta al bounding
 docker exec -i cache-db psql -U tracking -d tracking_cache \
   < infrastructure/cache-db/init/03-route-optimizer.sql
 
-# Semillar 23 clientes de La Paz con coordenadas reales
-docker exec -i cache-db psql -U tracking -d tracking_cache \
-  < infrastructure/cache-db/init/04-seed-customers-lapaz.sql
+# Semillar 23 clientes de La Paz con coordenadas reales. Pertenecen a MySQL (los
+# tenants demo son integrados), así que van a MySQL y llegan a PostgreSQL vía CDC.
+docker exec -i mysql mysql -uroot -proot_secret core_business \
+  < infrastructure/mysql/init/02-seed-customers-lapaz.sql
 
 # Forzar una ruta activa por conductor por día (índice único parcial).
 # Falla si los datos existentes duplican un conductor — cancela/reasigna los extras primero.
@@ -371,16 +380,16 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 >
 > # Reconstruir driver_daily_stats para agrupar en la zona horaria del despliegue (DEFAULT_TZ)
 > docker exec -i timescale psql -U timescale -d tracking_history \
->   < scripts/migrate-daily-stats-tz.sql
+>   < scripts/migrations/migrate-daily-stats-tz.sql
 > ```
 
 ### 6. Registrar el conector CDC de Debezium
 
-**Esto ahora ocurre automáticamente**: el contenedor `cdc-connector-init` espera a Kafka Connect y hace upsert del conector en cada `docker compose up`. El script manual se mantiene para re-ejecuciones o tras editar la configuración del conector (la configuración vive en `scripts/cdc-connector-config.json`, compartida por ambas vías):
+**Esto ahora ocurre automáticamente**: el contenedor `cdc-connector-init` espera a Kafka Connect y hace upsert del conector en cada `docker compose up`. El script manual se mantiene para re-ejecuciones o tras editar la configuración del conector (la configuración vive en `scripts/cdc/cdc-connector-config.json`, compartida por ambas vías):
 
 ```bash
 # (Re)registro manual — idempotente
-bash scripts/register-cdc-connector.sh
+bash scripts/cdc/register-cdc-connector.sh
 ```
 
 Esto configura Debezium para capturar cambios de las tablas `accounts`, `customers`, `products` y `orders` de MySQL y publicarlos en los tópicos `cdc.*` de Kafka.
@@ -1175,22 +1184,37 @@ curl -s -X POST http://localhost:3000/api/traccar/positions \
 
 ### Simular una ruta planificada completa
 
-`scripts/simulate-route.mts` recorre una ruta planificada real como si el teléfono de un conductor ejecutara Traccar Client: envía posiciones que siguen las calles (OSRM) al puerto OsmAnd de Traccar (5055), así corre todo el pipeline (mapa en vivo, ETA, llegada/salida automática por geocerca, historial). En cada parada espera dentro de la geocerca y completa la visita vía API. La conducción es en tiempo real con la hora del reloj; solo se acorta la espera en cada parada.
+`scripts/simulators/simulate-route.mts` recorre una ruta planificada real como si el teléfono de un conductor ejecutara Traccar Client: envía posiciones que siguen las calles (OSRM) al puerto OsmAnd de Traccar (5055), así corre todo el pipeline (mapa en vivo, ETA, llegada/salida automática por geocerca, historial). En cada parada espera dentro de la geocerca y completa la visita vía API. La conducción es en tiempo real con la hora del reloj; solo se acorta la espera en cada parada.
 
 Primero crea la ruta para hoy en el Route Builder (`/routes`); el conductor necesita un dispositivo emparejado. Requiere Node ≥ 22.18, sin dependencias.
 
 ```bash
-node scripts/simulate-route.mts --list                     # rutas de hoy (fecha UTC)
-node scripts/simulate-route.mts --route <uuid> --dry-run   # vista previa: tramos, distancia, duración
-node scripts/simulate-route.mts --route <uuid>             # recorrerla (Ctrl-C detiene limpiamente)
-node scripts/simulate-route.mts --route <a> --route <b>    # varios conductores a la vez
-node scripts/simulate-route.mts --backfill 30               # genera 30 días laborales pasados para Historial/Reportes
-node scripts/simulate-route.mts --clear-backfill           # elimina exactamente lo que escribió --backfill
+node scripts/simulators/simulate-route.mts --list                     # rutas de hoy
+node scripts/simulators/simulate-route.mts --route <uuid> --dry-run   # vista previa: tramos, distancia, duración
+node scripts/simulators/simulate-route.mts --route <uuid>             # recorrerla (Ctrl-C detiene limpiamente)
+node scripts/simulators/simulate-route.mts --route <a> --route <b>    # varios conductores a la vez
+node scripts/simulators/simulate-route.mts --backfill 30               # genera 30 días laborales pasados para Historial/Reportes
+node scripts/simulators/simulate-route.mts --clear-backfill           # elimina exactamente lo que escribió --backfill
 ```
 
 `--backfill` genera jornadas pasadas completadas (lun–sáb) para cada conductor con dispositivo emparejado, con las mismas calles y modelo de conducción, y las escribe directamente en PostgreSQL y TimescaleDB (vía `docker exec … psql`) — el pipeline en vivo solo marca llegadas automáticas en visitas de hoy. Omite los días en que el conductor ya tiene ruta y refresca `driver_daily_stats`. Las corridas en vivo también lo refrescan al terminar, así los Reportes las incluyen de inmediato.
 
 Opciones útiles: `--dwell 90` (segundos por parada), `--cruise 32` (km/h), `--interval 5` (segundos entre posiciones), `--no-complete` (deja las visitas para completarlas tú en la UI), `--force` (ignora conflictos del pre-chequeo), `--allow-manual-arrival` (continúa si la llegada automática no se dispara). El encabezado del script documenta todas las opciones.
+
+### Simular el ERP del tenant (demo CDC del plan Business)
+
+La integración CDC es el upsell del **plan Business**: en modo `integrated`, MySQL `core_business` es el sistema propio del tenant y la plataforma lo sigue vía Debezium. `scripts/simulators/simulate-erp.mts` hace de ese sistema externo — escribe **directamente en MySQL** (nunca a través de la app) y mide cuánto tarda cada cambio en ser visible en PostgreSQL. El dashboard se actualiza en vivo con el evento WebSocket `cdc:change` y muestra un aviso como *"Cambio recibido desde tu sistema · pedido #9 · 0.2 s"*.
+
+```bash
+node scripts/simulators/simulate-erp.mts --dry-run --once               # vista previa, no escribe nada
+node scripts/simulators/simulate-erp.mts --once                         # pedidos, mover cliente, cambio de precio, cancelación
+node scripts/simulators/simulate-erp.mts --once --with-routes --drive   # ciclo completo, ver abajo
+node scripts/simulators/simulate-erp.mts --once --pause-connector       # pausar Debezium, escribir, reanudar: se pone al día desde los offsets
+node scripts/simulators/simulate-erp.mts --business-day --interval 60   # flujo continuo de cambios del ERP
+node scripts/simulators/simulate-erp.mts --list-runs | --clear <run-id> # deshace exactamente lo que hizo una corrida
+```
+
+`--with-routes --drive` cierra el ciclo: pedidos del ERP → CDC → una ruta con los pedidos vinculados → `simulate-route.mts` la recorre → cada visita completada escribe el estado del pedido de vuelta en MySQL (`commands.orders`) → CDC lo confirma en PostgreSQL. El script se niega a correr salvo que el plan del tenant permita la integración **y** esté activada (`GET /api/me/entitlements`). Los manifiestos de cada corrida quedan en `scripts/.erp-runs/` (en .gitignore).
 
 ### Crear ruta y visita completa
 
@@ -1370,7 +1394,7 @@ El proyecto incluye scripts de pruebas de carga con **k6** para validar el rendi
 
 - [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado
 - Todos los servicios de Docker Compose ejecutándose
-- Conductores de prueba de carga sembrados (directo al caché PG; reinicia `tracking-service` después para que el mapa de enriquecimiento los cargue): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seed-load-test-drivers.sql`
+- Conductores de prueba de carga sembrados (directo al caché PG; reinicia `tracking-service` después para que el mapa de enriquecimiento los cargue): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seeds/seed-load-test-drivers.sql`
 
 ### Scripts de Prueba
 
@@ -1409,7 +1433,7 @@ bash load-tests/check-system.sh
 ### Limpieza
 
 ```bash
-docker exec -i mysql mysql -u root -prootpassword tracking < scripts/cleanup-load-test-drivers.sql
+docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/cleanup-load-test-drivers.sql
 ```
 
 > Documentación completa: [load-tests/README.md](load-tests/README.md)

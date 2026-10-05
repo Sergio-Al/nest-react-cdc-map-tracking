@@ -269,15 +269,15 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
   < infrastructure/cache-db/init/03-route-optimizer.sql
 
 # Semillar 23 clientes de La Paz con coordenadas reales
-docker exec -i cache-db psql -U tracking -d tracking_cache \
-  < infrastructure/cache-db/init/04-seed-customers-lapaz.sql
+docker exec -i mysql mysql -uroot -proot_secret core_business \
+  < infrastructure/mysql/init/02-seed-customers-lapaz.sql
 ```
 
 ### 6. Registrar el conector CDC de Debezium
 
 ```bash
 # Esperar a que Kafka Connect esté listo, luego registrar el conector
-bash scripts/register-cdc-connector.sh
+bash scripts/cdc/register-cdc-connector.sh
 ```
 
 Esto configura Debezium para capturar cambios de las tablas `accounts`, `customers`, `products` y `orders` de MySQL y publicarlos en los tópicos `cdc.*` de Kafka.

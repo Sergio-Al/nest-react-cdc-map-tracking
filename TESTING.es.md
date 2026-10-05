@@ -152,7 +152,7 @@ Lo mismo que customers para las tres operaciones (`create`/`update`/`status`), m
 ## Qué NO se prueba unitariamente (y por qué)
 
 - **Controllers, gateways y módulos de infraestructura** (`redis`, `timescale`, wrappers de Kafka): son pegamento fino; se cubren mejor con e2e contra el stack de Docker. (Excepción: la normalización de payloads del webhook de Traccar, que hace la conversión nudos → km/h.)
-- **Comportamiento del pipeline de punta a punta** (Traccar → Kafka → enrichment → geocerca → visitas): se ejercita en vivo con `scripts/simulate-route.mts` (ver el README).
+- **Comportamiento del pipeline de punta a punta** (Traccar → Kafka → enrichment → geocerca → visitas): se ejercita en vivo con `scripts/simulators/simulate-route.mts` (ver el README).
 - **Internals de query builders de TypeORM**: se asserta el resultado observable, no la cadena de llamadas (salvo donde la cláusula ES la lógica, como el filtro de fechas de `getNextVisitForDriver`).
 - El flujo CDC completo MySQL → Debezium → Kafka → cache ya tiene verificación e2e propia: `scripts/` (`smoke-orders-dual-mode.sh`) y el skill `/verify-cdc`.
 

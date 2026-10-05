@@ -133,6 +133,7 @@ export function useAddVisit() {
       routeId: string;
       driverId: string;
       customerId: number;
+      orderId?: number;
       sequenceNumber: number;
       visitType?: string;
       scheduledDate: string;

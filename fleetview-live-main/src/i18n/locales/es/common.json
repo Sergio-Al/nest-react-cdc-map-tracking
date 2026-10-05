@@ -134,6 +134,11 @@
     "error": "Error de conexión, reconectando…",
     "sessionExpired": "Sesión expirada. Inicia sesión de nuevo."
   },
+  "cdcChange": {
+    "received": "Cambio recibido desde tu sistema · {{entity}} #{{id}} · {{latency}}",
+    "latencyUnknown": "sincronizado",
+    "entity": { "accounts": "cuenta", "customers": "cliente", "products": "producto", "orders": "pedido" }
+  },
   "notFound": {
     "title": "Página no encontrada",
     "description": "La ruta solicitada no existe.",

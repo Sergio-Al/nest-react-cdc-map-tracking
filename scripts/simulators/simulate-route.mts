@@ -14,15 +14,15 @@
  *
  * Requirements: Node >= 22.18 (runs .mts natively), the Docker stack up
  * (traccar, osrm, kafka, dbs) and tracking-service on :3000. The route is made
- * beforehand in the Route Builder (/routes) and must be scheduled for today (UTC).
+ * beforehand in the Route Builder (/routes) and must be scheduled for today (La Paz day).
  *
  * Usage:
- *   node scripts/simulate-route.mts --list                     # today's routes
- *   node scripts/simulate-route.mts --route <uuid> --dry-run   # preview, sends nothing
- *   node scripts/simulate-route.mts --route <uuid>             # drive it
- *   node scripts/simulate-route.mts --route <a> --route <b>    # several drivers at once
- *   node scripts/simulate-route.mts --backfill 14              # seed 14 past workdays for Reports
- *   node scripts/simulate-route.mts --clear-backfill           # remove everything --backfill wrote
+ *   node scripts/simulators/simulate-route.mts --list                     # today's routes
+ *   node scripts/simulators/simulate-route.mts --route <uuid> --dry-run   # preview, sends nothing
+ *   node scripts/simulators/simulate-route.mts --route <uuid>             # drive it
+ *   node scripts/simulators/simulate-route.mts --route <a> --route <b>    # several drivers at once
+ *   node scripts/simulators/simulate-route.mts --backfill 14              # seed 14 past workdays for Reports
+ *   node scripts/simulators/simulate-route.mts --clear-backfill           # remove everything --backfill wrote
  *
  * Backfill mode generates COMPLETED past workdays (Mon–Sat) for every driver with
  * a paired device: routes + visits in PostgreSQL, positions + visit completions
@@ -140,12 +140,30 @@ type Plan = { route: Route; driver: Driver; start: LatLon; legs: Leg[] };
 
 // ── API client (auto-refreshes the 15-min access token) ──────
 
+/**
+ * fetch that rides out a short outage (backend restart / deploy): network-level
+ * failures are retried with backoff for up to a minute — like a phone app would
+ * — instead of killing a long run. HTTP error statuses are returned as-is.
+ */
+async function fetchRetrying(url: string, init?: RequestInit): Promise<Response> {
+  const deadline = Date.now() + 60_000;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      if (Date.now() > deadline) throw err;
+      if (attempt === 1) console.warn(`⚠️  ${new URL(url).host} unreachable — retrying for up to 60 s…`);
+      await new Promise((r) => setTimeout(r, Math.min(1000 * attempt, 5000)));
+    }
+  }
+}
+
 class Api {
   private accessToken = '';
   private refreshToken = '';
 
   async login(): Promise<void> {
-    const res = await fetch(`${API}/auth/login`, {
+    const res = await fetchRetrying(`${API}/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email: opts.email, password: opts.password, tenantId: opts.tenant }),
@@ -160,7 +178,7 @@ class Api {
   }
 
   private async refresh(): Promise<void> {
-    const res = await fetch(`${API}/auth/refresh`, {
+    const res = await fetchRetrying(`${API}/auth/refresh`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ refreshToken: this.refreshToken }),
@@ -170,7 +188,7 @@ class Api {
   }
 
   async request<T>(method: string, path: string, body?: unknown, retried = false): Promise<T> {
-    const res = await fetch(`${API}${path}`, {
+    const res = await fetchRetrying(`${API}${path}`, {
       method,
       headers: {
         authorization: `Bearer ${this.accessToken}`,
@@ -277,7 +295,7 @@ async function sendFix(deviceId: string, p: LatLon, speedKmh: number, heading: n
     altitude: '3640',
     accuracy: '5',
   });
-  const res = await fetch(`${opts.osmand}/?${q}`, { method: 'POST' });
+  const res = await fetchRetrying(`${opts.osmand}/?${q}`, { method: 'POST' });
   if (!res.ok) throw new Error(`Traccar OsmAnd rejected fix (${res.status}) — is device ${deviceId} registered in Traccar?`);
 }
 
@@ -285,7 +303,8 @@ const sleep = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
 // ── Pre-flight + planning ────────────────────────────────────
 
-const todayUtc = () => new Date().toISOString().split('T')[0];
+/** Today in La Paz — the backend's "today" for auto-arrival/departure is the local day (DEFAULT_TZ). */
+const todayLocal = () => localYmd(new Date());
 
 async function buildPlan(api: Api, routeId: string, customers: Map<number, Customer>): Promise<Plan> {
   const route = await api.get<Route>(`/routes/${routeId}`);
@@ -296,11 +315,10 @@ async function buildPlan(api: Api, routeId: string, customers: Map<number, Custo
   if (route.status === 'completed' || route.status === 'cancelled') {
     throw new Error(`Route is already ${route.status}.`);
   }
-  // Backend geofence logic only considers visits scheduled today-or-later in UTC.
-  if (route.scheduledDate < todayUtc()) {
+  // Backend geofence logic only considers visits scheduled today-or-later (local day).
+  if (route.scheduledDate < todayLocal()) {
     problems.push(
-      `Route is scheduled ${route.scheduledDate} but today is ${todayUtc()} in UTC — auto-arrival ` +
-        `ignores it. (After 20:00 in La Paz the UTC date is already tomorrow.)`,
+      `Route is scheduled ${route.scheduledDate} but today is ${todayLocal()} — auto-arrival ignores past routes.`,
     );
   }
 
@@ -325,7 +343,7 @@ async function buildPlan(api: Api, routeId: string, customers: Map<number, Custo
     (v) =>
       v.routeId !== route.id &&
       ARRIVABLE.includes(v.status) &&
-      v.scheduledDate >= todayUtc() &&
+      v.scheduledDate >= todayLocal() &&
       v.sequenceNumber <= visits[visits.length - 1].sequenceNumber,
   );
   const parkedElsewhere = allVisits.filter(
@@ -511,7 +529,7 @@ class Simulator {
     if (ARRIVABLE.includes(current.status)) {
       const why =
         `auto-arrival did not fire at ${leg.to} within ${ARRIVAL_TIMEOUT_S}s (status ${current.status}). ` +
-        `Check Traccar forwarding, the enrichment logs, and that the route is scheduled for today (UTC).`;
+        `Check Traccar forwarding, the enrichment logs, and that the route is scheduled for today.`;
       if (!opts['allow-manual-arrival']) throw new Error(`${why} Re-run with --allow-manual-arrival to push through.`);
       this.log(`⚠️  ${why} Marking arrived via the API (--allow-manual-arrival).`);
       current = await this.api.patch<Visit>(`/visits/${visit.id}/status`, { status: 'arrived' });
@@ -883,13 +901,13 @@ function positiveNumber(raw: string, name: string): number {
 }
 
 async function listRoutes(api: Api): Promise<void> {
-  const today = todayUtc();
+  const today = todayLocal();
   const [routes, drivers] = await Promise.all([
     api.get<Route[]>(`/routes?from=${today}&to=${today}`),
     api.get<Driver[]>('/drivers'),
   ]);
   const byId = new Map(drivers.map((d) => [d.id, d]));
-  console.log(`Routes scheduled ${today} (UTC):`);
+  console.log(`Routes scheduled ${today}:`);
   if (!routes.length) console.log('  (none — create one in the Route Builder at /routes for today)');
   for (const r of routes) {
     const d = byId.get(r.driverId);
@@ -901,8 +919,8 @@ async function listRoutes(api: Api): Promise<void> {
 async function main(): Promise<void> {
   if (opts['clear-backfill']) return clearBackfill();
   if (opts.help || (!opts.list && !opts.route?.length && !opts.backfill)) {
-    console.log('Usage: node scripts/simulate-route.mts --list | --route <uuid> [--route <uuid>…] [--dry-run] [--dwell 90] [--interval 5] [--cruise 32] [--no-complete] [--force]');
-    console.log('       node scripts/simulate-route.mts --backfill <days> [--stops 4-7] [--dry-run] | --clear-backfill');
+    console.log('Usage: node scripts/simulators/simulate-route.mts --list | --route <uuid> [--route <uuid>…] [--dry-run] [--dwell 90] [--interval 5] [--cruise 32] [--no-complete] [--force]');
+    console.log('       node scripts/simulators/simulate-route.mts --backfill <days> [--stops 4-7] [--dry-run] | --clear-backfill');
     return;
   }
 

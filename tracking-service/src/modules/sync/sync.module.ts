@@ -11,6 +11,7 @@ import {
   SyncState,
 } from './entities';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { CustomersModule } from '../customers/customers.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
       SyncState,
     ], 'cacheDb'),
     forwardRef(() => WebsocketModule),
+    CustomersModule,
   ],
   controllers: [SyncController],
   providers: [CdcConsumerService, CdcMetricsService],

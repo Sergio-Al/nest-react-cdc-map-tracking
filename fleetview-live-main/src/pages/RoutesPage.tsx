@@ -14,6 +14,7 @@ import { useRouteBuilderActions } from '@/hooks/useRouteBuilderActions';
 import { useCustomers, useRouteGeometry } from '@/hooks/api/useRouteBuilder';
 import { useRoutes } from '@/hooks/api/useRoutes';
 import { useDrivers } from '@/hooks/api/useDrivers';
+import { useOrders } from '@/hooks/api/useOrders';
 import { useDatasetFilters } from '@/components/filters/useDatasetFilters';
 import { useSocket } from '@/hooks/useSocket';
 
@@ -74,6 +75,7 @@ export default function RoutesPage() {
   const { data: customers = [] } = useCustomers();
   const { data: routes = [], isSuccess: routesLoaded, isFetching: routesFetching } = useRoutes();
   const { data: drivers = [] } = useDrivers();
+  const { data: orders = [] } = useOrders();
   const { data: geometry } = useRouteGeometry(selectedRouteId, localVisits.length);
   const { addStops } = useRouteBuilderActions();
 
@@ -165,10 +167,12 @@ export default function RoutesPage() {
         open={paletteOpen}
         onClose={() => store.setPaletteOpen(false)}
         customers={customers}
+        orders={orders}
+        assignedOrderIds={routes.flatMap((route) => route.visits ?? []).map((visit) => Number(visit.orderId)).filter((id) => Number.isFinite(id) && id > 0)}
         existingCustomerIds={existingIds}
         origin={origin}
-        onAdd={(ids, window, keepOpen) => {
-          addStops(ids, window);
+        onAdd={(ids, window, keepOpen, orderId) => {
+          addStops(ids, window, orderId);
           if (!keepOpen) store.setPaletteOpen(false);
         }}
       />

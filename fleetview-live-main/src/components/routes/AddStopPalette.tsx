@@ -11,11 +11,14 @@ import {
 } from '@/lib/mock/customerMeta';
 import type { CustomerCategory, VisitWindow } from '@/lib/mock/customerMeta';
 import type { Customer } from '@/types/customer.types';
+import type { Order } from '@/types/order.types';
 
 interface AddStopPaletteProps {
   open: boolean;
   onClose: () => void;
   customers: Customer[];
+  orders: Order[];
+  assignedOrderIds: number[];
   existingCustomerIds: number[];
   /** Reference point for "+km" and nearness — last stop or depot. */
   origin: { lat: number; lon: number } | null;
@@ -23,6 +26,7 @@ interface AddStopPaletteProps {
     customerIds: number[],
     window: { start?: string; end?: string },
     keepOpen: boolean,
+    orderId?: number,
   ) => void;
   isLoading?: boolean;
 }
@@ -81,6 +85,8 @@ export function AddStopPalette({
   open,
   onClose,
   customers,
+  orders,
+  assignedOrderIds,
   existingCustomerIds,
   origin,
   onAdd,
@@ -93,6 +99,7 @@ export function AddStopPalette({
   const [win, setWin] = useState<VisitWindow>('morning');
   const [start, setStart] = useState('08:00');
   const [end, setEnd] = useState('12:00');
+  const [orderId, setOrderId] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
   const { t, i18n } = useTranslation('routes');
 
@@ -112,6 +119,7 @@ export function AddStopPalette({
       setWin('morning');
       setStart('08:00');
       setEnd('12:00');
+      setOrderId('');
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
@@ -186,6 +194,17 @@ export function AddStopPalette({
   // Flat list backing keyboard navigation + ⌘number quick-toggle.
   const rows = useMemo(() => [...matching, ...suggested], [matching, suggested]);
 
+  const targetCustomerId = selected.size === 1 ? [...selected][0] : selected.size === 0 ? rows[cursor]?.customer.id : undefined;
+  const availableOrders = useMemo(() => {
+    if (targetCustomerId == null) return [];
+    const assigned = new Set(assignedOrderIds);
+    return orders.filter((order) =>
+      Number(order.customerId) === Number(targetCustomerId) &&
+      ['pending', 'confirmed'].includes(order.status) &&
+      !assigned.has(Number(order.id)),
+    );
+  }, [assignedOrderIds, orders, targetCustomerId]);
+
   useEffect(() => {
     setCursor((c) => Math.min(c, Math.max(0, rows.length - 1)));
   }, [rows.length]);
@@ -209,10 +228,14 @@ export function AddStopPalette({
           ? [rows[cursor].customer.id]
           : [];
     if (ids.length === 0) return;
-    onAdd(ids, windowRange(), keepOpen);
+    const linkedOrder = ids.length === 1 && availableOrders.some((order) => Number(order.id) === Number(orderId))
+      ? Number(orderId)
+      : undefined;
+    onAdd(ids, windowRange(), keepOpen, linkedOrder);
     if (keepOpen) {
       setSelected(new Set());
       setQuery('');
+      setOrderId('');
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   };
@@ -232,6 +255,7 @@ export function AddStopPalette({
       onClose();
       return;
     }
+    if (e.target instanceof HTMLSelectElement) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setCursor((c) => Math.min(c + 1, rows.length - 1));
@@ -443,6 +467,23 @@ export function AddStopPalette({
               )}
             </>
           )}
+        </div>
+
+        {/* Optional order link for one selected customer */}
+        <div className="flex items-center gap-2.5 border-t border-border px-4 py-2.5">
+          <label htmlFor="route-order-picker" className="text-[10px] font-semibold uppercase tracking-[0.07em] text-mc-text-dim">
+            {t('palette.orderLabel')}
+          </label>
+          <select
+            id="route-order-picker"
+            value={availableOrders.some((order) => String(order.id) === orderId) ? orderId : ''}
+            onChange={(event) => setOrderId(event.target.value)}
+            disabled={targetCustomerId == null || availableOrders.length === 0}
+            className="min-w-0 flex-1 rounded-[6px] border border-border bg-background px-2 py-1.5 text-[11.5px] text-foreground disabled:opacity-50"
+          >
+            <option value="">{targetCustomerId == null ? t('palette.orderPickOne') : availableOrders.length ? t('palette.orderNone') : t('palette.orderUnavailable')}</option>
+            {availableOrders.map((order) => <option key={order.id} value={String(order.id)}>{order.orderNumber}</option>)}
+          </select>
         </div>
 
         {/* Window selector */}

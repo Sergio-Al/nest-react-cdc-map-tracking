@@ -36,6 +36,7 @@ infrastructure/osrm/data/
 
 # misc 
 tracking-project/
+scripts/.erp-runs/
 
 # claude
 .claude

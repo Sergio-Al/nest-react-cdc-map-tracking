@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { KafkaConsumerService } from '../kafka/kafka-consumer.service';
@@ -10,6 +10,9 @@ import {
   SyncState,
 } from './entities';
 import { CdcMetricsService } from './cdc-metrics.service';
+import { CustomerCacheService } from '../customers/customer-cache.service';
+import { TrackingGateway } from '../websocket/tracking.gateway';
+import { CdcChangeEvent } from '../websocket/ws.types';
 
 /**
  * CDC Consumer – listens to Debezium Kafka topics and syncs
@@ -31,12 +34,16 @@ export class CdcConsumerService implements OnModuleInit {
   private readonly topicEntityMap: Record<string, {
     repo: Repository<any>;
     tableName: string;
+    table: CdcChangeEvent['table'];
     mapFn: (data: Record<string, any>) => Record<string, any>;
   }>;
 
   constructor(
     private readonly kafkaConsumer: KafkaConsumerService,
     private readonly cdcMetrics: CdcMetricsService,
+    private readonly customerCache: CustomerCacheService,
+    @Inject(forwardRef(() => TrackingGateway))
+    private readonly trackingGateway: TrackingGateway,
 
     @InjectRepository(CachedAccount, 'cacheDb')
     private readonly accountRepo: Repository<CachedAccount>,
@@ -57,6 +64,7 @@ export class CdcConsumerService implements OnModuleInit {
       'cdc.accounts': {
         repo: this.accountRepo,
         tableName: 'accounts_cache',
+        table: 'accounts',
         mapFn: (d) => ({
           id: d.id,
           tenantId: d.tenant_id,
@@ -69,6 +77,7 @@ export class CdcConsumerService implements OnModuleInit {
       'cdc.customers': {
         repo: this.customerRepo,
         tableName: 'customers_cache',
+        table: 'customers',
         mapFn: (d) => ({
           id: d.id,
           tenantId: d.tenant_id,
@@ -88,6 +97,7 @@ export class CdcConsumerService implements OnModuleInit {
       'cdc.products': {
         repo: this.productRepo,
         tableName: 'products_cache',
+        table: 'products',
         mapFn: (d) => ({
           id: d.id,
           tenantId: d.tenant_id,
@@ -102,6 +112,7 @@ export class CdcConsumerService implements OnModuleInit {
       'cdc.orders': {
         repo: this.orderRepo,
         tableName: 'orders_cache',
+        table: 'orders',
         mapFn: (d) => ({
           id: d.id,
           tenantId: d.tenant_id,
@@ -157,6 +168,48 @@ export class CdcConsumerService implements OnModuleInit {
     return String(value).slice(0, 10);
   }
 
+  /**
+   * Side effects once the read model is updated. Best-effort: the PG write
+   * already succeeded, so a failure here must not fail the message (that would
+   * retry → DLQ an already-applied change).
+   *  - customers: drop the in-process + Redis entries so geofencing / ETA /
+   *    route optimization see moved coordinates or a new radius immediately
+   *    instead of after the 5-min Redis TTL.
+   *  - notify the owning tenant (`cdc:change`) so dashboards refetch — this is a
+   *    change made in the tenant's own system. Snapshot reads ('r') are skipped
+   *    so a (re)start doesn't flood clients.
+   */
+  private async afterApplied(
+    table: CdcChangeEvent['table'],
+    op: string,
+    data: Record<string, any>,
+    isDelete: boolean,
+    appliedAt: number,
+  ): Promise<void> {
+    const id = Number(data.id);
+    if (!Number.isFinite(id)) return;
+    try {
+      if (table === 'customers') await this.customerCache.invalidate(id);
+    } catch (err) {
+      this.logger.warn(`Customer cache invalidation failed for id=${id}: ${(err as Error).message}`);
+    }
+    if (op === 'r' || !data.tenant_id) return;
+    try {
+      const sourceTsMs = data.__source_ts_ms ? Number(data.__source_ts_ms) : null;
+      this.trackingGateway.broadcastCdcChange({
+        table,
+        op: isDelete ? 'd' : op === 'u' ? 'u' : 'c',
+        id,
+        tenantId: String(data.tenant_id),
+        sourceTsMs,
+        appliedAt: new Date(appliedAt).toISOString(),
+        latencyMs: sourceTsMs ? Math.max(0, appliedAt - sourceTsMs) : null,
+      });
+    } catch (err) {
+      this.logger.warn(`cdc:change broadcast failed for ${table}#${id}: ${(err as Error).message}`);
+    }
+  }
+
   private async processCdcMessage(
     topic: string,
     data: Record<string, any>,
@@ -166,7 +219,7 @@ export class CdcConsumerService implements OnModuleInit {
     const mapping = this.topicEntityMap[topic];
     if (!mapping) return;
 
-    const { repo, tableName, mapFn } = mapping;
+    const { repo, tableName, table, mapFn } = mapping;
     const op = data.__op || 'c'; // c=create, u=update, d=delete, r=read (snapshot)
     const isDelete = data.__deleted === 'true' || op === 'd';
 
@@ -183,6 +236,8 @@ export class CdcConsumerService implements OnModuleInit {
       await repo.upsert(entity, ['id']);
       this.logger.debug(`[${tableName}] UPSERTED id=${entity.id} (op=${op})`);
     }
+    // Read model is now visible — this is the "applied" moment for latency.
+    const appliedAt = Date.now();
 
     // Update sync state
     await this.syncStateRepo.upsert(
@@ -194,6 +249,8 @@ export class CdcConsumerService implements OnModuleInit {
       },
       ['tableName'],
     );
+
+    await this.afterApplied(table, op, data, isDelete, appliedAt);
 
     // Record metrics
     this.cdcMetrics.recordEvent(

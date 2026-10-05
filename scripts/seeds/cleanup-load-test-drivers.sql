@@ -1,6 +1,6 @@
 -- ============================================================
 -- Cleanup: Remove load test drivers
--- Run: docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/cleanup-load-test-drivers.sql
+-- Run: docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seeds/cleanup-load-test-drivers.sql
 -- ============================================================
 
 DELETE FROM driver_positions WHERE driver_id IN (

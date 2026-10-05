@@ -118,13 +118,13 @@ streaming-tracking-logistic/
 │   │   ├── conf/my.cnf               # Binlog configuration (ROW, GTID)
 │   │   └── init/
 │   │       ├── 01-init.sql           # Tables + seed data (accounts, customers, products, orders)
+│   │       ├── 02-seed-customers-lapaz.sql # La Paz customers (20 tenant-1, 3 tenant-2) — MySQL-owned, reach PG via CDC
 │   │       └── 03-drivers.sql        # MySQL drivers table (legacy; drivers now PG-owned, kept for dormant inbound-sync)
 │   ├── cache-db/
 │   │   └── init/
 │   │       ├── 01-init.sql           # Cache schema (sync, drivers, routes, visits, positions)
 │   │       ├── 02-cached-users.sql   # Users table (source of truth, owned by tracking-service) + admin seed accounts
 │   │       ├── 03-route-optimizer.sql # Route optimization columns (routes & planned_visits)
-│   │       ├── 04-seed-customers-lapaz.sql # La Paz customer seed data (20 tenant-1, 3 tenant-2)
 │   │       ├── 05-vehicles.sql       # Vehicles table + seed data
 │   │       ├── 06-routes-unique-driver-date.sql # One active route per driver per day (partial unique index)
 │   │       ├── 07-routes-depot.sql    # Per-route depot columns
@@ -161,13 +161,21 @@ streaming-tracking-logistic/
 │       ├── modules/metrics/          # Prometheus-style counters
 │       └── modules/health/           # /healthz + /metrics endpoints
 │
-├── scripts/
-│   ├── register-cdc-connector.sh     # Registers/updates the Debezium connector (idempotent PUT upsert)
-│   ├── smoke-orders-dual-mode.sh     # End-to-end smoke test: standalone (PG) vs integrated (CDC) orders
-│   ├── seed-visit-completions.sql    # Seeds completed visits for report/history demos
-│   ├── migrate-daily-stats-tz.sql    # Backfills timezone-bucketed driver_daily_stats
-│   ├── seed-load-test-drivers.sql    # Generates 1,000 test drivers (LOAD0001-LOAD1000)
-│   └── cleanup-load-test-drivers.sql # Removes load test drivers and their positions
+├── scripts/                          # see scripts/README.md
+│   ├── simulators/
+│   │   ├── simulate-route.mts        # Drives planned routes through the live GPS pipeline; --backfill seeds history
+│   │   └── simulate-erp.mts          # Business-tier ERP: writes to MySQL, shows the CDC round-trip + latency
+│   ├── cdc/
+│   │   ├── register-cdc-connector.sh # Registers/updates the Debezium connector (idempotent PUT upsert)
+│   │   └── cdc-connector-config.json # Connector config (also mounted by cdc-connector-init)
+│   ├── seeds/
+│   │   ├── seed-visit-completions.sql    # Seeds completed visits for report/history demos
+│   │   ├── seed-load-test-drivers.sql    # Generates 1,000 test drivers (LOAD0001-LOAD1000)
+│   │   └── cleanup-load-test-drivers.sql # Removes load test drivers and their positions
+│   ├── migrations/
+│   │   └── migrate-daily-stats-tz.sql    # Backfills timezone-bucketed driver_daily_stats
+│   └── smoke/
+│       └── smoke-orders-dual-mode.sh     # End-to-end smoke test: standalone (PG) vs integrated (CDC) orders
 │
 ├── load-tests/                       # k6 load testing scripts
 │   ├── gps-ingestion.js              # 1,000 GPS device simulation
@@ -349,9 +357,10 @@ This downloads the Bolivia OSM extract from Geofabrik, clips it to the La Paz bo
 docker exec -i cache-db psql -U tracking -d tracking_cache \
   < infrastructure/cache-db/init/03-route-optimizer.sql
 
-# Seed 23 La Paz customers with real coordinates
-docker exec -i cache-db psql -U tracking -d tracking_cache \
-  < infrastructure/cache-db/init/04-seed-customers-lapaz.sql
+# Seed 23 La Paz customers with real coordinates. They are MySQL-owned (the demo
+# tenants are integrated), so they go into MySQL and reach PostgreSQL via CDC.
+docker exec -i mysql mysql -uroot -proot_secret core_business \
+  < infrastructure/mysql/init/02-seed-customers-lapaz.sql
 
 # Enforce one active route per driver per day (partial unique index).
 # Fails if existing data double-books a driver — cancel/reassign the extras first.
@@ -371,16 +380,16 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 >
 > # Rebuild driver_daily_stats to bucket in the deployment timezone (DEFAULT_TZ)
 > docker exec -i timescale psql -U timescale -d tracking_history \
->   < scripts/migrate-daily-stats-tz.sql
+>   < scripts/migrations/migrate-daily-stats-tz.sql
 > ```
 
 ### 6. Register the Debezium CDC connector
 
-**This now happens automatically**: the `cdc-connector-init` container waits for Kafka Connect and upserts the connector on every `docker compose up`. The manual script remains for re-runs or after editing the connector config (the config itself lives in `scripts/cdc-connector-config.json`, shared by both paths):
+**This now happens automatically**: the `cdc-connector-init` container waits for Kafka Connect and upserts the connector on every `docker compose up`. The manual script remains for re-runs or after editing the connector config (the config itself lives in `scripts/cdc/cdc-connector-config.json`, shared by both paths):
 
 ```bash
 # Manual (re-)registration — idempotent
-bash scripts/register-cdc-connector.sh
+bash scripts/cdc/register-cdc-connector.sh
 ```
 
 This configures Debezium to capture changes from the `accounts`, `customers`, `products`, and `orders` MySQL tables and publish them to the `cdc.*` Kafka topics.
@@ -1184,22 +1193,37 @@ curl -s -X POST http://localhost:3000/api/traccar/positions \
 
 ### Simulate a full planned route
 
-`scripts/simulate-route.mts` drives a real planned route as if a driver's phone were running Traccar Client: road-following positions from OSRM are sent to Traccar's OsmAnd port (5055), so the whole pipeline runs (live map, ETA, geofence auto-arrival/departure, history). At each stop it dwells inside the geofence and completes the visit through the API. Driving is real time with wall-clock timestamps; only the dwell is shortened.
+`scripts/simulators/simulate-route.mts` drives a real planned route as if a driver's phone were running Traccar Client: road-following positions from OSRM are sent to Traccar's OsmAnd port (5055), so the whole pipeline runs (live map, ETA, geofence auto-arrival/departure, history). At each stop it dwells inside the geofence and completes the visit through the API. Driving is real time with wall-clock timestamps; only the dwell is shortened.
 
 Create the route for today in the Route Builder (`/routes`) first; the driver needs a paired device. Requires Node ≥ 22.18, no dependencies.
 
 ```bash
-node scripts/simulate-route.mts --list                     # today's routes (UTC date)
-node scripts/simulate-route.mts --route <uuid> --dry-run   # preview legs, distance, duration
-node scripts/simulate-route.mts --route <uuid>             # drive it (Ctrl-C stops cleanly)
-node scripts/simulate-route.mts --route <a> --route <b>    # several drivers at once
-node scripts/simulate-route.mts --backfill 30               # seed 30 past workdays for History/Reports
-node scripts/simulate-route.mts --clear-backfill           # remove exactly what --backfill wrote
+node scripts/simulators/simulate-route.mts --list                     # today's routes
+node scripts/simulators/simulate-route.mts --route <uuid> --dry-run   # preview legs, distance, duration
+node scripts/simulators/simulate-route.mts --route <uuid>             # drive it (Ctrl-C stops cleanly)
+node scripts/simulators/simulate-route.mts --route <a> --route <b>    # several drivers at once
+node scripts/simulators/simulate-route.mts --backfill 30               # seed 30 past workdays for History/Reports
+node scripts/simulators/simulate-route.mts --clear-backfill           # remove exactly what --backfill wrote
 ```
 
 `--backfill` generates completed past workdays (Mon–Sat) for every driver with a paired device, using the same streets and driving model, and writes them directly to PostgreSQL and TimescaleDB (via `docker exec … psql`) — the live pipeline only auto-arrives today's visits. It skips days where a driver already has a route and refreshes `driver_daily_stats`. Live runs also refresh it at the end, so Reports include them immediately.
 
 Useful flags: `--dwell 90` (seconds per stop), `--cruise 32` (km/h), `--interval 5` (seconds between fixes), `--no-complete` (leave visits for you to complete in the UI), `--force` (skip pre-flight conflicts), `--allow-manual-arrival` (keep going if auto-arrival doesn't fire). The header of the script documents every option.
+
+### Simulate the tenant's ERP (Business-tier CDC demo)
+
+CDC integration is the **Business-tier** upsell: in `integrated` mode MySQL `core_business` is the tenant's own system of record, and the platform follows it through Debezium. `scripts/simulators/simulate-erp.mts` plays that external system — it writes **directly to MySQL** (never through the app) and measures how long each change takes to become visible in PostgreSQL. The dashboard refreshes live via the `cdc:change` WebSocket event and shows a toast such as *"Cambio recibido desde tu sistema · pedido #9 · 0.2 s"*.
+
+```bash
+node scripts/simulators/simulate-erp.mts --dry-run --once               # preview, writes nothing
+node scripts/simulators/simulate-erp.mts --once                         # orders, customer move, price change, cancellation
+node scripts/simulators/simulate-erp.mts --once --with-routes --drive   # full loop, see below
+node scripts/simulators/simulate-erp.mts --once --pause-connector       # pause Debezium, write, resume: catch-up from offsets
+node scripts/simulators/simulate-erp.mts --business-day --interval 60   # continuous stream of ERP changes
+node scripts/simulators/simulate-erp.mts --list-runs | --clear <run-id> # undo exactly what a run did
+```
+
+`--with-routes --drive` closes the loop: ERP orders → CDC → a route with the orders attached → `simulate-route.mts` drives it → each completed visit writes the order status back to MySQL (`commands.orders`) → CDC confirms it in PostgreSQL. The script refuses to run unless the tenant's plan allows integration **and** it is switched on (`GET /api/me/entitlements`). Run manifests live in `scripts/.erp-runs/` (gitignored).
 
 ### Create a full route and visit
 
@@ -1267,7 +1291,7 @@ The project includes **k6** load testing scripts to validate system performance 
 
 - [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) installed
 - All Docker Compose services running
-- Load test drivers seeded (directly into the PG cache; restart `tracking-service` afterward so the enrichment map loads them): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seed-load-test-drivers.sql`
+- Load test drivers seeded (directly into the PG cache; restart `tracking-service` afterward so the enrichment map loads them): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seeds/seed-load-test-drivers.sql`
 
 ### Test Scripts
 
@@ -1306,7 +1330,7 @@ bash load-tests/check-system.sh
 ### Cleanup
 
 ```bash
-docker exec -i mysql mysql -u root -prootpassword tracking < scripts/cleanup-load-test-drivers.sql
+docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/cleanup-load-test-drivers.sql
 ```
 
 > Complete documentation: [load-tests/README.md](load-tests/README.md)

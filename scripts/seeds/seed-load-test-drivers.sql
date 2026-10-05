@@ -1,6 +1,6 @@
 -- ============================================================
 -- Load Test: Seed 1,000 drivers for GPS ingestion benchmarking
--- Run: docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seed-load-test-drivers.sql
+-- Run: docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seeds/seed-load-test-drivers.sql
 -- ============================================================
 
 -- Generate 1,000 drivers: 700 for tenant-1, 300 for tenant-2

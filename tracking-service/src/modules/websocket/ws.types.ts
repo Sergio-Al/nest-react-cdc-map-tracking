@@ -49,6 +49,24 @@ export interface GatewayStats {
 }
 
 /**
+ * A business-data change that arrived through CDC (MySQL → Debezium → PG) —
+ * i.e. made in the tenant's own system. Emitted to tenant:{tenantId} after the
+ * PostgreSQL read model was updated, so clients can refetch.
+ */
+export interface CdcChangeEvent {
+  table: 'accounts' | 'customers' | 'products' | 'orders';
+  op: 'c' | 'u' | 'd';
+  id: number;
+  tenantId: string;
+  /** MySQL commit time (Debezium __source_ts_ms). */
+  sourceTsMs: number | null;
+  /** When the PostgreSQL write finished (ISO). */
+  appliedAt: string;
+  /** appliedAt − sourceTsMs: commit → visible. */
+  latencyMs: number | null;
+}
+
+/**
  * Event names for type safety
  */
 export const WS_EVENTS = {
@@ -56,6 +74,7 @@ export const WS_EVENTS = {
   POSITION_UPDATE: 'position:update',
   VISIT_UPDATE: 'visit:update',
   CDC_LAG: 'cdc:lag',
+  CDC_CHANGE: 'cdc:change',
   ERROR: 'error',
 
   // Client → Server

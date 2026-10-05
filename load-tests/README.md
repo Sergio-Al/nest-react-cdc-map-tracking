@@ -31,7 +31,7 @@ Load testing suite for the Real-Time Vehicle Distribution Tracking System using 
 4. **Seed 1,000 test drivers**:
    ```bash
    docker exec -i cache-db psql -U tracking -d tracking_cache \
-     < scripts/seed-load-test-drivers.sql
+     < scripts/seeds/seed-load-test-drivers.sql
    ```
 
 ## Test Scripts
@@ -105,5 +105,5 @@ Test results are saved to `load-tests/results/` as JSON summaries:
 After testing, remove the load test drivers:
 ```bash
 docker exec -i cache-db psql -U tracking -d tracking_cache \
-  < scripts/cleanup-load-test-drivers.sql
+  < scripts/seeds/cleanup-load-test-drivers.sql
 ```

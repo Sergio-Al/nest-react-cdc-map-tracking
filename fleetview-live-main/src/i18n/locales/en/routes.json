@@ -142,6 +142,10 @@
     "statusFailed": "Failed to update route status"
   },
   "palette": {
+    "orderLabel": "Link order",
+    "orderNone": "No order linked",
+    "orderPickOne": "Select one customer to link an order",
+    "orderUnavailable": "No unassigned orders for this customer",
     "searchPlaceholder": "Search customers by name or address…",
     "chips": {
       "all": "All",

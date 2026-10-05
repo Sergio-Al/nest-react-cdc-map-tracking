@@ -10,7 +10,7 @@
 -- One tz per deployment — change the literal below to match DEFAULT_TZ.
 --
 -- Run:  docker exec -i timescale psql -U timescale -d tracking_history \
---         < scripts/migrate-daily-stats-tz.sql
+--         < scripts/migrations/migrate-daily-stats-tz.sql
 -- ════════════════════════════════════════════════════════════════════════
 
 DROP MATERIALIZED VIEW IF EXISTS driver_daily_stats CASCADE;

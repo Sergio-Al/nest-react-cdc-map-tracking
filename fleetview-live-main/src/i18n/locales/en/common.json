@@ -134,6 +134,11 @@
     "error": "Connection error, reconnecting…",
     "sessionExpired": "Session expired. Please log in again."
   },
+  "cdcChange": {
+    "received": "Change received from your system · {{entity}} #{{id}} · {{latency}}",
+    "latencyUnknown": "synced",
+    "entity": { "accounts": "account", "customers": "customer", "products": "product", "orders": "order" }
+  },
   "notFound": {
     "title": "Page not found",
     "description": "The requested route does not exist.",

@@ -12,8 +12,8 @@
 # Prereqs: infra up (docker), tracking-service on :3000, integration-service
 #          rebuilt, the migration applied, and `jq` installed.
 #
-# Usage:   bash scripts/smoke-orders-dual-mode.sh
-#          CLEAN=1 bash scripts/smoke-orders-dual-mode.sh    # remove seeded rows
+# Usage:   bash scripts/smoke/smoke-orders-dual-mode.sh
+#          CLEAN=1 bash scripts/smoke/smoke-orders-dual-mode.sh    # remove seeded rows
 #
 # Env overrides: BASE_URL, LOGIN_EMAIL, LOGIN_PASS, TENANT_ID, DRIVER_ID
 # Note: this flips tenant-1's ingest_mode while running and restores it to
@@ -72,11 +72,11 @@ preflight_cdc(){
     fi
     echo "❌ CDC connector '$name' captures orders but is unhealthy (connector=$cstate, non-running tasks=${tfail:-?})."
     echo "   Inspect:      curl $CONNECT/connectors/$name/status | jq"
-    echo "   Re-register:  bash scripts/register-cdc-connector.sh"
+    echo "   Re-register:  bash scripts/cdc/register-cdc-connector.sh"
     exit 1
   done
   echo "❌ No Debezium connector captures core_business.orders — integrated mode can't sync to orders_cache."
-  echo "   Register it:  bash scripts/register-cdc-connector.sh"
+  echo "   Register it:  bash scripts/cdc/register-cdc-connector.sh"
   echo "   (or run standalone-only with SKIP_CDC_CHECK=1)"
   exit 1
 }
@@ -121,9 +121,8 @@ AUTH=(-H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json")
 
 # A customer id to attach orders/visits to. The integrated path inserts into
 # MySQL `orders`, whose customer_id FK requires the row to exist in MySQL
-# `customers` (source of truth) — not just the PG cache (which the La Paz seed
-# populates directly with extra customers). So pick from MySQL: that id is
-# guaranteed in the PG cache too (via CDC), satisfying both modes.
+# `customers` (source of truth). All seeded customers (incl. the La Paz ones)
+# live in MySQL and reach the PG cache via CDC, so a MySQL id satisfies both modes.
 CUST=$(mysqldb "SELECT id FROM customers WHERE tenant_id='$TENANT' ORDER BY id LIMIT 1;")
 [ -n "$CUST" ] || { echo "no MySQL customers for $TENANT — seed customers first"; exit 1; }
 echo "using customer_id=$CUST, driver_id=$DRIVER_ID"
