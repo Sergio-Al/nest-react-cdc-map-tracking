@@ -23,6 +23,7 @@ A Real-time vehicle tracking system designed to monitor at least **1,000 drivers
 - [Internationalization](#-internationalization)
 - [Manual Testing](#-manual-testing)
 - [Project Status](#-project-status)
+- [Documentation](#-documentation)
 
 ---
 
@@ -241,7 +242,7 @@ streaming-tracking-logistic/
         │   └── api/                  # useDrivers, useVehicles, useRoutes, useRouteBuilder,
         │                             #   useHistory, useReports, useDriverDetail
         ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles,
-        │                             #   Drivers, Customers, Reports, Settings, NotFound
+        │                             #   Drivers, Customers, Orders, Reports, Settings, Signup, NotFound
         ├── stores/                   # Zustand stores (auth, map, playback, routeBuilder, reports, dashboard)
         └── types/                    # TypeScript interfaces
 ```
@@ -611,6 +612,18 @@ Fallback: Direct MySQL query
 
 ## 📦 NestJS Service Modules
 
+### `auth/` — Authentication & Signup
+- **AuthService/Controller**: JWT login, refresh/logout, profiles, and admin user creation. Public self-serve signup claims a workspace, creates its owner admin, starts a reverse trial, and returns login tokens. Users are PostgreSQL-owned; refresh tokens are stored in Redis.
+
+### `tenants/` — Workspace Registry
+- **TenantsService**: Validates workspace slugs (format, reserved names, availability) and atomically creates tenants in PostgreSQL, rejecting concurrent duplicate claims.
+
+### `onboarding/` — User Onboarding State
+- **OnboardingService/Controller**: Reads and saves each authenticated user's checklist/progress items, keyed by item key, with status, step, and seen timestamp in PostgreSQL.
+
+### `orders/` — Per-Tenant Order Management
+- **OrdersService/Controller**: Tenant-scoped reads from `orders_cache`; create/update and visit-completion status writes delegate to a per-tenant writer selected by `tenant_settings.ingest_mode`. Standalone writes go directly to PostgreSQL; integrated writes use `commands.orders` → MySQL → CDC. Integrated app create/update also requires `allow_app_order_create`.
+
 ### `kafka/` — Kafka Producer & Consumer
 - **KafkaProducerService**: Produces individual and batch messages to any topic.
 - **KafkaConsumerService**: Registers handlers per topic with `fromBeginning` option. Manages a single consumer with multiple subscriptions.
@@ -695,6 +708,8 @@ The API uses JWT-based authentication with role-based access control.
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | POST | `/api/auth/login` | Public | Authenticate and get tokens |
+| POST | `/api/auth/signup` | Public | Self-serve owner signup: create a tenant/workspace and return login tokens (rate-limited) |
+| GET | `/api/auth/workspace-available` | Public | Check workspace slug availability via `?id=` (rate-limited) |
 | POST | `/api/auth/refresh` | Public | Refresh access token |
 | POST | `/api/auth/register` | Admin | Create new user |
 | POST | `/api/auth/logout` | Authenticated | Invalidate refresh token |
@@ -787,6 +802,12 @@ TRACCAR_PROVISIONING_ENABLED=true
 |---|---|---|
 | GET | `/api/drivers` | List all drivers |
 | GET | `/api/drivers/:id` | Get driver by ID |
+| GET | `/api/drivers/positions/all` | Latest positions for the authenticated tenant |
+| GET | `/api/drivers/:id/position` | Latest position for a driver in the tenant, or `null` |
+| GET | `/api/drivers/:id/events` | Derived activity feed; requires `from`/`to` (maximum 48 hours); drivers see only their own feed |
+| GET | `/api/drivers/:id/distance` | Distance driven in km; requires `from`/`to` (maximum 48 hours); drivers see only their own distance |
+| POST | `/api/drivers/:id/login` | Create a driver's login user (admin/dispatcher; returns `201`) |
+| POST | `/api/drivers/me/device` | Idempotent self-serve device provisioning for the authenticated driver app (driver only; returns `200`) |
 | POST | `/api/drivers` | Create driver (direct PG write, returns `201`) |
 | PATCH | `/api/drivers/:id` | Update driver |
 | DELETE | `/api/drivers/:id` | Soft-deactivate driver (`status='inactive'`, clears device) |
@@ -800,6 +821,7 @@ TRACCAR_PROVISIONING_ENABLED=true
 | POST | `/api/routes` | Create route |
 | GET | `/api/routes` | List routes (supports `?from=&to=&status=` date range filter) |
 | GET | `/api/routes/:id` | Get route with visits |
+| GET | `/api/routes/:id/geometry` | Road-following route geometry from OSRM (tenant-scoped) |
 | PATCH | `/api/routes/:id` | Update route (e.g. change status) |
 | GET | `/api/routes/driver/:driverId/active` | Driver's active route |
 | GET | `/api/routes/driver/:driverId/today` | Driver's routes for today |
@@ -822,6 +844,19 @@ TRACCAR_PROVISIONING_ENABLED=true
 | Method | Route | Description |
 |---|---|---|
 | GET | `/api/customers` | List all customers (filtered by tenant) |
+| POST | `/api/customers` | Create via Kafka → MySQL → CDC (admin/dispatcher; `202` + `correlationId`) |
+| PATCH | `/api/customers/:id` | Update via Kafka → MySQL → CDC (admin/dispatcher; `202` + `correlationId`) |
+
+### Orders
+
+Reads use the tenant's PostgreSQL `orders_cache`. Writes select a per-tenant writer using `tenant_settings.ingest_mode`: **standalone** writes directly to PostgreSQL; **integrated** sends `commands.orders` → integration service → MySQL → Debezium CDC → PostgreSQL. Integrated app create/update requires `allow_app_order_create`.
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/orders` | List orders for the authenticated tenant |
+| GET | `/api/orders/:id` | Get an order in the authenticated tenant |
+| POST | `/api/orders` | Create order (admin/dispatcher); standalone: `201` + row; integrated: `202` + `correlationId` |
+| PATCH | `/api/orders/:id` | Update order (admin/dispatcher); standalone: `200` + row; integrated: `202` + `correlationId` |
 
 ### Visits
 
@@ -851,6 +886,27 @@ TRACCAR_PROVISIONING_ENABLED=true
 | PUT | `/api/me/settings` | Update the current user's overrides (timezone, locale, units, theme, …) |
 | GET | `/api/tenant/settings` | Tenant defaults (admin only) |
 | PUT | `/api/tenant/settings` | Update tenant defaults (admin only) |
+
+### Onboarding
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/me/onboarding` | Current user's onboarding items and progress (authenticated) |
+| PUT | `/api/me/onboarding/:key` | Acknowledge or update progress for one item (authenticated) |
+
+### Subscriptions & Billing
+
+See the [`subscriptions/` module](#subscriptions--plans--entitlements-saas-control-plane) for plan limits, feature gating, the reverse trial, and Stripe configuration.
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/me/entitlements` | Current tenant's resolved plan, limits, and features (authenticated) |
+| GET | `/api/subscriptions/plans` | Plan catalog (authenticated) |
+| GET | `/api/tenant/subscription` | Tenant plan and seat usage (admin only) |
+| POST | `/api/subscriptions/checkout` | Create a Stripe Checkout session and return its URL (admin only) |
+| POST | `/api/subscriptions/portal` | Open the Stripe Billing Portal (admin only) |
+| POST | `/api/subscriptions/trial/start` | Start or idempotently resume the tenant's reverse trial (admin only) |
+| POST | `/api/subscriptions/webhook` | Receive Stripe events (public; Stripe signature verified against the raw body) |
 
 ### CDC Sync
 
@@ -1104,7 +1160,7 @@ The dashboard and backend are bilingual (**Spanish default**, English opt-in). T
 ### Frontend (`fleetview-live-main/src/i18n/`)
 
 - Bootstrapped in `src/main.tsx` via `src/i18n/index.ts` using `i18next` + `react-i18next` + `i18next-browser-languagedetector`.
-- Twelve namespaces, one JSON file per language: `common`, `nav`, `auth`, `dashboard`, `routes`, `reports`, `drivers`, `vehicles`, `customers`, `history`, `monitoring`, `errors`.
+- Seventeen namespaces, one JSON file per language: `announcements`, `auth`, `billing`, `common`, `customers`, `dashboard`, `drivers`, `errors`, `history`, `monitoring`, `nav`, `onboarding`, `orders`, `reports`, `routes`, `settings`, `vehicles`.
 - Consume in any component: `const { t } = useTranslation('routes'); t('sidebar.actions.optimize')`.
 - Date formatting: `useDateLocale()` (from `src/i18n/useDateLocale.ts`) returns the matching `date-fns` locale — pass it to `format(date, 'd MMM', { locale })`.
 - Number formatting: pass `i18n.language` to `toLocaleString()` / `toLocaleTimeString()` / `toLocaleDateString()`.
@@ -1377,7 +1433,7 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/clean
 - [x] Manual visit reordering with drag-and-drop (@dnd-kit)
 - [x] Route builder UI (sidebar + map with customer markers and route polylines)
 - [x] Add/remove stops, create routes from frontend
-- [x] La Paz customer seed data (20 customers with real coordinates)
+- [x] La Paz customer seed data (23 customers with real coordinates: 20 tenant-1, 3 tenant-2)
 
 ### ✅ Phase 6 — Monitoring & Hardening (Completed)
 - [x] JWT authentication with role-based access control
@@ -1393,9 +1449,28 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/clean
 ### ✅ Phase 7 — Reports (Completed)
 - [x] History module with visit completions and daily stats endpoints
 - [x] Date range filtering on routes endpoint (backward-compatible)
-- [x] Reports page with 4 tabs: Routes, Visits, Positions, Statistics
+- [x] Reports page with 6 tabs: Overview, Routes, Visits, Drivers, Vehicles, Customers (Fuel and Safety have coming-soon views accessible by deep link)
 - [x] CSV export for all report tabs
 - [x] Drivers PostgreSQL-owned (direct writes, update, soft-deactivate, device pairing; cut from MySQL/CDC)
+
+### ✅ Phase 8 — SaaS, Driver App API & Demo Tooling (Completed)
+- [x] Orders module with per-tenant writers: standalone PostgreSQL / integrated Kafka → MySQL → CDC
+- [x] Self-serve owner signup, workspace slug availability, and onboarding checklist
+- [x] Subscription plans, entitlements, `@RequiresFeature` gating, and Stripe billing (checkout, portal, webhook, 14-day reverse trial by default)
+- [x] User/tenant settings, timezone-aware report ranges, and deployment-timezone buckets for `driver_daily_stats`
+- [x] Bilingual UI (Spanish default / English) and backend i18n error codes
+- [x] Driver app API with self-serve device provisioning and idempotent repeated visit completion
+- [x] Mission Control dashboard redesign, Route Builder command palette, and Reports redesign
+- [x] Live CDC refresh in the Route Builder through the `cdc:change` WebSocket event
+- [x] Route and ERP simulators in `scripts/simulators/`, with scripts organized by purpose
+- [x] Full-Docker mode (`docker compose --profile full up -d`) and AWS EC2 deployment with CI/CD (see [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md))
+
+### Known limitations / next steps
+- Customers are not yet dual-mode: create/update always uses Kafka → MySQL → CDC, including standalone tenants.
+- Operational “today” uses the deployment timezone, rather than each tenant's timezone.
+- Missed departures after a GPS gap can remain open; there is no reconciliation to close them.
+- Orders page tab/view labels are not yet translated.
+- Downgrading an integrated tenant when it loses the integration capability remains undefined.
 
 ---
 
@@ -1446,6 +1521,23 @@ The system comes pre-loaded with 3 test vehicles linked to the demo drivers:
 | 1021 | Tienda San Pedro | tenant-2 | San Pedro | -16.4990, -68.1400 | 80m | regular |
 | 1022 | Mercado Lanza | tenant-2 | Centro | -16.4945, -68.1370 | 100m | regular |
 | 1023 | Banco Mercantil Miraflores | tenant-2 | Miraflores | -16.5070, -68.1150 | 80m | premium |
+
+---
+
+## 📚 Documentation
+
+- [TESTING.md](TESTING.md) ([Spanish](TESTING.es.md)) — Unit test coverage, suites, and commands for the tracking and integration services.
+- [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md) — Integration architecture, production configuration, CI/CD, and AWS hosting/deployment.
+- [FEATURES.md](FEATURES.md) — Platform feature catalog with taglines, descriptions, and workflows grouped by domain.
+- [DRIVER_APP_SPEC.md](DRIVER_APP_SPEC.md) — Build specification for the planned offline-first native iOS driver app and its backend contracts.
+- [AUTH_IMPLEMENTATION.md](AUTH_IMPLEMENTATION.md) — JWT/RBAC implementation, PostgreSQL-owned users, and Redis refresh tokens; includes historical context.
+- [OPTIMIZATION_PLAN.md](OPTIMIZATION_PLAN.md) — Phased security, scaling, data correctness, load testing, and cleanup plan from the project review.
+- [scripts/README.md](scripts/README.md) — Operational scripts, simulators, seeds, migrations, and smoke checks for a running stack.
+- [README-UCB.md](README-UCB.md) — Spanish academic project overview, objectives, and scope for route and visit tracking.
+- [tracking-service/CLAUDE.md](tracking-service/CLAUDE.md) — Backend development commands, architecture, and implementation conventions.
+- [integration-service-nest/CLAUDE.md](integration-service-nest/CLAUDE.md) — Active NestJS Kafka-to-MySQL service and command-processing conventions.
+- [integration-service/CLAUDE.md](integration-service/CLAUDE.md) — Legacy Go integration-service documentation, superseded by the NestJS implementation.
+- [fleetview-live-main/CLAUDE.md](fleetview-live-main/CLAUDE.md) — React/Vite dashboard development commands and frontend conventions.
 
 ---
 
