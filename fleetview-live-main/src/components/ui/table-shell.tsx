@@ -1,4 +1,5 @@
 import { Download, Loader2, Inbox } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 export interface Header {
@@ -25,10 +26,17 @@ export function TableShell({
   exportLabel,
   children,
 }: TableShellProps) {
+  const { t } = useTranslation('common');
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-1.5 border-b border-border px-6 py-2 text-xs text-mc-text-muted">
-        Showing <span className="font-mono font-semibold text-foreground">{count}</span> records
+        <Trans
+          t={t}
+          i18nKey="table.showingRecords"
+          values={{ count }}
+          components={{ count: <span className="font-mono font-semibold text-foreground" /> }}
+        />
         {onExport && (
           <button
             type="button"
@@ -36,7 +44,7 @@ export function TableShell({
             className="ml-auto inline-flex h-[26px] items-center gap-1.5 rounded-md border border-border bg-mc-elev px-2 text-[11.5px] font-medium text-foreground hover:border-mc-border-strong"
           >
             <Download className="h-3 w-3" />
-            {exportLabel ? exportLabel(count) : `Export ${count} rows`}
+            {exportLabel ? exportLabel(count) : t('table.exportRows', { count })}
           </button>
         )}
       </div>

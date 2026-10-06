@@ -8,6 +8,9 @@ const DLQ_TOPICS = [
   'gps.positions.enriched.dlq',
   'visits.events.dlq',
   'cdc.dlq',
+  'commands.customers.dlq',
+  'commands.orders.dlq',
+  'commands.drivers.dlq',
 ] as const;
 
 export type DlqTopicName = (typeof DLQ_TOPICS)[number];
@@ -136,8 +139,9 @@ export class DlqAdminService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Replay DLQ messages back to their original topic.
-   * Reads messages, publishes them to the original topic (from x-original-topic header),
-   * then returns the count of replayed messages.
+   * Command queues map to their source by stripping .dlq; other queues use
+   * x-original-topic (required for the shared CDC queue).
+   * Returns the counts of replayed messages and errors.
    */
   async replayMessages(
     topic: DlqTopicName,
@@ -156,7 +160,9 @@ export class DlqAdminService implements OnModuleInit, OnModuleDestroy {
       await producer.connect();
 
       for (const msg of messages) {
-        const originalTopic = msg.headers['x-original-topic'];
+        const originalTopic = topic.startsWith('commands.')
+          ? topic.slice(0, -'.dlq'.length)
+          : msg.headers['x-original-topic'];
         if (!originalTopic) {
           this.logger.warn(
             `DLQ message in ${topic} missing x-original-topic header, skipping`,

@@ -940,6 +940,7 @@ Ver el [módulo `subscriptions/`](#subscriptions--planes-y-entitlements-plano-de
 - `gps.positions.enriched.dlq` — Broadcasts WebSocket fallidos
 - `visits.events.dlq` — Broadcasts de eventos de visita fallidos
 - `cdc.dlq` — Mensajes de sincronización CDC fallidos (compartido entre todos los tópicos CDC)
+- `commands.customers.dlq` / `commands.orders.dlq` / `commands.drivers.dlq` — Comandos que el integration-service no pudo aplicar en MySQL. El reenvío los devuelve a su tópico de origen (el nombre sin `.dlq`), así que funciona aunque falte el header `x-original-topic`
 
 **Headers de Mensajes DLQ:**
 

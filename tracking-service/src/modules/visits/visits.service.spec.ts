@@ -67,6 +67,9 @@ describe('VisitsService', () => {
 
   beforeEach(async () => {
     queryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 0 }),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
@@ -174,6 +177,7 @@ describe('VisitsService', () => {
       expect(kafkaProducer.produce).not.toHaveBeenCalled();
       expect(routesService.recountCompletedStops).not.toHaveBeenCalled();
       expect(timescale.insertVisitCompletion).not.toHaveBeenCalled();
+      expect(visitRepo.createQueryBuilder).not.toHaveBeenCalled();
     });
 
     it('stamps arrivedAt on arrival, publishes the event and syncs the route', async () => {
@@ -193,6 +197,33 @@ describe('VisitsService', () => {
       });
       // Arrival is not terminal — no history row yet
       expect(timescale.insertVisitCompletion).not.toHaveBeenCalled();
+    });
+
+    it('closes missed departures at the new arrival time with one update', async () => {
+      visitRepo.findOne.mockResolvedValue(makeVisit({ id: 'visit-b', status: 'en_route' }));
+      queryBuilder.execute.mockResolvedValue({ affected: 1 });
+
+      const result = await service.updateStatus('visit-b', { status: 'arrived' } as any);
+
+      expect(queryBuilder.update).toHaveBeenCalledWith(PlannedVisit);
+      expect(queryBuilder.set).toHaveBeenCalledWith({ departedAt: result.arrivedAt });
+      expect(queryBuilder.execute).toHaveBeenCalledTimes(1);
+      expect(result.departedAt).toBeNull();
+    });
+
+    it('excludes other tenants, drivers, the arriving visit and visits no longer on site', async () => {
+      visitRepo.findOne.mockResolvedValue(makeVisit({ id: 'visit-b', status: 'pending' }));
+
+      await service.updateStatus('visit-b', { status: 'arrived' } as any);
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('tenant_id = :tenantId', { tenantId: 'tenant-1' });
+      expect(queryBuilder.andWhere.mock.calls).toEqual([
+        ['driver_id = :driverId', { driverId: 'drv-1' }],
+        ['id <> :id', { id: 'visit-b' }],
+        ['status IN (:...statuses)', { statuses: ['arrived', 'in_progress', 'completed'] }],
+        ['arrived_at IS NOT NULL'],
+        ['departed_at IS NULL'],
+      ]);
     });
 
     it('stamps completedAt on completion and records the visit to history once', async () => {

@@ -936,6 +936,7 @@ See the [`subscriptions/` module](#subscriptions--plans--entitlements-saas-contr
 - `gps.positions.enriched.dlq` — Failed WebSocket broadcasts
 - `visits.events.dlq` — Failed visit event broadcasts
 - `cdc.dlq` — Failed CDC sync messages (shared across all CDC topics)
+- `commands.customers.dlq` / `commands.orders.dlq` / `commands.drivers.dlq` — Commands the integration-service could not apply to MySQL. Replay sends them back to their source topic (the topic name minus `.dlq`), so it works even without an `x-original-topic` header
 
 **DLQ Message Headers:**
 

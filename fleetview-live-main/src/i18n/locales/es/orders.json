@@ -4,6 +4,11 @@
     "subtitle": "Gestiona el catálogo de pedidos · {{count}} en total",
     "newOrder": "Nuevo pedido"
   },
+  "views": {
+    "all": "Todos",
+    "pending": "Pendientes",
+    "completed": "Completados"
+  },
   "banner": {
     "syncing": "<strong>{{names}}</strong> — sincronizando vía CDC, aparecerá en unos segundos."
   },
@@ -49,6 +54,7 @@
     }
   },
   "detail": {
+    "customerFallback": "Cliente #{{id}}",
     "empty": {
       "title": "Ningún pedido seleccionado",
       "subtitle": "Elige un pedido de la lista para ver sus detalles y actualizar su estado."

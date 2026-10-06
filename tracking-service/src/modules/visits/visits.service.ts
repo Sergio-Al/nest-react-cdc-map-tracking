@@ -154,9 +154,27 @@ export class VisitsService {
     const now = new Date();
 
     switch (dto.status) {
-      case 'arrived':
+      case 'arrived': {
         visit.arrivedAt = now;
+        // The true departure during a GPS gap is unknown; use this arrival as its upper bound.
+        const closed = await this.visitRepo
+          .createQueryBuilder()
+          .update(PlannedVisit)
+          .set({ departedAt: now })
+          .where('tenant_id = :tenantId', { tenantId: visit.tenantId })
+          .andWhere('driver_id = :driverId', { driverId: visit.driverId })
+          .andWhere('id <> :id', { id: visit.id })
+          .andWhere('status IN (:...statuses)', {
+            statuses: ['arrived', 'in_progress', 'completed'],
+          })
+          .andWhere('arrived_at IS NOT NULL')
+          .andWhere('departed_at IS NULL')
+          .execute();
+        if (closed.affected) {
+          this.logger.log(`Closed ${closed.affected} missed departure(s) on arrival at visit ${id}`);
+        }
         break;
+      }
       case 'completed':
         visit.completedAt = now;
         break;
