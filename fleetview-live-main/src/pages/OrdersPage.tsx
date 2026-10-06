@@ -39,42 +39,19 @@ function uniqOptions<T>(
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-const ORDER_FIELDS: FieldDef<OrderRow>[] = [
-  {
-    id: 'status',
-    label: 'Status',
-    kind: 'enum',
-    options: (rows) =>
-      uniqOptions(rows, (r) => r.status, (r) => cap(r.status)),
-    get: (r) => r.status,
-  },
-  {
-    id: 'customer',
-    label: 'Customer',
-    kind: 'enum',
-    options: (rows) =>
-      uniqOptions(rows, (r) => r.customerId, (r) => r.customerName),
-    get: (r) => r.customerId,
-  },
-  {
-    id: 'total',
-    label: 'Total',
-    kind: 'number',
-    get: (r) => r.totalAmount,
-  },
-];
-
 const ORDER_VIEWS: SavedView[] = [
-  { id: 'all', name: 'All', filters: [], builtin: true },
+  { id: 'all', name: 'All', nameKey: 'orders:views.all', filters: [], builtin: true },
   {
     id: 'pending',
     name: 'Pending',
+    nameKey: 'orders:views.pending',
     builtin: true,
     filters: [{ id: 'f-pend', field: 'status', operator: 'any_of', values: ['pending'], num1: null, num2: null }],
   },
   {
     id: 'completed',
     name: 'Completed',
+    nameKey: 'orders:views.completed',
     builtin: true,
     filters: [{ id: 'f-done', field: 'status', operator: 'any_of', values: ['completed'], num1: null, num2: null }],
   },
@@ -108,6 +85,36 @@ export default function OrdersPage() {
   const { data: meSettings } = useSettings();
   const { t } = useTranslation('orders');
 
+  const orderFields = useMemo<FieldDef<OrderRow>[]>(
+    () => [
+      {
+        id: 'status',
+        label: t('table.status'),
+        kind: 'enum',
+        options: (rows) =>
+          uniqOptions(rows, (r) => r.status, (r) =>
+            t(`dialog.statusOptions.${r.status}`, { defaultValue: cap(r.status) }),
+          ),
+        get: (r) => r.status,
+      },
+      {
+        id: 'customer',
+        label: t('table.customer'),
+        kind: 'enum',
+        options: (rows) =>
+          uniqOptions(rows, (r) => r.customerId, (r) => r.customerName),
+        get: (r) => r.customerId,
+      },
+      {
+        id: 'total',
+        label: t('table.total'),
+        kind: 'number',
+        get: (r) => r.totalAmount,
+      },
+    ],
+    [t],
+  );
+
   // ── Create gate ──
   // Hide/disable "New Order" when tenant is integrated AND app-create is off.
   const ingestMode = meSettings?.tenant?.ingestMode ?? 'standalone';
@@ -136,7 +143,7 @@ export default function OrdersPage() {
     [orders, customerName],
   );
 
-  const ds = useDatasetFilters('orders-page', rows, ORDER_FIELDS, ORDER_VIEWS);
+  const ds = useDatasetFilters('orders-page', rows, orderFields, ORDER_VIEWS);
 
   const selected = useMemo(
     () => ds.filtered.find((o) => o.id === selectedId) ?? null,
@@ -211,7 +218,7 @@ export default function OrdersPage() {
 
       {/* Filter bar */}
       <FilterBar
-        fields={ORDER_FIELDS}
+        fields={orderFields}
         rows={rows}
         filters={ds.filters}
         onChange={ds.updateFilters}

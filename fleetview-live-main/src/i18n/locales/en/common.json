@@ -1,4 +1,8 @@
 {
+  "table": {
+    "showingRecords": "Showing <count>{{count}}</count> records",
+    "exportRows": "Export {{count}} rows"
+  },
   "filters": {
     "addFilter": "Add filter",
     "newView": "+ New view",

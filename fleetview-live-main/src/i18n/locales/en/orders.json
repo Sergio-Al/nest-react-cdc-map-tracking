@@ -4,6 +4,11 @@
     "subtitle": "Manage your order catalog · {{count}} total",
     "newOrder": "New Order"
   },
+  "views": {
+    "all": "All",
+    "pending": "Pending",
+    "completed": "Completed"
+  },
   "banner": {
     "syncing": "<strong>{{names}}</strong> — syncing via CDC, will appear in a few seconds."
   },
@@ -49,6 +54,7 @@
     }
   },
   "detail": {
+    "customerFallback": "Customer #{{id}}",
     "empty": {
       "title": "No order selected",
       "subtitle": "Pick an order from the list to see its details and update its status."

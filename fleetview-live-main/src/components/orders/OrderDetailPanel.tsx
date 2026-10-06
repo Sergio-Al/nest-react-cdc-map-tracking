@@ -82,7 +82,7 @@ export function OrderDetailPanel({ order, customerName, canWrite, onClose }: Pro
         </span>
       }
       title={order.orderNumber || `#${order.id}`}
-      subtitle={customerName ?? `Customer #${order.customerId}`}
+      subtitle={customerName ?? t('detail.customerFallback', { id: order.customerId })}
       status={
         <span
           className={cn(
