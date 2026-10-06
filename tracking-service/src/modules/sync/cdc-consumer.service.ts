@@ -1,3 +1,4 @@
+import { PipelineTraceService } from '../pipeline/pipeline-trace.service';
 import { Injectable, OnModuleInit, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -42,6 +43,7 @@ export class CdcConsumerService implements OnModuleInit {
     private readonly kafkaConsumer: KafkaConsumerService,
     private readonly cdcMetrics: CdcMetricsService,
     private readonly customerCache: CustomerCacheService,
+    private readonly traces: PipelineTraceService,
     @Inject(forwardRef(() => TrackingGateway))
     private readonly trackingGateway: TrackingGateway,
 
@@ -185,15 +187,15 @@ export class CdcConsumerService implements OnModuleInit {
     data: Record<string, any>,
     isDelete: boolean,
     appliedAt: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const id = Number(data.id);
-    if (!Number.isFinite(id)) return;
+    if (!Number.isFinite(id)) return false;
     try {
       if (table === 'customers') await this.customerCache.invalidate(id);
     } catch (err) {
       this.logger.warn(`Customer cache invalidation failed for id=${id}: ${(err as Error).message}`);
     }
-    if (op === 'r' || !data.tenant_id) return;
+    if (op === 'r' || !data.tenant_id) return false;
     try {
       const sourceTsMs = data.__source_ts_ms ? Number(data.__source_ts_ms) : null;
       this.trackingGateway.broadcastCdcChange(buildCdcChangeEvent(
@@ -204,8 +206,10 @@ export class CdcConsumerService implements OnModuleInit {
         sourceTsMs,
         appliedAt,
       ));
+      return true;
     } catch (err) {
       this.logger.warn(`cdc:change broadcast failed for ${table}#${id}: ${(err as Error).message}`);
+      return false;
     }
   }
 
@@ -221,6 +225,9 @@ export class CdcConsumerService implements OnModuleInit {
     const { repo, tableName, table, mapFn } = mapping;
     const op = data.__op || 'c'; // c=create, u=update, d=delete, r=read (snapshot)
     const isDelete = data.__deleted === 'true' || op === 'd';
+
+    const traceable = (table === 'customers' || table === 'orders') && (op === 'c' || op === 'u') && !isDelete;
+    const correlationId = traceable ? await this.traces.lookupLink(table, Number(data.id)) : null;
 
     if (isDelete) {
       // DELETE
@@ -249,7 +256,16 @@ export class CdcConsumerService implements OnModuleInit {
       ['tableName'],
     );
 
-    await this.afterApplied(table, op, data, isDelete, appliedAt);
+    const broadcast = await this.afterApplied(table, op, data, isDelete, appliedAt);
+    if (traceable && data.tenant_id) {
+      await this.traces.finishCdc({
+        table: table as 'customers' | 'orders', id: Number(data.id), tenantId: String(data.tenant_id),
+        capturedAt: new Date(Number.isFinite(Number(kafkaTimestamp)) ? Number(kafkaTimestamp) : appliedAt).toISOString(),
+        sourceTsMs: data.__source_ts_ms ? Number(data.__source_ts_ms) : null,
+        appliedAt: new Date(appliedAt).toISOString(),
+        broadcastAt: broadcast ? new Date().toISOString() : null,
+      }, correlationId);
+    }
 
     // Record metrics
     this.cdcMetrics.recordEvent(

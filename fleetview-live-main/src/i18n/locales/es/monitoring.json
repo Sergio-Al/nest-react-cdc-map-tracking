@@ -67,5 +67,100 @@
     "shortcuts": "todos los atajos",
     "streaming_one": "Transmitiendo · {{count}} tópico",
     "streaming_other": "Transmitiendo · {{count}} tópicos"
+  },
+  "pipeline": {
+    "title": "Flujo de escritura",
+    "subtitle": "Sigue cada escritura desde la API hasta el panel en vivo.",
+    "views": "Vistas de monitoreo",
+    "architecture": "Arquitectura",
+    "shortPath": "API → PostgreSQL → WebSocket · se omite la integración externa",
+    "fullPath": "API → Kafka → Integración → MySQL → Debezium → PostgreSQL → WebSocket",
+    "skipped": "Omitido",
+    "current": "Etapa actual",
+    "reached": "Alcanzado",
+    "waiting": "En espera",
+    "dlqBranch": "Integración → DLQ · escritura fallida",
+    "replayedBranch": "DLQ → Kafka · reintento solicitado",
+    "timeline": "Cronología de etapas",
+    "total": "Total: {{value}} ms",
+    "delta": "{{value}} ms desde la anterior",
+    "duration": "{{value}} ms",
+    "loading": "Cargando…",
+    "live": "En vivo · WebSocket conectado",
+    "reconnecting": "Reconectando · actualización cada 5 segundos",
+    "loadError": "No se pudieron cargar las trazas. Pulsa Actualizar para reintentar.",
+    "recent": "Escrituras recientes",
+    "resume": "Seguir en vivo",
+    "following": "Siguiendo en vivo",
+    "pinHint": "Selecciona una escritura para fijar su cronología.",
+    "empty": "Aún no hay trazas. Crea un cliente o pedido para seguir su escritura.",
+    "select": "Selecciona una traza para ver sus etapas.",
+    "pinned": "Traza fijada",
+    "tabs": {
+      "pipeline": "Pipeline",
+      "lag": "Latencia CDC"
+    },
+    "nodes": {
+      "api": "API",
+      "kafka": "Kafka",
+      "integration": "Integración",
+      "mysql": "MySQL",
+      "debezium": "Debezium",
+      "pg": "PostgreSQL",
+      "ws": "WebSocket"
+    },
+    "entities": {
+      "customers": "Cliente",
+      "orders": "Pedido"
+    },
+    "ops": {
+      "create": "Crear",
+      "update": "Actualizar",
+      "status": "Cambio de estado"
+    },
+    "modes": {
+      "integrated": "Integrado",
+      "standalone": "Independiente"
+    },
+    "status": {
+      "in_flight": "En curso",
+      "completed": "Completado",
+      "failed": "Fallido · DLQ"
+    },
+    "details": {
+      "attempt": "Intento",
+      "error": "Error",
+      "reason": "Motivo",
+      "table": "Tabla",
+      "id": "ID de fila",
+      "sourceTsMs": "Marca de tiempo de origen (ms)"
+    },
+    "stages": {
+      "api.received": "Solicitud recibida por la API",
+      "kafka.produced": "Kafka confirmó el comando",
+      "integration.consumed": "Integración recibió el comando",
+      "integration.retry": "Reintento de base de datos",
+      "mysql.committed": "Fila guardada en MySQL",
+      "dlq.sent": "Enviado a DLQ",
+      "dlq.replayed": "Reintentado desde DLQ",
+      "cdc.captured": "Cambio de Debezium recibido",
+      "pg.applied": "Fila aplicada en PostgreSQL",
+      "ws.broadcast": "Difusión por WebSocket"
+    },
+    "dlq": {
+      "title": "Colas de mensajes fallidos",
+      "note": "Kafka conserva los registros: reintentar no los borra. Un grupo de consumidores por cola marca hasta dónde se reintentó, así cada mensaje se reintenta una sola vez.",
+      "count": "{{count}} retenidos en Kafka",
+      "peek": "Inspeccionar",
+      "replay": "Reintentar",
+      "result": "Reintentados: {{replayed}} · Errores: {{errors}}",
+      "replayError": "No se pudieron reintentar los mensajes",
+      "loadError": "No se pudo cargar la cola",
+      "empty": "No se encontraron mensajes",
+      "message": "Partición {{partition}} · Offset {{offset}}",
+      "pending": "{{count}} pendientes de reintentar",
+      "pendingBadge": "pendiente",
+      "replayedBadge": "ya reintentado"
+    }
   }
 }

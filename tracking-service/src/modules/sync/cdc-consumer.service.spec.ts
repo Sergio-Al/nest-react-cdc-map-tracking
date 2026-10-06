@@ -1,3 +1,4 @@
+import { PipelineTraceService } from '../pipeline/pipeline-trace.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EachMessagePayload } from 'kafkajs';
@@ -15,6 +16,7 @@ describe('CdcConsumerService', () => {
   let customerRepo: ReturnType<typeof repo>;
   let orderRepo: ReturnType<typeof repo>;
   let customerCache: { invalidate: jest.Mock };
+  let traces: { lookupLink: jest.Mock; finishCdc: jest.Mock };
   let gateway: { broadcastCdcChange: jest.Mock };
 
   const message = (row: Record<string, unknown>): EachMessagePayload =>
@@ -26,12 +28,14 @@ describe('CdcConsumerService', () => {
     customerRepo = repo();
     orderRepo = repo();
     customerCache = { invalidate: jest.fn().mockResolvedValue(undefined) };
+    traces = { lookupLink: jest.fn().mockResolvedValue('corr-1'), finishCdc: jest.fn() };
     gateway = { broadcastCdcChange: jest.fn() };
     const kafkaConsumer = { registerHandler: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CdcConsumerService,
+        { provide: PipelineTraceService, useValue: traces },
         { provide: KafkaConsumerService, useValue: kafkaConsumer },
         { provide: CdcMetricsService, useValue: { recordEvent: jest.fn() } },
         { provide: CustomerCacheService, useValue: customerCache },
@@ -58,6 +62,8 @@ describe('CdcConsumerService', () => {
 
     expect(customerRepo.upsert).toHaveBeenCalledWith(expect.objectContaining({ id: 1005, name: 'Gustu' }), ['id']);
     expect(customerCache.invalidate).toHaveBeenCalledWith(1005);
+    expect(traces.lookupLink).toHaveBeenCalledWith('customers', 1005);
+    expect(traces.finishCdc).toHaveBeenCalledWith(expect.objectContaining({ table: 'customers', id: 1005, tenantId: 'tenant-1', broadcastAt: expect.any(String) }), 'corr-1');
     expect(gateway.broadcastCdcChange).toHaveBeenCalledWith(
       expect.objectContaining({ table: 'customers', op: 'u', id: 1005, tenantId: 'tenant-1', sourceTsMs: committed }),
     );
@@ -77,6 +83,7 @@ describe('CdcConsumerService', () => {
 
     expect(customerCache.invalidate).toHaveBeenCalledWith(1005);
     expect(gateway.broadcastCdcChange).not.toHaveBeenCalled();
+    expect(traces.lookupLink).not.toHaveBeenCalled();
   });
 
   it('broadcasts order changes without touching the customer cache', async () => {

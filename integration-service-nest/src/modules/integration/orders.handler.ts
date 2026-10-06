@@ -1,3 +1,4 @@
+import { PipelineEventsService } from './pipeline-events.service';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -37,6 +38,7 @@ export class OrdersHandler implements OnModuleInit {
     private readonly consumer: KafkaConsumerService,
     private readonly dlq: DlqService,
     private readonly metrics: MetricsService,
+    private readonly traces: PipelineEventsService,
   ) {}
 
   onModuleInit() {
@@ -50,9 +52,10 @@ export class OrdersHandler implements OnModuleInit {
     const { message } = payload;
     const raw = message.value;
 
-    let cmd: CommandMessage;
+    let cmd: CommandMessage | undefined;
     try {
       cmd = this.parseEnvelope(raw);
+      await this.traces.emit(cmd, 'orders', 'integration.consumed');
       if (!OPS.includes(cmd.op)) {
         throw new PermanentCommandError(`unhandled op: ${cmd.op}`);
       }
@@ -63,6 +66,7 @@ export class OrdersHandler implements OnModuleInit {
           : `invalid JSON: ${(err as Error).message}`;
       this.logger.error(`${TOPIC}: ${reason} (offset=${message.offset})`);
       await this.dlq.sendToDlq(TOPIC, message.key, raw, reason);
+      await this.traces.emit(cmd, 'orders', 'dlq.sent', { reason });
       return;
     }
 
@@ -72,13 +76,15 @@ export class OrdersHandler implements OnModuleInit {
         await this.sleep(300 * Math.pow(2, attempt - 1));
       }
       try {
-        await this.apply(cmd);
+        const id = await this.apply(cmd);
+        await this.traces.emit(cmd, 'orders', 'mysql.committed', { table: 'orders', id });
         return;
       } catch (err) {
         // Permanent conditions (validation, order-not-found) never benefit from a retry.
         if (err instanceof PermanentCommandError) {
           this.logger.error(`${TOPIC}: ${err.message} (correlationId=${cmd.correlationId})`);
           await this.dlq.sendToDlq(TOPIC, message.key, raw, err.message);
+          await this.traces.emit(cmd, 'orders', 'dlq.sent', { reason: err.message });
           return;
         }
         // Duplicate correlation_id = already applied (at-least-once redelivery) → success.
@@ -90,6 +96,7 @@ export class OrdersHandler implements OnModuleInit {
         }
         lastErr = err as Error;
         this.metrics.addDbError();
+        await this.traces.emit(cmd, 'orders', 'integration.retry', { attempt: attempt + 1, error: lastErr.message });
         this.logger.warn(
           `DB write failed, retrying (attempt ${attempt + 1}, correlationId=${cmd.correlationId}): ${lastErr.message}`,
         );
@@ -99,16 +106,17 @@ export class OrdersHandler implements OnModuleInit {
     const reason = `DB error after retries: ${lastErr?.message}`;
     this.logger.error(`${TOPIC}: ${reason} (correlationId=${cmd.correlationId})`);
     await this.dlq.sendToDlq(TOPIC, message.key, raw, reason);
+    await this.traces.emit(cmd, 'orders', 'dlq.sent', { reason });
   }
 
   /** Apply one command. Throws PermanentCommandError for non-retryable failures. */
-  private async apply(cmd: CommandMessage): Promise<void> {
+  private async apply(cmd: CommandMessage): Promise<number | string | undefined> {
     if (cmd.op === 'status') return this.applyStatus(cmd);
     if (cmd.op === 'create') return this.applyCreate(cmd);
     return this.applyUpdate(cmd);
   }
 
-  private async applyStatus(cmd: CommandMessage): Promise<void> {
+  private async applyStatus(cmd: CommandMessage): Promise<number | string | undefined> {
     const data = cmd.data as OrderStatusData;
     if (!data || typeof data !== 'object') {
       throw new PermanentCommandError('invalid data: not an object');
@@ -128,9 +136,10 @@ export class OrdersHandler implements OnModuleInit {
     this.logger.log(
       `order status updated in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, order=${data.orderId}, status=${data.status})`,
     );
+    return data.orderId;
   }
 
-  private async applyCreate(cmd: CommandMessage): Promise<void> {
+  private async applyCreate(cmd: CommandMessage): Promise<number | string | undefined> {
     const data = cmd.data as OrderWriteData;
     if (!data || typeof data !== 'object') {
       throw new PermanentCommandError('invalid data: not an object');
@@ -145,7 +154,7 @@ export class OrdersHandler implements OnModuleInit {
     const orderNumber =
       data.orderNumber ??
       (cmd.correlationId ? `ORD-${cmd.correlationId.slice(0, 12)}` : `ORD-${Date.now()}`);
-    await this.repo.insert({
+    const inserted = await this.repo.insert({
       tenantId: data.tenantId,
       customerId: String(data.customerId),
       orderNumber,
@@ -158,9 +167,10 @@ export class OrdersHandler implements OnModuleInit {
     this.logger.log(
       `order created in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, number=${orderNumber})`,
     );
+    return inserted?.identifiers?.[0]?.id ?? inserted?.raw?.insertId;
   }
 
-  private async applyUpdate(cmd: CommandMessage): Promise<void> {
+  private async applyUpdate(cmd: CommandMessage): Promise<number | string | undefined> {
     const data = cmd.data as OrderWriteData;
     if (!data || typeof data !== 'object') {
       throw new PermanentCommandError('invalid data: not an object');
@@ -178,6 +188,7 @@ export class OrdersHandler implements OnModuleInit {
     this.logger.log(
       `order updated in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, id=${data.id})`,
     );
+    return data.id;
   }
 
   private buildUpdateFields(data: OrderWriteData): Record<string, unknown> {

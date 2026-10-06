@@ -11,6 +11,7 @@ import { RetryPolicy, KafkaProcessingError } from './interfaces/kafka-error.inte
 
 export interface KafkaMessageHandler {
   topic: string;
+  optional?: boolean;
   fromBeginning?: boolean;
   handler: (payload: EachMessagePayload) => Promise<void>;
   /** Optional retry policy. When provided, failed messages are retried then sent to DLQ. */
@@ -59,8 +60,14 @@ export class KafkaConsumerService implements OnApplicationBootstrap, OnModuleDes
       this.logger.log('Kafka consumer connected');
 
       // Subscribe to all registered topics
-      for (const { topic, fromBeginning } of this.handlers) {
-        await this.consumer.subscribe({ topic, fromBeginning: fromBeginning ?? false });
+      for (const { topic, fromBeginning, optional } of this.handlers) {
+        try {
+          await this.consumer.subscribe({ topic, fromBeginning: fromBeginning ?? false });
+        } catch (err) {
+          if (!optional) throw err;
+          this.logger.warn(`Optional Kafka topic ${topic} unavailable; skipping subscription`);
+          continue;
+        }
         this.logger.log(`Subscribed to topic: ${topic} (fromBeginning=${fromBeginning ?? false})`);
       }
 

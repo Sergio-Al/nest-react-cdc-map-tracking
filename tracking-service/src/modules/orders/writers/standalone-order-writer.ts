@@ -1,3 +1,7 @@
+import { randomUUID } from 'crypto';
+import { PipelineTraceService } from '../../pipeline/pipeline-trace.service';
+import { TrackingGateway } from '../../websocket/tracking.gateway';
+import { buildCdcChangeEvent } from '../../websocket/ws.types';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,9 +22,13 @@ export class StandaloneOrderWriter implements OrderWriter {
   constructor(
     @InjectRepository(CachedOrder, 'cacheDb')
     private readonly repo: Repository<CachedOrder>,
+    private readonly traces: PipelineTraceService,
+    private readonly gateway: TrackingGateway,
   ) {}
 
   async createOrder(tenantId: string, dto: CreateOrderDto): Promise<OrderWriteResult> {
+    const correlationId = randomUUID();
+    await this.traces.start({ correlationId, tenantId, entity: 'orders', op: 'create', mode: 'standalone' });
     const orderNumber = dto.orderNumber ?? (await this.nextOrderNumber());
     // id is assigned by the orders_cache_id_seq DB default; omit it so the
     // sequence fires, and use RETURNING to read it back.
@@ -45,7 +53,8 @@ export class StandaloneOrderWriter implements OrderWriter {
     this.logger.log(
       `order created in PG (tenant=${tenantId}, id=${id}, number=${orderNumber})`,
     );
-    return { mode: 'sync', order };
+    await this.afterWrite(tenantId, Number(order.id), correlationId, 'c');
+    return { mode: 'sync', order, correlationId };
   }
 
   async updateOrder(
@@ -53,6 +62,8 @@ export class StandaloneOrderWriter implements OrderWriter {
     id: number,
     dto: UpdateOrderDto,
   ): Promise<OrderWriteResult> {
+    const correlationId = randomUUID();
+    await this.traces.start({ correlationId, tenantId, entity: 'orders', op: 'update', mode: 'standalone' });
     const fields = this.buildUpdateFields(dto);
     fields.updatedAt = new Date();
     const res = await this.repo.update({ id, tenantId }, fields);
@@ -61,7 +72,8 @@ export class StandaloneOrderWriter implements OrderWriter {
     }
     const order = await this.repo.findOneByOrFail({ id, tenantId });
     this.logger.log(`order updated in PG (tenant=${tenantId}, id=${id})`);
-    return { mode: 'sync', order };
+    await this.afterWrite(tenantId, id, correlationId, 'u');
+    return { mode: 'sync', order, correlationId };
   }
 
   async setOrderStatus(
@@ -69,6 +81,8 @@ export class StandaloneOrderWriter implements OrderWriter {
     orderId: number,
     status: string,
   ): Promise<void> {
+    const correlationId = randomUUID();
+    await this.traces.start({ correlationId, tenantId, entity: 'orders', op: 'status', mode: 'standalone' });
     const res = await this.repo.update(
       { id: orderId, tenantId },
       { status, updatedAt: new Date() },
@@ -79,7 +93,18 @@ export class StandaloneOrderWriter implements OrderWriter {
       );
       return;
     }
+    await this.afterWrite(tenantId, orderId, correlationId, 'u');
     this.logger.log(`order status set in PG (tenant=${tenantId}, id=${orderId}, status=${status})`);
+  }
+
+  private async afterWrite(tenantId: string, id: number, correlationId: string, op: 'c' | 'u'): Promise<void> {
+    await this.traces.append(correlationId, 'pg.applied', { table: 'orders', id });
+    try {
+      this.gateway.broadcastCdcChange(buildCdcChangeEvent('orders', op, id, tenantId, null, Date.now()));
+      await this.traces.append(correlationId, 'ws.broadcast');
+    } catch (err) {
+      this.logger.warn(`Order change broadcast failed: ${(err as Error).message}`);
+    }
   }
 
   private async nextOrderNumber(): Promise<string> {

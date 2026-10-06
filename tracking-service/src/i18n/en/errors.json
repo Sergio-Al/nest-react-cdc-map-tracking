@@ -50,6 +50,9 @@
     "deviceInUse": "Device {deviceId} is already paired to another driver",
     "rangeTooLarge": "The time range can be at most {max} hours"
   },
+  "pipeline": {
+    "traceNotFound": "Trace {id} not found"
+  },
   "customers": {
     "notFound": "Customer {id} not found"
   },

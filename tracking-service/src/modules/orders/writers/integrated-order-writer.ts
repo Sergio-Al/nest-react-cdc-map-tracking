@@ -1,3 +1,4 @@
+import { PipelineTraceService } from '../../pipeline/pipeline-trace.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { KafkaProducerService } from '../../kafka/kafka-producer.service';
@@ -17,7 +18,7 @@ const TOPIC = 'commands.orders';
 export class IntegratedOrderWriter implements OrderWriter {
   private readonly logger = new Logger(IntegratedOrderWriter.name);
 
-  constructor(private readonly kafkaProducer: KafkaProducerService) {}
+  constructor(private readonly kafkaProducer: KafkaProducerService, private readonly traces: PipelineTraceService) {}
 
   async createOrder(tenantId: string, dto: CreateOrderDto): Promise<OrderWriteResult> {
     const correlationId = randomUUID();
@@ -77,15 +78,17 @@ export class IntegratedOrderWriter implements OrderWriter {
   }
 
   private async produce(
-    op: string,
+    op: 'create' | 'update' | 'status',
     correlationId: string,
     tenantId: string,
     data: Record<string, unknown>,
   ): Promise<void> {
+    await this.traces.start({ correlationId, tenantId, entity: 'orders', op, mode: 'integrated' });
     await this.kafkaProducer.produce(TOPIC, {
       key: tenantId,
       value: JSON.stringify({ op, correlationId, data }),
       headers: { tenantId },
     });
+    await this.traces.append(correlationId, 'kafka.produced');
   }
 }

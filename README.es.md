@@ -945,6 +945,8 @@ Ver el [módulo `subscriptions/`](#subscriptions--planes-y-entitlements-plano-de
 | GET | `/api/dlq/:topic/messages?limit=20` | Ver mensajes DLQ |
 | POST | `/api/dlq/:topic/replay?limit=100` | Reenviar mensajes DLQ a tópicos originales |
 
+El reintento solo envía los registros que no se reintentaron antes. Kafka conserva todos los registros, así que un grupo de consumidores por cola (`dlq-replay-<topic>`) funciona como cursor: su offset confirmado avanza tras cada registro reenviado. `GET /api/dlq/topics` devuelve `messageCount` (retenidos) y `pendingCount` (pendientes de reintentar), y los mensajes inspeccionados traen `replayed: true|false`. Un mensaje que falla de forma permanente (por ejemplo, datos inválidos) vuelve a la DLQ como un registro nuevo.
+
 **Tópicos DLQ:**
 - `gps.positions.dlq` — Enriquecimientos de posiciones crudas fallidos
 - `gps.positions.enriched.dlq` — Broadcasts WebSocket fallidos
@@ -1087,6 +1089,30 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 - **Tarjetas de lag por tabla** — Lag actual, eventos procesados, conteo de errores, gráfico sparkline
 - **Tabla de lag de offset Kafka** — Mensajes pendientes por topic/partición
 - **Barra de resumen** — Total eventos, errores, lag máx/promedio, uptime
+- **Vista Pipeline** — Sigue cada escritura de clientes/pedidos etapa por etapa (ver [Trazas del pipeline](#trazas-del-pipeline)) e incluye un panel de DLQ solo para admin (inspeccionar + reintentar)
+
+### Trazas del pipeline
+
+Cada escritura de clientes y pedidos genera una traza identificada por su `correlationId` (también se devuelve en el header `X-Correlation-Id`). Las trazas viven en Redis 24 h (las últimas 100 por tenant) y cada etapa nueva se envía en vivo por WebSocket. El rastreo es best-effort: si falla, la escritura igual se completa.
+
+| Etapa | Quién la registra | Modo |
+|---|---|---|
+| `api.received` | writer del tracking-service | ambos |
+| `kafka.produced` | tracking-service, cuando Kafka confirma `commands.*` | integrado |
+| `integration.consumed` / `integration.retry` / `mysql.committed` / `dlq.sent` | integration-service → tópico `pipeline.traces` | integrado |
+| `dlq.replayed` | `POST /api/dlq/:topic/replay` | integrado |
+| `cdc.captured` | CdcConsumerService (timestamp de Kafka + `__source_ts_ms`) | integrado |
+| `pg.applied` | upsert de CDC o writer standalone | ambos |
+| `ws.broadcast` | se emite `cdc:change`, lo que completa la traza | ambos |
+
+Las filas de MySQL no llevan `correlationId`, así que `mysql.committed` guarda una clave temporal `pipeline:link:{table}:{id}` que el consumidor CDC usa para asociar el evento de Debezium a la traza correcta.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/pipeline/traces?limit=20` | Trazas recientes del tenant, la más nueva primero (admin/dispatcher, máx. 100) |
+| GET | `/api/pipeline/traces/:correlationId` | Una traza con todas sus etapas (admin/dispatcher) |
+
+El evento WebSocket `pipeline:trace` (a `tenant:{tenantId}`) lleva la traza completa en cada etapa.
 
 ---
 
@@ -1106,6 +1132,9 @@ Los usuarios admin pueden acceder a la página de monitoreo en `/monitoring` des
 | `gps.positions.enriched.dlq` | 3 | DlqService | DlqAdminService | Broadcasts WebSocket fallidos |
 | `visits.events.dlq` | 3 | DlqService | DlqAdminService | Broadcasts de eventos de visita fallidos |
 | `cdc.dlq` | 3 | DlqService | DlqAdminService | Mensajes CDC fallidos (todos los tópicos CDC) |
+| `commands.customers` / `commands.orders` | 3 | tracking-service (writers integrados) | integration-service | Comandos de escritura de tenants integrados |
+| `commands.customers.dlq` / `commands.orders.dlq` / `commands.drivers.dlq` | 3 | integration-service | DlqAdminService | Comandos que no se pudieron aplicar en MySQL |
+| `pipeline.traces` | 3 | integration-service | PipelineConsumerService | Etapas de las trazas del pipeline (ver [Trazas del pipeline](#trazas-del-pipeline)) |
 
 ---
 
@@ -1296,6 +1325,24 @@ node scripts/simulators/simulate-erp.mts --list-runs | --clear <run-id> # deshac
 
 `--with-routes --drive` cierra el ciclo: pedidos del ERP → CDC → una ruta con los pedidos vinculados → `simulate-route.mts` la recorre → cada visita completada escribe el estado del pedido de vuelta en MySQL (`commands.orders`) → CDC lo confirma en PostgreSQL. El script se niega a correr salvo que el plan del tenant permita la integración **y** esté activada (`GET /api/me/entitlements`). Los manifiestos de cada corrida quedan en `scripts/.erp-runs/` (en .gitignore).
 
+### Presentar la arquitectura en vivo (demo del pipeline CDC)
+
+`scripts/demos/cdc-pipeline-demo.sh` es un recorrido guiado por el presentador, narrado en español, con pausas entre actos. Mientras corre, abre **Monitoreo → Pipeline** en el proyector:
+
+1. **Camino feliz (integrado):** un cliente viaja API → Kafka → integration-service → MySQL → Debezium → PostgreSQL → WebSocket, con el tiempo de cada etapa (~0,5 s en total).
+2. **Contraste standalone:** la misma escritura toma 3 etapas y pocos ms (API → PostgreSQL → WebSocket).
+3. **Servicio de integración caído:** la traza se queda en `kafka.produced`, y al volver el servicio Kafka entrega el comando que tenía guardado.
+4. **MySQL caído:** reintentos con backoff y luego `dlq.sent`. Cuando MySQL vuelve, **Reintentar** en el panel de DLQ la completa.
+5. **Mensaje venenoso:** un comando inválido va directo a la DLQ, sin reintentos.
+
+```bash
+bash scripts/demos/cdc-pipeline-demo.sh            # en vivo, Enter entre actos
+bash scripts/demos/cdc-pipeline-demo.sh --auto     # ensayo sin pausas (el acto 4 reintenta vía API)
+bash scripts/demos/cdc-pipeline-demo.sh --act 4    # un solo acto
+```
+
+Los actos 3–4 detienen y reinician los contenedores `integration-service` / `mysql`, y un `trap` de `EXIT` siempre los restaura junto con el modo del tenant. Requiere el tópico `pipeline.traces` (lo crea `kafka-init`) y la imagen de `integration-service` actualizada. El conector de Debezium usa `connect.keep.alive.interval.ms=5000`, así que CDC se recupera en segundos tras reiniciar MySQL (por defecto tardaría 60 s).
+
 ### Crear ruta y visita completa
 
 ```bash
@@ -1479,11 +1526,11 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/clean
 - [x] Actualización CDC en vivo en el Route Builder mediante el evento WebSocket `cdc:change`
 - [x] Simuladores de rutas y ERP en `scripts/simulators/` y reorganización de `scripts/`
 - [x] Modo Docker completo (`docker compose --profile full`) y herramientas de despliegue AWS EC2 + CI (ver [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md))
+- [x] Clientes en modo dual (standalone propios de PG / integrados por CDC) con rangos de ids separados para las filas propias de PG
+- [x] Vista de trazas del pipeline, panel de DLQ y demo guionada de fallos CDC para presentar la arquitectura
 
 ### Limitaciones conocidas / próximos pasos
 - «Hoy» usa la zona horaria del despliegue, no la de cada inquilino.
-- Las salidas omitidas tras un intervalo sin GPS pueden quedar abiertas; no existe una reconciliación que las cierre.
-- Las etiquetas de las pestañas de Pedidos aún no están traducidas.
 - La degradación de un inquilino integrado a un plan sin capacidad de integración no está definida.
 
 ---

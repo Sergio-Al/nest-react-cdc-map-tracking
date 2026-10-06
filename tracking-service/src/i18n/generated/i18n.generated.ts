@@ -57,6 +57,12 @@ export type I18nTranslations = {
             "deviceInUse": string;
             "rangeTooLarge": string;
         };
+        "pipeline": {
+            "traceNotFound": string;
+        };
+        "customers": {
+            "notFound": string;
+        };
         "orders": {
             "notFound": string;
             "appCreateDisabled": string;

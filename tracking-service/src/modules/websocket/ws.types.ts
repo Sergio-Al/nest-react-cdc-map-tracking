@@ -94,6 +94,7 @@ export const WS_EVENTS = {
   VISIT_UPDATE: 'visit:update',
   CDC_LAG: 'cdc:lag',
   CDC_CHANGE: 'cdc:change',
+  PIPELINE_TRACE: 'pipeline:trace',
   ERROR: 'error',
 
   // Client → Server

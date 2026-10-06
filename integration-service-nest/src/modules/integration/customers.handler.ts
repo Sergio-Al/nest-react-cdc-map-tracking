@@ -1,3 +1,4 @@
+import { PipelineEventsService } from './pipeline-events.service';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -27,6 +28,7 @@ export class CustomersHandler implements OnModuleInit {
     private readonly consumer: KafkaConsumerService,
     private readonly dlq: DlqService,
     private readonly metrics: MetricsService,
+    private readonly traces: PipelineEventsService,
   ) {}
 
   onModuleInit() {
@@ -40,10 +42,11 @@ export class CustomersHandler implements OnModuleInit {
     const { message } = payload;
     const raw = message.value;
 
-    let cmd: CommandMessage;
+    let cmd: CommandMessage | undefined;
     let data: CustomerData;
     try {
       cmd = this.parseEnvelope(raw);
+      await this.traces.emit(cmd, 'customers', 'integration.consumed');
       if (cmd.op !== 'create' && cmd.op !== 'update') {
         throw new PermanentCommandError(`unhandled op: ${cmd.op}`);
       }
@@ -55,6 +58,7 @@ export class CustomersHandler implements OnModuleInit {
           : `invalid JSON: ${(err as Error).message}`;
       this.logger.error(`${TOPIC}: ${reason} (offset=${message.offset})`);
       await this.dlq.sendToDlq(TOPIC, message.key, raw, reason);
+      await this.traces.emit(cmd, 'customers', 'dlq.sent', { reason });
       return;
     }
 
@@ -74,15 +78,17 @@ export class CustomersHandler implements OnModuleInit {
             const reason = `customer not found: id=${data.id} tenant=${data.tenantId}`;
             this.logger.error(`${TOPIC}: ${reason} (correlationId=${cmd.correlationId})`);
             await this.dlq.sendToDlq(TOPIC, message.key, raw, reason);
+            await this.traces.emit(cmd, 'customers', 'dlq.sent', { reason });
             return;
           }
+          await this.traces.emit(cmd, 'customers', 'mysql.committed', { table: 'customers', id: data.id });
           this.logger.log(
             `customer updated in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, id=${data.id})`,
           );
           return;
         }
 
-        await this.repo.insert({
+        const inserted = await this.repo.insert({
           tenantId: data.tenantId,
           name: data.name,
           phone: data.phone ?? null,
@@ -95,6 +101,8 @@ export class CustomersHandler implements OnModuleInit {
           customerType: data.customerType ?? 'regular',
           correlationId: cmd.correlationId ?? null,
         });
+        const id = inserted?.identifiers?.[0]?.id ?? inserted?.raw?.insertId;
+        await this.traces.emit(cmd, 'customers', 'mysql.committed', { table: 'customers', id });
         this.logger.log(
           `customer created in MySQL (correlationId=${cmd.correlationId}, tenant=${data.tenantId}, name=${data.name})`,
         );
@@ -111,6 +119,7 @@ export class CustomersHandler implements OnModuleInit {
         }
         lastErr = err as Error;
         this.metrics.addDbError();
+        await this.traces.emit(cmd, 'customers', 'integration.retry', { attempt: attempt + 1, error: lastErr.message });
         this.logger.warn(
           `DB ${cmd.op} failed, retrying (attempt ${attempt + 1}, correlationId=${cmd.correlationId}): ${lastErr.message}`,
         );
@@ -120,6 +129,7 @@ export class CustomersHandler implements OnModuleInit {
     const reason = `DB error after retries: ${lastErr?.message}`;
     this.logger.error(`${TOPIC}: ${reason} (correlationId=${cmd.correlationId})`);
     await this.dlq.sendToDlq(TOPIC, message.key, raw, reason);
+    await this.traces.emit(cmd, 'customers', 'dlq.sent', { reason });
   }
 
   private parseEnvelope(raw: Buffer | null): CommandMessage {

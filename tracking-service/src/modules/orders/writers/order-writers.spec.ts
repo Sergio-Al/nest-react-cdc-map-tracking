@@ -1,3 +1,5 @@
+import { TrackingGateway } from '../../websocket/tracking.gateway';
+import { PipelineTraceService } from '../../pipeline/pipeline-trace.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException } from '@nestjs/common';
@@ -36,6 +38,8 @@ describe('StandaloneOrderWriter', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StandaloneOrderWriter,
+        { provide: PipelineTraceService, useValue: { start: jest.fn(), append: jest.fn() } },
+        { provide: TrackingGateway, useValue: { broadcastCdcChange: jest.fn() } },
         { provide: getRepositoryToken(CachedOrder, 'cacheDb'), useValue: repo },
       ],
     }).compile();
@@ -58,7 +62,7 @@ describe('StandaloneOrderWriter', () => {
           status: 'pending', // default
         }),
       );
-      expect(result).toEqual({ mode: 'sync', order: { id: 7, tenantId: 'tenant-1' } });
+      expect(result).toEqual({ mode: 'sync', order: { id: 7, tenantId: 'tenant-1' }, correlationId: expect.any(String) });
     });
 
     it('mints the next ORD-###### number from the sequence when none is supplied', async () => {
@@ -127,6 +131,7 @@ describe('IntegratedOrderWriter', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IntegratedOrderWriter,
+        { provide: PipelineTraceService, useValue: { start: jest.fn(), append: jest.fn() } },
         { provide: KafkaProducerService, useValue: producer },
       ],
     }).compile();

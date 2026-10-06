@@ -1,3 +1,4 @@
+import { PipelineTraceService } from '../../pipeline/pipeline-trace.service';
 import { NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { CachedCustomer } from '../../sync/entities/cached-customer.entity';
@@ -12,6 +13,7 @@ describe('StandaloneCustomerWriter', () => {
   let repo: { createQueryBuilder: jest.Mock; findOneByOrFail: jest.Mock; update: jest.Mock };
   let qb: any;
   let cache: { invalidate: jest.Mock };
+  let traces: { start: jest.Mock; append: jest.Mock };
   let gateway: { broadcastCdcChange: jest.Mock };
   const customer = { id: 1000000000, tenantId: 'tenant-1', name: 'New customer' } as CachedCustomer;
 
@@ -27,23 +29,27 @@ describe('StandaloneCustomerWriter', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     cache = { invalidate: jest.fn().mockResolvedValue(undefined) };
+    traces = { start: jest.fn(), append: jest.fn() };
     gateway = { broadcastCdcChange: jest.fn() };
     writer = new StandaloneCustomerWriter(
       repo as unknown as Repository<CachedCustomer>,
       cache as unknown as CustomerCacheService,
       gateway as unknown as TrackingGateway,
+      traces as unknown as PipelineTraceService,
     );
   });
 
   it('omits id, returns the inserted row, invalidates cache and broadcasts to its tenant', async () => {
     const result = await writer.createCustomer('tenant-1', { tenantId: 'forged', name: 'New customer' });
 
-    expect(result).toEqual({ mode: 'sync', customer });
+    expect(result).toEqual({ mode: 'sync', customer, correlationId: expect.any(String) });
     expect(qb.values).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 'tenant-1', name: 'New customer', active: true,
       geofenceRadiusMeters: 100, customerType: 'regular', latitude: null,
     }));
     expect(qb.values.mock.calls[0][0]).not.toHaveProperty('id');
+    expect(traces.start).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1', entity: 'customers', op: 'create', mode: 'standalone' }));
+    expect(traces.append.mock.calls.map(([, stage]) => stage)).toEqual(['pg.applied', 'ws.broadcast']);
     expect(qb.returning).toHaveBeenCalledWith('id');
     expect(repo.findOneByOrFail).toHaveBeenCalledWith({ id: 1000000000, tenantId: 'tenant-1' });
     expect(cache.invalidate).toHaveBeenCalledWith(1000000000);
@@ -64,7 +70,7 @@ describe('StandaloneCustomerWriter', () => {
     expect(repo.update).toHaveBeenCalledWith({ id: 1000000000, tenantId: 'tenant-1' }, {
       latitude: 0, longitude: 0, geofenceRadiusMeters: 0, syncedAt: expect.any(Date),
     });
-    expect(result).toEqual({ mode: 'sync', customer });
+    expect(result).toEqual({ mode: 'sync', customer, correlationId: expect.any(String) });
     expect(cache.invalidate).toHaveBeenCalledWith(1000000000);
     expect(gateway.broadcastCdcChange).toHaveBeenCalledWith(expect.objectContaining({ op: 'u' }));
   });
@@ -86,24 +92,29 @@ describe('StandaloneCustomerWriter', () => {
     cache.invalidate.mockRejectedValue(new Error('Redis down'));
     gateway.broadcastCdcChange.mockImplementation(() => { throw new Error('Socket down'); });
     await expect(writer.createCustomer('tenant-1', { tenantId: 'tenant-1', name: 'New customer' }))
-      .resolves.toEqual({ mode: 'sync', customer });
+      .resolves.toEqual({ mode: 'sync', customer, correlationId: expect.any(String) });
     expect(gateway.broadcastCdcChange).toHaveBeenCalled();
   });
 });
 
 describe('IntegratedCustomerWriter', () => {
   let writer: IntegratedCustomerWriter;
+  let traces: { start: jest.Mock; append: jest.Mock };
   let producer: { produce: jest.Mock };
 
   beforeEach(() => {
+    traces = { start: jest.fn(), append: jest.fn() };
     producer = { produce: jest.fn().mockResolvedValue(undefined) };
-    writer = new IntegratedCustomerWriter(producer as unknown as KafkaProducerService);
+    writer = new IntegratedCustomerWriter(producer as unknown as KafkaProducerService,
+      traces as unknown as PipelineTraceService);
   });
 
   it('preserves the exact create command contract and authoritative tenant', async () => {
     const dto = { tenantId: 'forged', name: 'Customer', latitude: -16.5, phone: '123' };
     const result = await writer.createCustomer('tenant-1', dto);
     expect(result).toEqual({ mode: 'async', correlationId: expect.any(String) });
+    expect(traces.start).toHaveBeenCalledWith(expect.objectContaining({ entity: 'customers', op: 'create', mode: 'integrated' }));
+    expect(traces.append).toHaveBeenCalledWith((result as any).correlationId, 'kafka.produced');
     expect(producer.produce).toHaveBeenCalledWith('commands.customers', {
       key: 'tenant-1',
       value: JSON.stringify({ op: 'create', correlationId: (result as any).correlationId,
@@ -125,5 +136,6 @@ describe('IntegratedCustomerWriter', () => {
     producer.produce.mockRejectedValue(new Error('Kafka down'));
     await expect(writer.createCustomer('tenant-1', { tenantId: 'tenant-1', name: 'Customer' }))
       .rejects.toThrow('Kafka down');
+    expect(traces.append).not.toHaveBeenCalled();
   });
 });
