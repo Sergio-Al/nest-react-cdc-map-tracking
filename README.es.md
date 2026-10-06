@@ -23,6 +23,7 @@ Sistema de rastreo vehicular en tiempo real diseñado para monitorear **1,000 co
 - [Internacionalización](#-internacionalización)
 - [Pruebas Manuales](#-pruebas-manuales)
 - [Estado del Proyecto](#-estado-del-proyecto)
+- [Documentación](#-documentación)
 
 ---
 
@@ -241,7 +242,7 @@ streaming-tracking-logistic/
         │   └── api/                  # useDrivers, useVehicles, useRoutes, useRouteBuilder,
         │                             #   useHistory, useReports, useDriverDetail
         ├── pages/                    # Index, Login, History, Monitoring, Routes, Vehicles,
-        │                             #   Drivers, Customers, Reports, Settings, NotFound
+        │                             #   Drivers, Customers, Orders, Reports, Settings, Signup, NotFound
         ├── stores/                   # Stores Zustand (auth, map, playback, routeBuilder, reports, dashboard)
         └── types/                    # Interfaces TypeScript
 ```
@@ -612,6 +613,21 @@ Fallback: MySQL directo
 
 ## 📦 Módulos del Servicio NestJS
 
+### `auth/` — Autenticación JWT
+- **AuthController**: Login con email/password, refresh token, registro (admin), logout, perfil del usuario; alta pública del dueño (`signup`) con nuevo inquilino y consulta de disponibilidad del slug del espacio de trabajo.
+- **JwtAuthGuard**: Guard global que verifica tokens JWT en cada request (excepto rutas públicas).
+- **RolesGuard**: Guard que verifica roles (admin, dispatcher, driver) basado en decoradores `@Roles()`.
+- **AuthService**: Verificación de contraseñas con bcrypt, generación de tokens JWT, gestión de refresh tokens.
+
+### `tenants/` — Espacios de Trabajo
+- **TenantsService**: Registro de inquilinos en PostgreSQL; valida el formato y las palabras reservadas del slug, comprueba su disponibilidad y crea el espacio de trabajo con protección ante solicitudes concurrentes.
+
+### `onboarding/` — Incorporación de Usuarios
+- **OnboardingService/Controller**: Persiste en PostgreSQL el estado y el paso de cada elemento de incorporación por usuario; permite consultar el progreso y registrar su reconocimiento.
+
+### `orders/` — Gestión de Pedidos
+- **OrdersService/Controller**: Lecturas filtradas por inquilino desde `orders_cache`. `OrderWriterResolver` selecciona el escritor según `tenant_settings.ingest_mode`: `StandaloneOrderWriter` escribe directamente en PostgreSQL; `IntegratedOrderWriter` publica en `commands.orders` → MySQL → CDC. En modo integrado, crear/editar desde la app requiere `allow_app_order_create`; la actualización de estado por completación de visita siempre está permitida.
+
 ### `kafka/` — Productor y Consumidor Kafka
 - **KafkaProducerService**: Produce mensajes individuales y en lote a cualquier tópico.
 - **KafkaConsumerService**: Registra handlers por tópico con opción `fromBeginning`. Gestiona un único consumidor con múltiples suscripciones.
@@ -628,12 +644,6 @@ Fallback: MySQL directo
 ### `sync/` — Sincronización CDC
 - **CdcConsumerService**: Consume tópicos `cdc.*`, mapea campos de Debezium, ejecuta upsert/delete en caché local, actualiza `sync_state`.
 - **SyncController**: Endpoints para consultar estado de sincronización y datos cacheados.
-
-### `auth/` — Autenticación JWT
-- **AuthController**: Login con email/password, refresh token, registro (admin), logout, perfil del usuario.
-- **JwtAuthGuard**: Guard global que verifica tokens JWT en cada request (excepto rutas públicas).
-- **RolesGuard**: Guard que verifica roles (admin, dispatcher, driver) basado en decoradores `@Roles()`.
-- **AuthService**: Verificación de contraseñas con bcrypt, generación de tokens JWT, gestión de refresh tokens.
 
 ### `customers/` — Caché de Clientes
 - **CustomerCacheService**: Implementa caché de 3 niveles (Memoria → Redis → PG → fallback MySQL). Soporta búsqueda por ID, por tenant, y consultas geográficas.
@@ -693,13 +703,6 @@ Fallback: MySQL directo
 
 ## 📡 API REST
 
-### Salud
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/health` | Estado general del servicio |
-| GET | `/api/health/ready` | Readiness check |
-
 ### Autenticación
 
 La API utiliza autenticación basada en JWT con control de acceso por roles.
@@ -709,6 +712,8 @@ La API utiliza autenticación basada en JWT con control de acceso por roles.
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
 | POST | `/api/auth/login` | Público | Autenticar y obtener tokens |
+| POST | `/api/auth/signup` | Público | Registrar al dueño (`admin`), crear un nuevo inquilino e iniciar sesión; limitado a 5 solicitudes/min por IP |
+| GET | `/api/auth/workspace-available` | Público | Consultar disponibilidad del slug con `?id=`; limitado a 30 solicitudes/min por IP |
 | POST | `/api/auth/refresh` | Público | Refrescar access token |
 | POST | `/api/auth/register` | Admin | Crear nuevo usuario |
 | POST | `/api/auth/logout` | Autenticado | Invalidar refresh token |
@@ -765,7 +770,30 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | `admin@tenant1.com` | `admin123` | tenant-1 | admin |
 | `admin@tenant2.com` | `admin123` | tenant-2 | admin |
 
+#### Variables de Entorno
+
+```bash
+JWT_SECRET=change-me-in-production-please
+JWT_EXPIRES_IN=15m
+REFRESH_EXPIRES_IN=7d
+TRACCAR_API_KEY=traccar-shared-key
+# Cliente REST admin de Traccar (aprovisionamiento automático). Puerto local :8082.
+TRACCAR_URL=http://localhost:8082
+TRACCAR_ADMIN_EMAIL=admin@example.com
+TRACCAR_ADMIN_PASSWORD=admin
+TRACCAR_PROVISIONING_ENABLED=true
+```
+
+### Salud
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/health` | Estado general del servicio |
+| GET | `/api/health/ready` | Readiness check |
+
 ### Traccar (Webhook)
+
+**Autenticación**: API Key (header `X-API-Key`)
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -778,6 +806,12 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 |---|---|---|
 | GET | `/api/drivers` | Listar todos los conductores |
 | GET | `/api/drivers/:id` | Obtener conductor por ID |
+| GET | `/api/drivers/positions/all` | Últimas posiciones de los conductores del inquilino |
+| GET | `/api/drivers/:id/position` | Última posición del conductor o `null` |
+| GET | `/api/drivers/:id/events` | Actividad derivada de visitas y GPS (`from`/`to`, máximo 48 h); el conductor solo consulta la propia |
+| GET | `/api/drivers/:id/distance` | Distancia recorrida en km (`from`/`to`, máximo 48 h); el conductor solo consulta la propia |
+| POST | `/api/drivers/:id/login` | Crear usuario de acceso para el conductor (admin/dispatcher, `201`) |
+| POST | `/api/drivers/me/device` | Aprovisionar dispositivo propio en Traccar de forma idempotente (solo driver, `200`) |
 | POST | `/api/drivers` | Crear conductor (escritura directa a PG, retorna `201`) |
 | PATCH | `/api/drivers/:id` | Actualizar conductor |
 | DELETE | `/api/drivers/:id` | Desactivar conductor (soft: `status='inactive'`, limpia dispositivo) |
@@ -791,18 +825,13 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | POST | `/api/routes` | Crear ruta |
 | GET | `/api/routes` | Listar rutas |
 | GET | `/api/routes/:id` | Obtener ruta con visitas |
+| GET | `/api/routes/:id/geometry` | Obtener geometría vial de la ruta usando OSRM (autenticado, propio inquilino) |
 | PATCH | `/api/routes/:id` | Actualizar ruta (ej: cambiar status) |
 | GET | `/api/routes/driver/:driverId/active` | Ruta activa del conductor |
 | GET | `/api/routes/driver/:driverId/today` | Rutas del día del conductor |
 | GET | `/api/routes/:id/history?from=&to=` | Historial de posiciones de la ruta (TimescaleDB) |
 | POST | `/api/routes/:id/optimize` | Optimizar orden de visitas usando OSRM + OR-Tools |
 | PATCH | `/api/routes/:id/reorder` | Reordenar visitas manualmente (drag-and-drop) |
-
-### Clientes
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/customers` | Listar todos los clientes (filtrado por tenant) |
 
 ### Vehículos
 
@@ -813,6 +842,25 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | GET | `/api/vehicles/search?plate=&type=&status=&driverId=&brand=` | Buscar vehículos por criterios |
 | GET | `/api/vehicles/:id` | Obtener vehículo por ID |
 | PATCH | `/api/vehicles/:id` | Actualizar información del vehículo |
+
+### Clientes
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/customers` | Listar todos los clientes (filtrado por tenant) |
+| POST | `/api/customers` | Crear cliente vía Kafka → MySQL → CDC (admin/dispatcher, `202` + `correlationId`) |
+| PATCH | `/api/customers/:id` | Actualizar cliente vía Kafka → MySQL → CDC (admin/dispatcher, `202` + `correlationId`) |
+
+### Pedidos
+
+Las lecturas usan `orders_cache` y el inquilino del JWT. Las escrituras dependen de `tenant_settings.ingest_mode`: `standalone` escribe directamente en PostgreSQL; `integrated` publica en `commands.orders` → MySQL → CDC y devuelve `202` + `correlationId`. En modo integrado, crear/editar desde la app requiere `allow_app_order_create`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/orders` | Listar pedidos del inquilino (autenticado) |
+| GET | `/api/orders/:id` | Obtener un pedido del inquilino (autenticado) |
+| POST | `/api/orders` | Crear pedido (admin/dispatcher): `201` con el pedido en standalone; `202` en integrado |
+| PATCH | `/api/orders/:id` | Actualizar pedido (admin/dispatcher): `200` con el pedido en standalone; `202` en integrado |
 
 ### Visitas
 
@@ -842,6 +890,27 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 | PUT | `/api/me/settings` | Actualizar los overrides del usuario actual (zona horaria, idioma, unidades, tema, …) |
 | GET | `/api/tenant/settings` | Valores por defecto del inquilino (solo admin) |
 | PUT | `/api/tenant/settings` | Actualizar valores por defecto del inquilino (solo admin) |
+
+### Onboarding
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/me/onboarding` | Consultar estado y progreso de incorporación del usuario autenticado |
+| PUT | `/api/me/onboarding/:key` | Registrar reconocimiento o actualizar el paso de un elemento del usuario autenticado |
+
+### Suscripciones y Facturación
+
+Ver el [módulo `subscriptions/`](#subscriptions--planes-y-entitlements-plano-de-control-saas) para planes, límites, funciones y el ciclo de facturación Stripe.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/me/entitlements` | Consultar funciones y límites del inquilino (autenticado) |
+| GET | `/api/subscriptions/plans` | Listar catálogo de planes (autenticado) |
+| GET | `/api/tenant/subscription` | Consultar plan resuelto y uso de cupos del inquilino (solo admin) |
+| POST | `/api/subscriptions/checkout` | Crear sesión Stripe Checkout y devolver su URL (solo admin) |
+| POST | `/api/subscriptions/portal` | Abrir Stripe Billing Portal y devolver su URL (solo admin) |
+| POST | `/api/subscriptions/trial/start` | Iniciar o retomar de forma idempotente la prueba inversa de 14 días por defecto (solo admin) |
+| POST | `/api/subscriptions/webhook` | Recibir eventos Stripe (público; verifica `Stripe-Signature` sobre el cuerpo crudo) |
 
 ### Sincronización CDC
 
@@ -1095,7 +1164,7 @@ El dashboard y el backend son bilingües (**español por defecto**, inglés opci
 ### Frontend (`fleetview-live-main/src/i18n/`)
 
 - Se inicializa en `src/main.tsx` vía `src/i18n/index.ts` usando `i18next` + `react-i18next` + `i18next-browser-languagedetector`.
-- Doce namespaces, un archivo JSON por idioma: `common`, `nav`, `auth`, `dashboard`, `routes`, `reports`, `drivers`, `vehicles`, `customers`, `history`, `monitoring`, `errors`.
+- Diecisiete namespaces, un archivo JSON por idioma: `announcements`, `auth`, `billing`, `common`, `customers`, `dashboard`, `drivers`, `errors`, `history`, `monitoring`, `nav`, `onboarding`, `orders`, `reports`, `routes`, `settings`, `vehicles`.
 - Consumir en cualquier componente: `const { t } = useTranslation('routes'); t('sidebar.actions.optimize')`.
 - Formato de fechas: `useDateLocale()` (desde `src/i18n/useDateLocale.ts`) devuelve el locale de `date-fns` correspondiente — pásalo a `format(date, 'd MMM', { locale })`.
 - Formato de números: pasa `i18n.language` a `toLocaleString()` / `toLocaleTimeString()` / `toLocaleDateString()`.
@@ -1274,6 +1343,60 @@ docker exec redis redis-cli -a redis_secret \
 
 ---
 
+## 🏋️ Pruebas de Carga
+
+El proyecto incluye scripts de pruebas de carga con **k6** para validar el rendimiento del sistema bajo condiciones realistas.
+
+### Requisitos Previos
+
+- [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado
+- Todos los servicios de Docker Compose ejecutándose
+- Conductores de prueba de carga sembrados (directo al caché PG; reinicia `tracking-service` después para que el mapa de enriquecimiento los cargue): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seeds/seed-load-test-drivers.sql`
+
+### Scripts de Prueba
+
+| Script | VUs | Descripción |
+|---|---|---|
+| `load-tests/gps-ingestion.js` | 1,000 | Simula 1,000 dispositivos GPS enviando posiciones via webhook Traccar |
+| `load-tests/ws-consumers.js` | 500 | Simula 500 conexiones WebSocket concurrentes del dashboard |
+| `load-tests/full-scenario.js` | 1,500 | Escenario combinado: GPS + consumidores WebSocket |
+
+### Ejecución
+
+```bash
+# Solo ingestión GPS
+k6 run load-tests/gps-ingestion.js
+
+# Solo consumidores WebSocket
+k6 run load-tests/ws-consumers.js
+
+# Escenario completo combinado
+k6 run load-tests/full-scenario.js
+
+# Monitorear sistema durante prueba (terminal separado)
+bash load-tests/check-system.sh
+```
+
+### Umbrales de Rendimiento
+
+| Métrica | Umbral |
+|---|---|
+| Latencia p95 API GPS | < 200ms |
+| Latencia p99 API GPS | < 500ms |
+| Tasa de error API GPS | < 1% |
+| Tasa de error conexión WS | < 5% |
+| Tiempo de conexión p95 WS | < 3s |
+
+### Limpieza
+
+```bash
+docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/cleanup-load-test-drivers.sql
+```
+
+> Documentación completa: [load-tests/README.md](load-tests/README.md)
+
+---
+
 ## 📊 Estado del Proyecto
 
 ### ✅ Fase 1 — Fundación (Completada)
@@ -1314,7 +1437,7 @@ docker exec redis redis-cli -a redis_secret \
 - [x] Reordenamiento manual de visitas con drag-and-drop (@dnd-kit)
 - [x] UI del constructor de rutas (sidebar + mapa con marcadores de clientes y polilíneas de ruta)
 - [x] Agregar/eliminar paradas, crear rutas desde el frontend
-- [x] Datos semilla de clientes La Paz (20 clientes con coordenadas reales)
+- [x] Datos semilla de clientes La Paz (23 clientes con coordenadas reales: 20 de tenant-1 y 3 de tenant-2)
 
 ### ✅ Fase 6 — Monitoreo y Robustez (Completada)
 - [x] Autenticación JWT con control de acceso basado en roles
@@ -1330,9 +1453,28 @@ docker exec redis redis-cli -a redis_secret \
 ### ✅ Fase 7 — Reportes (Completada)
 - [x] Módulo de historial con endpoints de completaciones de visitas y estadísticas diarias
 - [x] Filtrado por rango de fechas en endpoint de rutas (retrocompatible)
-- [x] Página de reportes con 4 pestañas: Rutas, Visitas, Posiciones, Estadísticas
+- [x] Página de reportes con 6 pestañas visibles: Resumen, Rutas, Visitas, Conductores, Vehículos y Clientes; Combustible y Seguridad tienen vistas «próximamente» accesibles por enlace
 - [x] Exportación CSV para todas las pestañas de reportes
 - [x] Conductores PostgreSQL-owned (escritura directa, actualizar, desactivar, emparejar dispositivo; sacados de MySQL/CDC)
+
+### ✅ Fase 8 — SaaS, API de la App del Conductor y Herramientas de Demo (Completada)
+- [x] Módulo de pedidos con escritor por inquilino: standalone en PostgreSQL / integrado vía Kafka → MySQL → CDC
+- [x] Alta pública del dueño, slug de espacio de trabajo y checklist de incorporación
+- [x] Planes, entitlements, restricciones de funciones (`@RequiresFeature`) y Stripe: checkout, portal, webhook y prueba inversa de 14 días por defecto
+- [x] Preferencias de usuario/inquilino, reportes según zona horaria y `driver_daily_stats` agrupado por día en la zona del despliegue
+- [x] UI bilingüe (ES por defecto / EN) y códigos de error localizados en el backend
+- [x] API para la app del conductor: aprovisionamiento propio de dispositivos y completación idempotente de visitas
+- [x] Rediseño Mission Control, paleta de comandos del Route Builder y rediseño de Reportes
+- [x] Actualización CDC en vivo en el Route Builder mediante el evento WebSocket `cdc:change`
+- [x] Simuladores de rutas y ERP en `scripts/simulators/` y reorganización de `scripts/`
+- [x] Modo Docker completo (`docker compose --profile full`) y herramientas de despliegue AWS EC2 + CI (ver [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md))
+
+### Limitaciones conocidas / próximos pasos
+- Los clientes aún no tienen modo dual: siempre usan Kafka → MySQL → CDC, incluso para inquilinos standalone.
+- «Hoy» usa la zona horaria del despliegue, no la de cada inquilino.
+- Las salidas omitidas tras un intervalo sin GPS pueden quedar abiertas; no existe una reconciliación que las cierre.
+- Las etiquetas de las pestañas de Pedidos aún no están traducidas.
+- La degradación de un inquilino integrado a un plan sin capacidad de integración no está definida.
 
 ---
 
@@ -1386,57 +1528,20 @@ El sistema viene con 3 vehículos pre-cargados asociados a los conductores de pr
 
 ---
 
-## 🏋️ Pruebas de Carga
+## 📚 Documentación
 
-El proyecto incluye scripts de pruebas de carga con **k6** para validar el rendimiento del sistema bajo condiciones realistas.
-
-### Requisitos Previos
-
-- [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado
-- Todos los servicios de Docker Compose ejecutándose
-- Conductores de prueba de carga sembrados (directo al caché PG; reinicia `tracking-service` después para que el mapa de enriquecimiento los cargue): `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/seeds/seed-load-test-drivers.sql`
-
-### Scripts de Prueba
-
-| Script | VUs | Descripción |
-|---|---|---|
-| `load-tests/gps-ingestion.js` | 1,000 | Simula 1,000 dispositivos GPS enviando posiciones via webhook Traccar |
-| `load-tests/ws-consumers.js` | 500 | Simula 500 conexiones WebSocket concurrentes del dashboard |
-| `load-tests/full-scenario.js` | 1,500 | Escenario combinado: GPS + consumidores WebSocket |
-
-### Ejecución
-
-```bash
-# Solo ingestión GPS
-k6 run load-tests/gps-ingestion.js
-
-# Solo consumidores WebSocket
-k6 run load-tests/ws-consumers.js
-
-# Escenario completo combinado
-k6 run load-tests/full-scenario.js
-
-# Monitorear sistema durante prueba (terminal separado)
-bash load-tests/check-system.sh
-```
-
-### Umbrales de Rendimiento
-
-| Métrica | Umbral |
-|---|---|
-| Latencia p95 API GPS | < 200ms |
-| Latencia p99 API GPS | < 500ms |
-| Tasa de error API GPS | < 1% |
-| Tasa de error conexión WS | < 5% |
-| Tiempo de conexión p95 WS | < 3s |
-
-### Limpieza
-
-```bash
-docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/cleanup-load-test-drivers.sql
-```
-
-> Documentación completa: [load-tests/README.md](load-tests/README.md)
+- [TESTING.md](TESTING.md) / [TESTING.es.md](TESTING.es.md): pruebas unitarias de los servicios de negocio y handlers de comandos; ejecución sin infraestructura externa.
+- [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md): integración, configuración de producción, CI/CD y aprovisionamiento/hosting en AWS.
+- [FEATURES.md](FEATURES.md): catálogo de funciones por dominio, con descripciones y flujos para tarjetas de producto.
+- [DRIVER_APP_SPEC.md](DRIVER_APP_SPEC.md): especificación de la app iOS del conductor, con GPS, pruebas de entrega y sincronización sin conexión.
+- [AUTH_IMPLEMENTATION.md](AUTH_IMPLEMENTATION.md): implementación de JWT, roles y usuarios propios de PostgreSQL.
+- [OPTIMIZATION_PLAN.md](OPTIMIZATION_PLAN.md): plan por fases de seguridad, escalabilidad, corrección de datos y robustez.
+- [scripts/README.md](scripts/README.md): herramientas operativas, simuladores, CDC, semillas, migraciones y pruebas de humo.
+- [README-UCB.md](README-UCB.md): objetivos y alcance académico del control de rutas y visitas en tiempo real.
+- [tracking-service/CLAUDE.md](tracking-service/CLAUDE.md): comandos, módulos y convenciones del backend NestJS de rastreo.
+- [integration-service-nest/CLAUDE.md](integration-service-nest/CLAUDE.md): comandos y arquitectura del consumidor Kafka que escribe en MySQL.
+- [integration-service/CLAUDE.md](integration-service/CLAUDE.md): documentación del servicio de integración legacy en Go, reemplazado por la implementación NestJS.
+- [fleetview-live-main/CLAUDE.md](fleetview-live-main/CLAUDE.md): comandos, estructura y convenciones del dashboard React/Vite.
 
 ---
 
