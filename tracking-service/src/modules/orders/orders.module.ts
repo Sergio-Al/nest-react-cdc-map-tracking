@@ -1,3 +1,4 @@
+import { WebsocketModule } from '../websocket/websocket.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CachedOrder } from '../sync/entities/cached-order.entity';
@@ -14,7 +15,7 @@ import { IntegratedOrderWriter } from './writers/integrated-order-writer';
  * is provided by the global KafkaModule.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([CachedOrder], 'cacheDb'), SettingsModule],
+  imports: [TypeOrmModule.forFeature([CachedOrder], 'cacheDb'), SettingsModule, WebsocketModule],
   controllers: [OrdersController],
   providers: [
     OrdersService,

@@ -49,6 +49,12 @@ ERP run manifests (what each run created/edited, so `--clear` can undo it) are w
 | `migrate-standalone-id-sequences.sql` | One-off for existing cache-db volumes: moves `customers_cache` / `orders_cache` id sequences to start at 1,000,000,000 so PG-owned (standalone) rows never collide with MySQL ids from CDC. Idempotent; only reports (never renumbers) old standalone orders below that range. `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/migrations/migrate-standalone-id-sequences.sql` |
 | `migrate-daily-stats-tz.sql` | One-off for existing TimescaleDB volumes: rebuilds `driver_daily_stats` bucketed by `America/La_Paz`. Fresh installs already get it from the init scripts. |
 
+## `demos/`
+
+| File | What it does |
+|---|---|
+| `cdc-pipeline-demo.sh` | Presenter-driven CDC architecture demo in 5 acts (happy path, standalone contrast, integration-service down, MySQL down → DLQ → replay, poison message). Spanish narration; open Monitoring → Pipeline while it runs. `--auto` for rehearsal, `--act N` for one act. Stops/starts `integration-service` and `mysql` and always restores them on exit. |
+
 ## `smoke/`
 
 | File | What it does |

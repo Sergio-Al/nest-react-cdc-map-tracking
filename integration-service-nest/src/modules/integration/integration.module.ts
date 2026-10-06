@@ -1,3 +1,4 @@
+import { PipelineEventsService } from './pipeline-events.service';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomerEntity } from './entities/customer.entity';
@@ -9,6 +10,6 @@ import { OrdersHandler } from './orders.handler';
 
 @Module({
   imports: [TypeOrmModule.forFeature([CustomerEntity, DriverEntity, OrderEntity])],
-  providers: [CustomersHandler, DriversHandler, OrdersHandler],
+  providers: [PipelineEventsService, CustomersHandler, DriversHandler, OrdersHandler],
 })
 export class IntegrationModule {}

@@ -941,6 +941,8 @@ See the [`subscriptions/` module](#subscriptions--plans--entitlements-saas-contr
 | GET | `/api/dlq/:topic/messages?limit=20` | Peek at DLQ messages |
 | POST | `/api/dlq/:topic/replay?limit=100` | Replay DLQ messages to original topics |
 
+Replay sends only records that were not replayed before. Kafka keeps every record, so a consumer group per queue (`dlq-replay-<topic>`) acts as a cursor: its committed offset moves past each record once it is re-published. `GET /api/dlq/topics` returns `messageCount` (retained) and `pendingCount` (not replayed yet), and peeked messages carry `replayed: true|false`. A message that fails permanently (for example, invalid data) lands in the DLQ again as a new record.
+
 **DLQ Topics:**
 - `gps.positions.dlq` — Failed raw position enrichments
 - `gps.positions.enriched.dlq` — Failed WebSocket broadcasts
@@ -1083,6 +1085,30 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 - **Per-table lag cards** — Current lag, events processed, error count, sparkline chart
 - **Kafka offset lag table** — Per-topic/partition pending messages
 - **Summary bar** — Total events, errors, max/avg lag, uptime
+- **Pipeline view** — Follows each customer/order write stage by stage (see [Pipeline Trace](#pipeline-trace)) and includes an admin-only DLQ panel (inspect + replay)
+
+### Pipeline Trace
+
+Every customer and order write gets a trace, keyed by its `correlationId` (also returned in the `X-Correlation-Id` response header). Traces live in Redis for 24 h (last 100 per tenant) and every new stage is pushed live over WebSocket. Tracing is best-effort: if it fails, the write still goes through.
+
+| Stage | Recorded by | Mode |
+|---|---|---|
+| `api.received` | tracking-service writer | both |
+| `kafka.produced` | tracking-service, after Kafka acks `commands.*` | integrated |
+| `integration.consumed` / `integration.retry` / `mysql.committed` / `dlq.sent` | integration-service → `pipeline.traces` topic | integrated |
+| `dlq.replayed` | `POST /api/dlq/:topic/replay` | integrated |
+| `cdc.captured` | CdcConsumerService (Kafka timestamp + `__source_ts_ms`) | integrated |
+| `pg.applied` | CDC upsert or standalone writer | both |
+| `ws.broadcast` | `cdc:change` emitted, which completes the trace | both |
+
+MySQL rows carry no `correlationId`, so `mysql.committed` stores a short-lived `pipeline:link:{table}:{id}` key that the CDC consumer uses to attach the Debezium event to the right trace.
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/pipeline/traces?limit=20` | Recent traces for the tenant, newest first (admin/dispatcher, max 100) |
+| GET | `/api/pipeline/traces/:correlationId` | One trace with all its stages (admin/dispatcher) |
+
+WebSocket event `pipeline:trace` (to `tenant:{tenantId}`) carries the full trace on every stage.
 
 ---
 
@@ -1102,6 +1128,9 @@ Admin users can access the monitoring page at `/monitoring` from the dashboard h
 | `gps.positions.enriched.dlq` | 3 | DlqService | DlqAdminService | Failed WebSocket broadcasts |
 | `visits.events.dlq` | 3 | DlqService | DlqAdminService | Failed visit event broadcasts |
 | `cdc.dlq` | 3 | DlqService | DlqAdminService | Failed CDC sync messages (all CDC topics) |
+| `commands.customers` / `commands.orders` | 3 | tracking-service (integrated writers) | integration-service | Write commands for integrated tenants |
+| `commands.customers.dlq` / `commands.orders.dlq` / `commands.drivers.dlq` | 3 | integration-service | DlqAdminService | Commands that could not be applied to MySQL |
+| `pipeline.traces` | 3 | integration-service | PipelineConsumerService | Pipeline trace stages (see [Pipeline Trace](#pipeline-trace)) |
 
 ---
 
@@ -1292,6 +1321,24 @@ node scripts/simulators/simulate-erp.mts --list-runs | --clear <run-id> # undo e
 
 `--with-routes --drive` closes the loop: ERP orders → CDC → a route with the orders attached → `simulate-route.mts` drives it → each completed visit writes the order status back to MySQL (`commands.orders`) → CDC confirms it in PostgreSQL. The script refuses to run unless the tenant's plan allows integration **and** it is switched on (`GET /api/me/entitlements`). Run manifests live in `scripts/.erp-runs/` (gitignored).
 
+### Present the architecture live (CDC pipeline demo)
+
+`scripts/demos/cdc-pipeline-demo.sh` is a presenter-driven walkthrough, narrated in Spanish, that pauses between acts. Open **Monitoring → Pipeline** on a projector while it runs:
+
+1. **Happy path (integrated):** a customer travels API → Kafka → integration-service → MySQL → Debezium → PostgreSQL → WebSocket, with per-stage timings (~0.5 s total).
+2. **Standalone contrast:** the same write takes 3 stages and a few ms (API → PostgreSQL → WebSocket).
+3. **Integration service down:** the trace stops at `kafka.produced`, and when the service comes back Kafka delivers the buffered command.
+4. **MySQL down:** retries with backoff, then `dlq.sent`. After MySQL is back, **Replay** in the DLQ panel completes it.
+5. **Poison message:** an invalid command goes straight to the DLQ with no retries.
+
+```bash
+bash scripts/demos/cdc-pipeline-demo.sh            # live, press Enter between acts
+bash scripts/demos/cdc-pipeline-demo.sh --auto     # rehearsal, no pauses (act 4 replays via the API)
+bash scripts/demos/cdc-pipeline-demo.sh --act 4    # a single act
+```
+
+Acts 3–4 stop and restart the `integration-service` / `mysql` containers, and an `EXIT` trap always restores them and the tenant's mode. Requires the `pipeline.traces` topic (created by `kafka-init`) and an up-to-date `integration-service` image. The Debezium connector uses `connect.keep.alive.interval.ms=5000`, so CDC resumes within seconds after MySQL restarts (the default is 60 s).
+
 ### Create a full route and visit
 
 ```bash
@@ -1475,11 +1522,11 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/clean
 - [x] Live CDC refresh in the Route Builder through the `cdc:change` WebSocket event
 - [x] Route and ERP simulators in `scripts/simulators/`, with scripts organized by purpose
 - [x] Full-Docker mode (`docker compose --profile full up -d`) and AWS EC2 deployment with CI/CD (see [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md))
+- [x] Dual-mode customers (standalone PG-owned / integrated CDC) with disjoint id ranges for PG-owned rows
+- [x] Pipeline trace view, DLQ panel and the scripted CDC failure demo for presenting the architecture
 
 ### Known limitations / next steps
 - Operational “today” uses the deployment timezone, rather than each tenant's timezone.
-- Missed departures after a GPS gap can remain open; there is no reconciliation to close them.
-- Orders page tab/view labels are not yet translated.
 - Downgrading an integrated tenant when it loses the integration capability remains undefined.
 
 ---

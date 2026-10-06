@@ -12,6 +12,7 @@ import type {
   JoinRouteDto,
   ActiveDriversResponse,
   CdcChangeEvent,
+  PipelineTrace,
 } from '@/types/ws-events.types';
 import type { CdcLagSnapshot } from '@/types/monitoring.types';
 
@@ -226,6 +227,14 @@ class SocketService {
 
   offCdcChange(callback: (data: CdcChangeEvent) => void): void {
     this.socket?.off(WS_EVENTS.CDC_CHANGE, callback);
+  }
+
+  onPipelineTrace(callback: (data: PipelineTrace) => void): void {
+    this.socket?.on(WS_EVENTS.PIPELINE_TRACE, callback);
+  }
+
+  offPipelineTrace(callback: (data: PipelineTrace) => void): void {
+    this.socket?.off(WS_EVENTS.PIPELINE_TRACE, callback);
   }
 
   // Request active drivers

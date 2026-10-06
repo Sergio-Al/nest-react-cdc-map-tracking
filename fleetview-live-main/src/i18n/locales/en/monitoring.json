@@ -67,5 +67,100 @@
     "shortcuts": "all shortcuts",
     "streaming_one": "Streaming · {{count}} topic",
     "streaming_other": "Streaming · {{count}} topics"
+  },
+  "pipeline": {
+    "title": "Write pipeline",
+    "subtitle": "Follow each write from the API to the live dashboard.",
+    "views": "Monitoring views",
+    "architecture": "Architecture",
+    "shortPath": "API → PostgreSQL → WebSocket · external integration is skipped",
+    "fullPath": "API → Kafka → Integration → MySQL → Debezium → PostgreSQL → WebSocket",
+    "skipped": "Skipped",
+    "current": "Current stage",
+    "reached": "Reached",
+    "waiting": "Waiting",
+    "dlqBranch": "Integration → DLQ · write failed",
+    "replayedBranch": "DLQ → Kafka · replay requested",
+    "timeline": "Stage timeline",
+    "total": "Total: {{value}} ms",
+    "delta": "{{value}} ms since previous",
+    "duration": "{{value}} ms",
+    "loading": "Loading…",
+    "live": "Live · WebSocket connected",
+    "reconnecting": "Reconnecting · refreshing every 5 seconds",
+    "loadError": "Could not load traces. Use Refresh to try again.",
+    "recent": "Recent writes",
+    "resume": "Follow live",
+    "following": "Following live",
+    "pinHint": "Select a write to pin its timeline.",
+    "empty": "No traces yet. Create a customer or order to follow its write.",
+    "select": "Select a trace to inspect its stages.",
+    "pinned": "Pinned trace",
+    "tabs": {
+      "pipeline": "Pipeline",
+      "lag": "CDC lag"
+    },
+    "nodes": {
+      "api": "API",
+      "kafka": "Kafka",
+      "integration": "Integration",
+      "mysql": "MySQL",
+      "debezium": "Debezium",
+      "pg": "PostgreSQL",
+      "ws": "WebSocket"
+    },
+    "entities": {
+      "customers": "Customer",
+      "orders": "Order"
+    },
+    "ops": {
+      "create": "Create",
+      "update": "Update",
+      "status": "Status update"
+    },
+    "modes": {
+      "integrated": "Integrated",
+      "standalone": "Standalone"
+    },
+    "status": {
+      "in_flight": "In flight",
+      "completed": "Completed",
+      "failed": "Failed · DLQ"
+    },
+    "details": {
+      "attempt": "Attempt",
+      "error": "Error",
+      "reason": "Reason",
+      "table": "Table",
+      "id": "Row ID",
+      "sourceTsMs": "Source timestamp (ms)"
+    },
+    "stages": {
+      "api.received": "API received",
+      "kafka.produced": "Kafka acknowledged command",
+      "integration.consumed": "Integration consumed command",
+      "integration.retry": "Database retry",
+      "mysql.committed": "MySQL committed row",
+      "dlq.sent": "Sent to DLQ",
+      "dlq.replayed": "Replayed from DLQ",
+      "cdc.captured": "Debezium change received",
+      "pg.applied": "PostgreSQL applied row",
+      "ws.broadcast": "WebSocket broadcast"
+    },
+    "dlq": {
+      "title": "Dead letter queues",
+      "note": "Kafka keeps the records: replaying does not delete them. A consumer group per queue marks how far replay has gone, so each message is replayed only once.",
+      "count": "{{count}} retained in Kafka",
+      "peek": "Inspect",
+      "replay": "Replay",
+      "result": "Replayed: {{replayed}} · Errors: {{errors}}",
+      "replayError": "Could not replay messages",
+      "loadError": "Could not load the queue",
+      "empty": "No messages found",
+      "message": "Partition {{partition}} · Offset {{offset}}",
+      "pending": "{{count}} pending replay",
+      "pendingBadge": "pending",
+      "replayedBadge": "already replayed"
+    }
   }
 }

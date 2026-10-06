@@ -1,4 +1,6 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
+import { PipelineView } from '@/components/monitoring/PipelineView';
+import { useAuthStore } from '@/stores/auth.store';
 import { useCdcLag } from '@/hooks/useCdcLag';
 import { useTranslation } from 'react-i18next';
 import { Activity, RefreshCw, SlidersHorizontal } from 'lucide-react';
@@ -82,6 +84,28 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 export default function MonitoringPage() {
+  const { t } = useTranslation('monitoring');
+  const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
+  const [tab, setTab] = useState<'pipeline' | 'lag'>('pipeline');
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 gap-2 border-b border-mc-border px-4 py-2" role="tablist" aria-label={t('pipeline.views')}>
+        {(isAdmin ? ['pipeline', 'lag'] as const : ['pipeline'] as const).map((id) => (
+          <button key={id} type="button" role="tab" id={`monitoring-tab-${id}`} aria-controls={`monitoring-panel-${id}`} aria-selected={tab === id} tabIndex={tab === id ? 0 : -1}
+            onKeyDown={(event) => { if (isAdmin && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); const next = event.key === 'Home' ? 'pipeline' : event.key === 'End' ? 'lag' : tab === 'pipeline' ? 'lag' : 'pipeline'; setTab(next); document.getElementById(`monitoring-tab-${next}`)?.focus(); } }}
+            onClick={() => setTab(id)} className={cn('rounded-lg px-4 py-2 text-base font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-mc-accent', tab === id ? 'bg-mc-accent-soft text-mc-accent' : 'text-mc-text-muted hover:bg-mc-surface')}>
+            {t(`pipeline.tabs.${id}`)}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id={`monitoring-panel-${isAdmin ? tab : 'pipeline'}`} aria-labelledby={`monitoring-tab-${isAdmin ? tab : 'pipeline'}`} className="min-h-0 flex-1 overflow-auto">
+        {tab === 'lag' && isAdmin ? <CdcMonitor /> : <PipelineView />}
+      </div>
+    </div>
+  );
+}
+
+function CdcMonitor() {
   const { data: snapshot, isLoading, error, isFetching, refetch } = useCdcLag();
   const { t, i18n } = useTranslation('monitoring');
   const nf = (n: number) => n.toLocaleString(i18n.language);

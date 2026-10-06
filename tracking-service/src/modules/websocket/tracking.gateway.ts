@@ -1,3 +1,4 @@
+import { PipelineTrace } from '../pipeline/pipeline.types';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -309,6 +310,10 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
   /**
    * Broadcast a CDC business-data change to the owning tenant.
    */
+  broadcastPipelineTrace(trace: PipelineTrace): void {
+    this.server.to(`tenant:${trace.tenantId}`).emit('pipeline:trace', trace);
+  }
+
   broadcastCdcChange(event: CdcChangeEvent): void {
     this.server.to(`tenant:${event.tenantId}`).emit(WS_EVENTS.CDC_CHANGE, event);
     this.logger.debug(`Broadcast cdc:change ${event.table}#${event.id} (${event.op}) to tenant:${event.tenantId}`);

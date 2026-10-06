@@ -8,7 +8,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
  * correlationId (HTTP 202, the row appears later via CDC).
  */
 export type OrderWriteResult =
-  | { mode: 'sync'; order: CachedOrder }
+  | { mode: 'sync'; correlationId?: string; order: CachedOrder }
   | { mode: 'async'; correlationId: string };
 
 export interface OrderStatusMeta {

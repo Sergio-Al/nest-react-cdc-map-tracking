@@ -3,7 +3,7 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 export type CustomerWriteResult =
-  | { mode: 'sync'; customer: CachedCustomer }
+  | { mode: 'sync'; correlationId?: string; customer: CachedCustomer }
   | { mode: 'async'; correlationId: string };
 
 export interface CustomerWriter {

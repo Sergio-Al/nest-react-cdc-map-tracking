@@ -1,3 +1,5 @@
+import { PipelineEventsService } from './pipeline-events.service';
+import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EachMessagePayload } from 'kafkajs';
@@ -33,6 +35,7 @@ describe('CustomersHandler', () => {
   let repo: { insert: jest.Mock; update: jest.Mock };
   let consumer: { registerHandler: jest.Mock };
   let dlq: { sendToDlq: jest.Mock };
+  let producer: { produce: jest.Mock };
   let metrics: { addDbError: jest.Mock };
 
   /** Run the handler, draining any retry-backoff sleeps via fake timers. */
@@ -46,15 +49,18 @@ describe('CustomersHandler', () => {
     jest.useFakeTimers();
 
     repo = {
-      insert: jest.fn().mockResolvedValue(undefined),
+      insert: jest.fn().mockResolvedValue({ identifiers: [{ id: '123' }] }),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
+    producer = { produce: jest.fn().mockResolvedValue(undefined) };
     consumer = { registerHandler: jest.fn() };
     dlq = { sendToDlq: jest.fn().mockResolvedValue(undefined) };
     metrics = { addDbError: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        PipelineEventsService,
+        { provide: KafkaProducerService, useValue: producer },
         CustomersHandler,
         { provide: getRepositoryToken(CustomerEntity), useValue: repo },
         { provide: KafkaConsumerService, useValue: consumer },
@@ -75,6 +81,35 @@ describe('CustomersHandler', () => {
     expect(consumer.registerHandler).toHaveBeenCalledWith(
       expect.objectContaining({ topic: TOPIC }),
     );
+  });
+
+  it('emits consumed and committed stages with the actual MySQL insert id', async () => {
+    await run(payloadOf({ op: 'create', correlationId: 'trace-1',
+      data: { tenantId: 'tenant-1', name: 'Trace customer' } }));
+    const events = producer.produce.mock.calls.map(([, message]) => JSON.parse(message.value));
+    expect(events.map((event) => event.stage)).toEqual(['integration.consumed', 'mysql.committed']);
+    expect(events[1]).toMatchObject({ correlationId: 'trace-1', tenantId: 'tenant-1', entity: 'customers',
+      op: 'create', detail: { table: 'customers', id: '123' } });
+    expect(producer.produce.mock.calls[0][0]).toBe('pipeline.traces');
+    expect(producer.produce.mock.calls[0][1].key).toBe('trace-1');
+  });
+
+  it('emits every failed DB attempt and the final DLQ reason', async () => {
+    repo.insert.mockRejectedValue(new Error('DB unavailable'));
+    await run(payloadOf({ op: 'create', correlationId: 'trace-2',
+      data: { tenantId: 'tenant-1', name: 'Trace customer' } }));
+    const events = producer.produce.mock.calls.map(([, message]) => JSON.parse(message.value));
+    expect(events.filter((event) => event.stage === 'integration.retry').map((event) => event.detail.attempt))
+      .toEqual([1, 2, 3, 4]);
+    expect(events[events.length - 1]).toMatchObject({ stage: 'dlq.sent', detail: { reason: expect.stringContaining('DB unavailable') } });
+  });
+
+  it('does not fail the business write when pipeline event production fails', async () => {
+    producer.produce.mockRejectedValue(new Error('Trace topic missing'));
+    await run(payloadOf({ op: 'create', correlationId: 'trace-3',
+      data: { tenantId: 'tenant-1', name: 'Trace customer' } }));
+    expect(repo.insert).toHaveBeenCalledTimes(1);
+    expect(dlq.sendToDlq).not.toHaveBeenCalled();
   });
 
   // ── Permanent failures → DLQ, no retry ───────────────────

@@ -48,6 +48,7 @@ export class CustomersController {
   }
 
   private shape(result: CustomerWriteResult, res: Response, syncStatus: number) {
+    if (result.correlationId) res.setHeader('X-Correlation-Id', result.correlationId);
     if (result.mode === 'async') {
       res.status(HttpStatus.ACCEPTED);
       return { status: 'accepted', correlationId: result.correlationId };

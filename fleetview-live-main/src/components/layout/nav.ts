@@ -33,7 +33,7 @@ export const navItems: NavItem[] = [
   { to: "/vehicles", labelKey: "vehicles", icon: Truck, roles: ["admin", "dispatcher"], group: "primary" },
   { to: "/customers", labelKey: "customers", icon: Building2, roles: ["admin", "dispatcher"], group: "primary" },
   { to: "/orders", labelKey: "orders", icon: ShoppingCart, roles: ["admin", "dispatcher"], group: "primary" },
-  { to: "/monitoring", labelKey: "monitoring", icon: Activity, roles: ["admin"], group: "secondary" },
+  { to: "/monitoring", labelKey: "monitoring", icon: Activity, roles: ["admin", "dispatcher"], group: "secondary" },
   { to: "/reports", labelKey: "reports", icon: FileBarChart, roles: ["admin", "dispatcher"], feature: "reports", group: "secondary" },
   { to: "/settings", labelKey: "settings", icon: Settings, group: "secondary" },
 ];

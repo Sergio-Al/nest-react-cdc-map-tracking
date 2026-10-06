@@ -50,6 +50,9 @@
     "deviceInUse": "El dispositivo {deviceId} ya está vinculado a otro conductor",
     "rangeTooLarge": "El rango de tiempo puede ser de máximo {max} horas"
   },
+  "pipeline": {
+    "traceNotFound": "Traza {id} no encontrada"
+  },
   "customers": {
     "notFound": "Cliente {id} no encontrado"
   },

@@ -1,3 +1,4 @@
+import { PipelineModule } from './modules/pipeline/pipeline.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -124,6 +125,7 @@ import { AppI18nModule } from './i18n/app-i18n.module';
     KafkaModule,
 
     // ── Feature Modules ────────────────────────────────
+    PipelineModule,
     AuthModule,
     TraccarModule,
     DriversModule,

@@ -55,6 +55,7 @@ export class OrdersController {
 
   /** 201/200 with the row for sync (standalone); 202 + correlationId for async (integrated). */
   private shape(result: OrderWriteResult, res: Response, syncStatus: number) {
+    if (result.correlationId) res.setHeader('X-Correlation-Id', result.correlationId);
     if (result.mode === 'async') {
       res.status(HttpStatus.ACCEPTED);
       return { status: 'accepted', correlationId: result.correlationId };

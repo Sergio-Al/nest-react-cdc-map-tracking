@@ -4,6 +4,7 @@
   "database.hostname": "mysql",
   "database.port": "3306",
   "database.user": "root",
+  "connect.keep.alive.interval.ms": "5000",
   "database.password": "root_secret",
   "database.server.id": "184054",
   "topic.prefix": "cdc",
