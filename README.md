@@ -174,9 +174,11 @@ streaming-tracking-logistic/
 │   │   ├── seed-load-test-drivers.sql    # Generates 1,000 test drivers (LOAD0001-LOAD1000)
 │   │   └── cleanup-load-test-drivers.sql # Removes load test drivers and their positions
 │   ├── migrations/
-│   │   └── migrate-daily-stats-tz.sql    # Backfills timezone-bucketed driver_daily_stats
+│   │   ├── migrate-daily-stats-tz.sql    # Backfills timezone-bucketed driver_daily_stats
+│   │   └── migrate-standalone-id-sequences.sql # Reserves ids >= 1e9 for PG-owned customers/orders
 │   └── smoke/
-│       └── smoke-orders-dual-mode.sh     # End-to-end smoke test: standalone (PG) vs integrated (CDC) orders
+│       ├── smoke-orders-dual-mode.sh     # End-to-end smoke test: standalone (PG) vs integrated (CDC) orders
+│       └── smoke-customers-dual-mode.sh  # Same check for customers
 │
 ├── load-tests/                       # k6 load testing scripts
 │   ├── gps-ingestion.js              # 1,000 GPS device simulation
@@ -382,6 +384,10 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 > # Rebuild driver_daily_stats to bucket in the deployment timezone (DEFAULT_TZ)
 > docker exec -i timescale psql -U timescale -d tracking_history \
 >   < scripts/migrations/migrate-daily-stats-tz.sql
+>
+> # Reserve ids >= 1,000,000,000 for customers/orders written directly in PostgreSQL (standalone tenants)
+> docker exec -i cache-db psql -U tracking -d tracking_cache \
+>   < scripts/migrations/migrate-standalone-id-sequences.sql
 > ```
 
 ### 6. Register the Debezium CDC connector
@@ -552,7 +558,9 @@ GPS Device → Traccar → HTTP Webhook → NestJS (TraccarController)
         └── Kafka [gps.positions.enriched]
 ```
 
-### Command Write Flow (Customer creation)
+### Command Write Flow (Customer creation, integrated tenants)
+
+Standalone tenants skip this flow: `POST /api/customers` writes `customers_cache` directly and returns `201` with the row (see [`customers/`](#customers--customer-cache--dual-mode-writes)).
 
 ```
 POST /api/customers
@@ -641,8 +649,10 @@ Fallback: Direct MySQL query
 - **CdcConsumerService**: Consumes `cdc.*` topics, maps Debezium fields, performs upsert/delete on local cache, updates `sync_state`.
 - **SyncController**: Endpoints to query sync status and cached data.
 
-### `customers/` — Customer Cache
+### `customers/` — Customer Cache + Dual-Mode Writes
 - **CustomerCacheService**: Implements 3-level cache (Memory → Redis → PG → MySQL fallback). Supports lookup by ID, by tenant, and geo queries.
+- **CustomerWriterResolver**: Picks the write strategy per tenant from `tenant_settings.ingest_mode`, like orders. **Standalone** (`StandaloneCustomerWriter`): `customers_cache` is the owner; create/update write PostgreSQL directly, invalidate the cache, and broadcast `cdc:change` so open dashboards refresh. **Integrated** (`IntegratedCustomerWriter`): unchanged `commands.customers` → integration-service → MySQL → CDC path.
+- **Id ranges**: PG-owned customers and orders take ids from sequences starting at **1,000,000,000**, so they never collide with MySQL AUTO_INCREMENT ids arriving through CDC (the primary key is global, not per tenant).
 
 ### `drivers/` — Driver Management
 - **DriversService/Controller**: Drivers are **PostgreSQL-owned** (source of truth) — writes go directly to the `drivers` table, no Kafka/MySQL/CDC. Create (`201`), update, soft-deactivate (`DELETE` → `status='inactive'` + clears device), and device pairing (`PATCH /drivers/:id/device`). `DriversService` keeps the enrichment device→driver map current via `refreshDriverMapping`/`removeDriverMapping`, and **auto-provisions the matching Traccar device** on assign/pair (see `traccar/`). A global partial-unique index `uq_drivers_device_id` prevents two drivers sharing a device. (The `integration-service` `DriversHandler` is kept dormant for a future gated MySQL→PG inbound-sync.)
@@ -844,8 +854,8 @@ TRACCAR_PROVISIONING_ENABLED=true
 | Method | Route | Description |
 |---|---|---|
 | GET | `/api/customers` | List all customers (filtered by tenant) |
-| POST | `/api/customers` | Create via Kafka → MySQL → CDC (admin/dispatcher; `202` + `correlationId`) |
-| PATCH | `/api/customers/:id` | Update via Kafka → MySQL → CDC (admin/dispatcher; `202` + `correlationId`) |
+| POST | `/api/customers` | Create (admin/dispatcher); standalone: `201` + row; integrated: `202` + `correlationId` (Kafka → MySQL → CDC) |
+| PATCH | `/api/customers/:id` | Update (admin/dispatcher); standalone: `200` + row; integrated: `202` + `correlationId` |
 
 ### Orders
 
@@ -1467,7 +1477,6 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/clean
 - [x] Full-Docker mode (`docker compose --profile full up -d`) and AWS EC2 deployment with CI/CD (see [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md))
 
 ### Known limitations / next steps
-- Customers are not yet dual-mode: create/update always uses Kafka → MySQL → CDC, including standalone tenants.
 - Operational “today” uses the deployment timezone, rather than each tenant's timezone.
 - Missed departures after a GPS gap can remain open; there is no reconciliation to close them.
 - Orders page tab/view labels are not yet translated.

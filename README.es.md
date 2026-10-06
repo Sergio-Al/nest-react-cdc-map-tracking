@@ -174,9 +174,11 @@ streaming-tracking-logistic/
 │   │   ├── seed-load-test-drivers.sql    # Genera 1,000 conductores de prueba (LOAD0001-LOAD1000)
 │   │   └── cleanup-load-test-drivers.sql # Elimina conductores de prueba de carga y sus posiciones
 │   ├── migrations/
-│   │   └── migrate-daily-stats-tz.sql    # Rellena driver_daily_stats agrupado por zona horaria
+│   │   ├── migrate-daily-stats-tz.sql    # Rellena driver_daily_stats agrupado por zona horaria
+│   │   └── migrate-standalone-id-sequences.sql # Reserva ids >= 1e9 para clientes/pedidos propios de PG
 │   └── smoke/
-│       └── smoke-orders-dual-mode.sh     # Prueba e2e: pedidos modo standalone (PG) vs integrado (CDC)
+│       ├── smoke-orders-dual-mode.sh     # Prueba e2e: pedidos modo standalone (PG) vs integrado (CDC)
+│       └── smoke-customers-dual-mode.sh  # La misma prueba para clientes
 │
 ├── load-tests/                       # Scripts de prueba de carga k6
 │   ├── gps-ingestion.js              # Simulación de 1,000 dispositivos GPS
@@ -382,6 +384,10 @@ docker exec -i cache-db psql -U tracking -d tracking_cache \
 > # Reconstruir driver_daily_stats para agrupar en la zona horaria del despliegue (DEFAULT_TZ)
 > docker exec -i timescale psql -U timescale -d tracking_history \
 >   < scripts/migrations/migrate-daily-stats-tz.sql
+>
+> # Reservar ids >= 1.000.000.000 para clientes/pedidos escritos directo en PostgreSQL (inquilinos standalone)
+> docker exec -i cache-db psql -U tracking -d tracking_cache \
+>   < scripts/migrations/migrate-standalone-id-sequences.sql
 > ```
 
 ### 6. Registrar el conector CDC de Debezium
@@ -552,7 +558,9 @@ Dispositivo GPS → Traccar → Webhook HTTP → NestJS (TraccarController)
         └── Kafka [gps.positions.enriched]
 ```
 
-### Flujo de Escritura de Comandos (Creación de clientes)
+### Flujo de Escritura de Comandos (Creación de clientes, inquilinos integrados)
+
+Los inquilinos standalone no usan este flujo: `POST /api/customers` escribe directo en `customers_cache` y responde `201` con la fila (ver [`customers/`](#customers--caché-de-clientes--escrituras-en-modo-dual)).
 
 ```
 POST /api/customers
@@ -645,8 +653,10 @@ Fallback: MySQL directo
 - **CdcConsumerService**: Consume tópicos `cdc.*`, mapea campos de Debezium, ejecuta upsert/delete en caché local, actualiza `sync_state`.
 - **SyncController**: Endpoints para consultar estado de sincronización y datos cacheados.
 
-### `customers/` — Caché de Clientes
+### `customers/` — Caché de Clientes + Escrituras en Modo Dual
 - **CustomerCacheService**: Implementa caché de 3 niveles (Memoria → Redis → PG → fallback MySQL). Soporta búsqueda por ID, por tenant, y consultas geográficas.
+- **CustomerWriterResolver**: Elige la estrategia de escritura por tenant según `tenant_settings.ingest_mode`, igual que pedidos. **Standalone** (`StandaloneCustomerWriter`): `customers_cache` es el dueño; crear/actualizar escriben directo en PostgreSQL, invalidan la caché y emiten `cdc:change` para que los dashboards abiertos se refresquen. **Integrado** (`IntegratedCustomerWriter`): la misma ruta de siempre `commands.customers` → integration-service → MySQL → CDC.
+- **Rangos de ids**: los clientes y pedidos propios de PG toman ids de secuencias que empiezan en **1.000.000.000**, así nunca chocan con los ids AUTO_INCREMENT de MySQL que llegan por CDC (la clave primaria es global, no por tenant).
 
 ### `drivers/` — Gestión de Conductores
 - **DriversService/Controller**: Los conductores son **PostgreSQL-owned** (fuente de verdad) — las escrituras van directo a la tabla `drivers`, sin Kafka/MySQL/CDC. Crear (`201`), actualizar, desactivar (soft: `DELETE` → `status='inactive'` + limpia el dispositivo) y emparejar dispositivo (`PATCH /drivers/:id/device`). `DriversService` mantiene el mapa device→driver de enriquecimiento vía `refreshDriverMapping`/`removeDriverMapping`, y **aprovisiona automáticamente el dispositivo Traccar** al asignar/emparejar (ver `traccar/`). Un índice único parcial global `uq_drivers_device_id` impide que dos conductores compartan un dispositivo. (El `DriversHandler` del `integration-service` queda dormido para una futura sincronización de entrada MySQL→PG con gate.)
@@ -848,8 +858,8 @@ TRACCAR_PROVISIONING_ENABLED=true
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/api/customers` | Listar todos los clientes (filtrado por tenant) |
-| POST | `/api/customers` | Crear cliente vía Kafka → MySQL → CDC (admin/dispatcher, `202` + `correlationId`) |
-| PATCH | `/api/customers/:id` | Actualizar cliente vía Kafka → MySQL → CDC (admin/dispatcher, `202` + `correlationId`) |
+| POST | `/api/customers` | Crear cliente (admin/dispatcher); standalone: `201` + fila; integrado: `202` + `correlationId` (Kafka → MySQL → CDC) |
+| PATCH | `/api/customers/:id` | Actualizar cliente (admin/dispatcher); standalone: `200` + fila; integrado: `202` + `correlationId` |
 
 ### Pedidos
 
@@ -1471,7 +1481,6 @@ docker exec -i mysql mysql -u root -prootpassword tracking < scripts/seeds/clean
 - [x] Modo Docker completo (`docker compose --profile full`) y herramientas de despliegue AWS EC2 + CI (ver [DEPLOYMENT_CI_CD.md](DEPLOYMENT_CI_CD.md))
 
 ### Limitaciones conocidas / próximos pasos
-- Los clientes aún no tienen modo dual: siempre usan Kafka → MySQL → CDC, incluso para inquilinos standalone.
 - «Hoy» usa la zona horaria del despliegue, no la de cada inquilino.
 - Las salidas omitidas tras un intervalo sin GPS pueden quedar abiertas; no existe una reconciliación que las cierre.
 - Las etiquetas de las pestañas de Pedidos aún no están traducidas.

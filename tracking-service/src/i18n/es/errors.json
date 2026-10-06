@@ -50,6 +50,9 @@
     "deviceInUse": "El dispositivo {deviceId} ya está vinculado a otro conductor",
     "rangeTooLarge": "El rango de tiempo puede ser de máximo {max} horas"
   },
+  "customers": {
+    "notFound": "Cliente {id} no encontrado"
+  },
   "orders": {
     "notFound": "Pedido {id} no encontrado",
     "appCreateDisabled": "La creación de pedidos desde la app está deshabilitada para este inquilino; los pedidos se gestionan en su sistema integrado"

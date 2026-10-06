@@ -50,6 +50,9 @@
     "deviceInUse": "Device {deviceId} is already paired to another driver",
     "rangeTooLarge": "The time range can be at most {max} hours"
   },
+  "customers": {
+    "notFound": "Customer {id} not found"
+  },
   "orders": {
     "notFound": "Order {id} not found",
     "appCreateDisabled": "Order creation from the app is disabled for this tenant; orders are managed by your integrated system"

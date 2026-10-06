@@ -49,9 +49,8 @@ export interface GatewayStats {
 }
 
 /**
- * A business-data change that arrived through CDC (MySQL → Debezium → PG) —
- * i.e. made in the tenant's own system. Emitted to tenant:{tenantId} after the
- * PostgreSQL read model was updated, so clients can refetch.
+ * A business-data change applied through CDC or a standalone PostgreSQL write.
+ * Emitted to tenant:{tenantId} after PostgreSQL was updated, so clients can refetch.
  */
 export interface CdcChangeEvent {
   table: 'accounts' | 'customers' | 'products' | 'orders';
@@ -64,6 +63,26 @@ export interface CdcChangeEvent {
   appliedAt: string;
   /** appliedAt − sourceTsMs: commit → visible. */
   latencyMs: number | null;
+}
+
+/** Shared payload for CDC-applied and standalone business-data writes. */
+export function buildCdcChangeEvent(
+  table: CdcChangeEvent['table'],
+  op: CdcChangeEvent['op'],
+  id: number,
+  tenantId: string,
+  sourceTsMs: number | null,
+  appliedAt: number,
+): CdcChangeEvent {
+  return {
+    table,
+    op,
+    id,
+    tenantId,
+    sourceTsMs,
+    appliedAt: new Date(appliedAt).toISOString(),
+    latencyMs: sourceTsMs ? Math.max(0, appliedAt - sourceTsMs) : null,
+  };
 }
 
 /**
