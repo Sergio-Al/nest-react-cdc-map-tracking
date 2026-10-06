@@ -9,12 +9,13 @@
 --     tracking-service OrdersService (no MySQL/Kafka/CDC). Direct inserts self-assign
 --     an id from `orders_cache_id_seq` (the default below); because CDC always passes
 --     an explicit id, the sequence default never fires in integrated mode.
+-- PG-owned ids start at 1e9 to avoid the low MySQL AUTO_INCREMENT id range.
 -- The driver-facing "delivery done" lives on planned_visits; a completed visit that
 -- carries an order_id flips the order status (standalone: direct PG; integrated:
 -- commands.orders → MySQL → CDC → here).
 -- ─────────────────────────────────────────────────────────────
 
-CREATE SEQUENCE IF NOT EXISTS orders_cache_id_seq;
+CREATE SEQUENCE IF NOT EXISTS orders_cache_id_seq START WITH 1000000000;
 CREATE SEQUENCE IF NOT EXISTS orders_number_seq;
 
 CREATE TABLE IF NOT EXISTS orders_cache (

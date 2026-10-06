@@ -12,7 +12,7 @@ import {
 import { CdcMetricsService } from './cdc-metrics.service';
 import { CustomerCacheService } from '../customers/customer-cache.service';
 import { TrackingGateway } from '../websocket/tracking.gateway';
-import { CdcChangeEvent } from '../websocket/ws.types';
+import { CdcChangeEvent, buildCdcChangeEvent } from '../websocket/ws.types';
 
 /**
  * CDC Consumer – listens to Debezium Kafka topics and syncs
@@ -196,15 +196,14 @@ export class CdcConsumerService implements OnModuleInit {
     if (op === 'r' || !data.tenant_id) return;
     try {
       const sourceTsMs = data.__source_ts_ms ? Number(data.__source_ts_ms) : null;
-      this.trackingGateway.broadcastCdcChange({
+      this.trackingGateway.broadcastCdcChange(buildCdcChangeEvent(
         table,
-        op: isDelete ? 'd' : op === 'u' ? 'u' : 'c',
+        isDelete ? 'd' : op === 'u' ? 'u' : 'c',
         id,
-        tenantId: String(data.tenant_id),
+        String(data.tenant_id),
         sourceTsMs,
-        appliedAt: new Date(appliedAt).toISOString(),
-        latencyMs: sourceTsMs ? Math.max(0, appliedAt - sourceTsMs) : null,
-      });
+        appliedAt,
+      ));
     } catch (err) {
       this.logger.warn(`cdc:change broadcast failed for ${table}#${id}: ${(err as Error).message}`);
     }

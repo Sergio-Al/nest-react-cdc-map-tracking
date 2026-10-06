@@ -60,6 +60,7 @@
     "other": "other"
   },
   "toasts": {
+    "created": "Customer \"{{name}}\" created successfully",
     "queued": "Customer \"{{name}}\" queued — will appear shortly via CDC sync",
     "createFailed": "Failed to create customer"
   },

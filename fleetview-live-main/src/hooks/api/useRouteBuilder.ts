@@ -182,23 +182,34 @@ export interface CreateCustomerDto {
   customerType?: string;
 }
 
-export interface CreateCustomerResponse {
+export type CreateCustomerResponse = Customer | {
   status: 'accepted';
   correlationId: string;
-}
+};
 
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (dto: CreateCustomerDto) => {
       const response = await api.post<CreateCustomerResponse>('/customers', dto);
-      return response.data;
+      return { status: response.status, data: response.data };
     },
-    onSuccess: () => {
-      // Invalidate after a short delay to allow CDC propagation
-      setTimeout(() => {
+    onSuccess: ({ status, data }) => {
+      if (status === 202) {
+        // Integrated tenant: allow CDC propagation before refetching.
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        }, 3000);
+      } else {
+        // Standalone tenant: the persisted row is immediately available.
+        if ('id' in data) {
+          queryClient.setQueryData<Customer[]>(['customers'], (customers = []) => [
+            ...customers.filter((customer) => customer.id !== data.id),
+            data,
+          ]);
+        }
         queryClient.invalidateQueries({ queryKey: ['customers'] });
-      }, 3000);
+      }
     },
   });
 }

@@ -1,5 +1,6 @@
 import { Entity, PrimaryColumn, Column, Index } from 'typeorm';
 
+/** CDC supplies MySQL ids; standalone inserts omit id to use the PG sequence default. */
 @Entity('customers_cache')
 export class CachedCustomer {
   @PrimaryColumn({ type: 'bigint' })

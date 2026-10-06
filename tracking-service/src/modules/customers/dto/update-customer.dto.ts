@@ -1,11 +1,6 @@
 import { IsString, IsOptional, IsNumber, MaxLength, Min } from 'class-validator';
 
-/**
- * Partial update for a customer. Emitted as `commands.customers` op:'update'
- * (async, 202) and applied to MySQL by the integration-service, then reflected
- * back into customers_cache via CDC. tenantId scopes the update; all business
- * fields are optional so callers can change just what they need.
- */
+/** Partial update: standalone writes PG; integrated emits a Kafka command. */
 export class UpdateCustomerDto {
   @IsString()
   @MaxLength(50)

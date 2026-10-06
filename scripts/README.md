@@ -46,10 +46,12 @@ ERP run manifests (what each run created/edited, so `--clear` can undo it) are w
 
 | File | What it does |
 |---|---|
+| `migrate-standalone-id-sequences.sql` | One-off for existing cache-db volumes: moves `customers_cache` / `orders_cache` id sequences to start at 1,000,000,000 so PG-owned (standalone) rows never collide with MySQL ids from CDC. Idempotent; only reports (never renumbers) old standalone orders below that range. `docker exec -i cache-db psql -U tracking -d tracking_cache < scripts/migrations/migrate-standalone-id-sequences.sql` |
 | `migrate-daily-stats-tz.sql` | One-off for existing TimescaleDB volumes: rebuilds `driver_daily_stats` bucketed by `America/La_Paz`. Fresh installs already get it from the init scripts. |
 
 ## `smoke/`
 
 | File | What it does |
 |---|---|
+| `smoke-customers-dual-mode.sh` | Same check for customers: standalone `201`/`200` and immediately readable, integrated `202` then arrives via CDC. Restores the tenant's original mode. |
 | `smoke-orders-dual-mode.sh` | End-to-end check of the orders write path in both modes: standalone (direct PG) and integrated (Kafka → MySQL → CDC). `CLEAN=1` removes its rows. |

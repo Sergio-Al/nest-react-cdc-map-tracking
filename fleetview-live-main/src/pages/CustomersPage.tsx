@@ -68,14 +68,18 @@ export default function CustomersPage() {
 
   const handleCreate = async (dto: CreateCustomerDto) => {
     try {
-      await createCustomer.mutateAsync(dto);
-      setPendingNames((prev) => [...prev, dto.name]);
-      setTimeout(() => {
-        setPendingNames((prev) => prev.filter((n) => n !== dto.name));
-      }, 5000);
-      toast.success(t('toasts.queued', { name: dto.name }), {
-        duration: 5000,
-      });
+      const result = await createCustomer.mutateAsync(dto);
+      if (result.status === 202) {
+        setPendingNames((prev) => [...prev, dto.name]);
+        setTimeout(() => {
+          setPendingNames((prev) => prev.filter((n) => n !== dto.name));
+        }, 5000);
+        toast.success(t('toasts.queued', { name: dto.name }), {
+          duration: 5000,
+        });
+      } else {
+        toast.success(t('toasts.created', { name: dto.name }));
+      }
     } catch {
       toast.error(t('toasts.createFailed'));
     }

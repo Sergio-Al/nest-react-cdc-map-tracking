@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Patch, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { Controller, Get, Post, Patch, Param, Body, Res, HttpStatus } from '@nestjs/common';
+import { Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CustomerCacheService } from './customer-cache.service';
-import { KafkaProducerService } from '../kafka/kafka-producer.service';
+import { CustomerWriterResolver } from './customer-writer.resolver';
+import { CustomerWriteResult } from './customer-writer.interface';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
@@ -11,7 +12,7 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 export class CustomersController {
   constructor(
     private readonly customerCache: CustomerCacheService,
-    private readonly kafkaProducer: KafkaProducerService,
+    private readonly resolver: CustomerWriterResolver,
   ) {}
 
   @Get()
@@ -21,32 +22,37 @@ export class CustomersController {
 
   @Roles('admin', 'dispatcher')
   @Post()
-  @HttpCode(HttpStatus.ACCEPTED)
-  async create(@Body() dto: CreateCustomerDto, @CurrentUser() user: any) {
+  async create(
+    @Body() dto: CreateCustomerDto,
+    @CurrentUser() user: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     dto.tenantId = user.tenantId; // enforce tenant from JWT (never trust the body)
-    const correlationId = randomUUID();
-    await this.kafkaProducer.produce('commands.customers', {
-      key: dto.tenantId,
-      value: JSON.stringify({ op: 'create', correlationId, data: dto }),
-    });
-    return { status: 'accepted', correlationId };
+    const writer = await this.resolver.resolve(user.tenantId);
+    const result = await writer.createCustomer(user.tenantId, dto);
+    return this.shape(result, res, HttpStatus.CREATED);
   }
 
   @Roles('admin', 'dispatcher')
   @Patch(':id')
-  @HttpCode(HttpStatus.ACCEPTED)
-  async update(@Param('id') id: string, @Body() dto: UpdateCustomerDto, @CurrentUser() user: any) {
-    dto.tenantId = user.tenantId; // enforce tenant from JWT (never trust the body)
-    const correlationId = randomUUID();
-    await this.kafkaProducer.produce('commands.customers', {
-      key: dto.tenantId,
-      value: JSON.stringify({
-        op: 'update',
-        correlationId,
-        data: { ...dto, id: Number(id) },
-      }),
-    });
-    return { status: 'accepted', correlationId };
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCustomerDto,
+    @CurrentUser() user: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    dto.tenantId = user.tenantId;
+    const writer = await this.resolver.resolve(user.tenantId);
+    const result = await writer.updateCustomer(user.tenantId, Number(id), dto);
+    return this.shape(result, res, HttpStatus.OK);
+  }
+
+  private shape(result: CustomerWriteResult, res: Response, syncStatus: number) {
+    if (result.mode === 'async') {
+      res.status(HttpStatus.ACCEPTED);
+      return { status: 'accepted', correlationId: result.correlationId };
+    }
+    res.status(syncStatus);
+    return result.customer;
   }
 }
-
