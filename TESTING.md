@@ -4,12 +4,12 @@
 
 Documentation for the project's unit tests. They cover the most critical business services in `tracking-service` and the command handlers in `integration-service-nest`.
 
-**Current state: 178 tests across 12 suites, all green.**
+**Current state: 235 tests across 21 suites, all green.**
 
 | Service | Suites | Tests | Approx. time |
 |---|---|---|---|
-| `tracking-service` | 10 | 154 | ~7 s |
-| `integration-service-nest` | 2 | 24 | ~2 s |
+| `tracking-service` | 19 | 205 | ~8 s |
+| `integration-service-nest` | 2 | 30 | ~2 s |
 
 ## How to run them
 
@@ -64,7 +64,7 @@ The heart of the GPS pipeline, tested through the real `gps.positions` handler:
 - **Driver status**: marked `active` only once per process, not on every position.
 - **TimescaleDB buffer**: pending rows are written on service shutdown (`onModuleDestroy`).
 
-### `visits/visits.service.spec.ts` — 24 tests
+### `visits/visits.service.spec.ts` — 27 tests
 
 The visit lifecycle the driver app depends on:
 
@@ -73,6 +73,8 @@ The visit lifecycle the driver app depends on:
 - **Orders**: completing a visit with an `orderId` delegates to `OrdersService.setOrderStatus`; without an `orderId` nothing is touched. Order, Kafka or TimescaleDB failures do **not** prevent the visit from completing (best-effort).
 - **Driver queries**: `getNextVisitForDriver` only considers `pending`/`en_route` visits from today onward (the guard against stale visits hijacking the ETA/geofence context); `getCurrentVisitForDriver` looks up the `in_progress` visit; `getOnSiteVisitForDriver` finds the latest arrived-but-not-departed visit (including ones completed before driving off).
 - **Departure**: `markDeparted` stamps `departedAt` for arrived / in-progress / completed visits, never overwrites an existing departure, and ignores visits the driver never arrived at.
+- **Missed departures**: recording a new arrival closes the driver's earlier visits left without a departure at that arrival's time, in a single update.
+- **Local day, not UTC**: "today" is computed in the deployment time zone (`America/La_Paz`); regression test for 20:00–24:00 local time, when the UTC day has already rolled over.
 - **CRUD**: creation as `pending` + route stop-count increment; deletion only allowed while `pending`; tenant-scoped lookups that 404 instead of leaking cross-tenant data.
 
 ### `auth/auth.service.spec.ts` — 28 tests
@@ -131,18 +133,55 @@ The derived activity feed behind `GET /drivers/:id/events` (pure functions, no m
 
 Routing to `*.dlq` topics (`cdc.*` topics share `cdc.dlq`), diagnostic headers, counters, long-stack truncation, and the `withRetry` policy (exponential backoff, permanent errors skip retries, never throw if the DLQ publish itself fails).
 
+### `kafka/kafka-consumer.service.spec.ts` — 1 test
+
+A missing optional topic (the pipeline topic) does not stop the existing topics' handlers from running.
+
+### `dlq/dlq-admin.service.spec.ts` — 15 tests
+
+DLQ administration (`/api/dlq/*`): also lists the `commands.*.dlq` queues; counts only records past the replay cursor as pending; replay re-sends each message to its source topic (with per-message routing for the shared `cdc.dlq`), advances the cursor and stops at a failed send so it is retried later; rejects unknown queues before consuming.
+
+### `customers/customers.controller.spec.ts` — 4 tests
+
+Customer writes by tenant mode: synchronous `201`/`200` (standalone) or asynchronous `202 Accepted` (integrated); always uses the JWT tenant, never the body's.
+
+### `customers/customer-writer.resolver.spec.ts` — 2 tests
+
+With no `tenant_settings` row the tenant is standalone; the integrated writer is chosen from the tenant's configuration, independent of the order-create gate.
+
+### `customers/writers/customer-writers.spec.ts` — 7 tests
+
+- **Standalone (direct PG)**: returns the inserted row, invalidates the cache and notifies the tenant; partial updates (including zero coordinates) scoped to the tenant; localized 404 for missing or cross-tenant ids; a notification failure never turns an applied write into an error.
+- **Integrated (Kafka)**: keeps the exact create/update command contract with the authoritative tenant; Kafka failures propagate instead of acknowledging an unqueued write.
+
+### `sync/cdc-consumer.service.spec.ts` — 5 tests
+
+The CDC consumer applies upserts and deletes to the PostgreSQL cache, invalidates the customer cache, links the change to its pipeline trace and emits `cdc:change` to the tenant with the measured latency; it does not emit for startup snapshot reads (`op: 'r'`), and an invalidation or broadcast failure never fails an applied change.
+
+### `pipeline/pipeline-trace.service.spec.ts` — 9 tests
+
+CDC pipeline traces in Redis: atomic creation with a bounded per-tenant index and 24 h TTL; atomic stage appends with total duration; tenant isolation; reads bounded at 100; reconciliation when CDC arrives before the commit notification; none of it breaks writes or reads when Redis is unavailable.
+
+### `pipeline/pipeline.types.spec.ts` — 3 tests
+
+Trace status computation: DLQ failures and reset on replay, source chronology despite late Kafka ACKs, and total time across a failed attempt plus its replay.
+
+### `common/utils/local-date.spec.ts` — 2 tests
+
+`localDate(tz)` returns the La Paz civil date after the UTC day rollover and matches the UTC date when both agree.
+
 ## `integration-service-nest` suites
 
 Both handlers are tested through the real handler registered on Kafka, with fake timers so retry backoffs are instant.
 
-### `integration/customers.handler.spec.ts` — 12 tests
+### `integration/customers.handler.spec.ts` — 14 tests
 
 - **Permanent failures → straight to DLQ, one DB attempt**: invalid JSON, unknown `op`, missing `tenantId`/`name`/`id`, non-existent customer on an update.
 - **Successful writes**: insert with defaults (`geofenceRadiusMeters: 100`, `customerType: 'regular'`) and the `correlationId` persisted for idempotency; partial updates with only the fields present in the command.
 - **At-least-once semantics**: a duplicate `correlation_id` (Kafka redelivery of an already-applied command) is treated as **success**, not an error — no DLQ, no retry.
 - **Retries**: transient DB errors retry with backoff and only reach the DLQ after all 4 attempts are exhausted; a mid-stream recovery avoids the DLQ.
 
-### `integration/orders.handler.spec.ts` — 12 tests
+### `integration/orders.handler.spec.ts` — 16 tests
 
 Same as customers for the three operations (`create`/`update`/`status`), plus:
 
@@ -162,5 +201,5 @@ In suggested value order:
 
 1. `routes` — OSRM / OR-Tools request building and response mapping (mocking the HTTP).
 2. `customers` — the 3-level cache (in-process Map → Redis → PG → MySQL fallback).
-3. `sync` — the CDC consumer (`CdcConsumerService`) and lag monitoring.
+3. `sync` — CDC lag monitoring (the `CdcConsumerService` consumer is already covered).
 4. Frontend (`fleetview-live-main`) — Vitest is already configured; prioritize logic-heavy hooks (e.g. `hooks/api/useReports.ts`).

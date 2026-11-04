@@ -55,6 +55,12 @@ ERP run manifests (what each run created/edited, so `--clear` can undo it) are w
 |---|---|
 | `cdc-pipeline-demo.sh` | Presenter-driven CDC architecture demo in 5 acts (happy path, standalone contrast, integration-service down, MySQL down → DLQ → replay, poison message). Spanish narration; open Monitoring → Pipeline while it runs. `--auto` for rehearsal, `--act N` for one act. Stops/starts `integration-service` and `mysql` and always restores them on exit. |
 
+## `validation/`
+
+| File | What it does |
+|---|---|
+| `validacion_haversine_geodesica.py` | Measures the error of the system's Haversine (`geo-utils.ts`, R = 6,371,000 m) against the WGS84 geodesic distance (Karney, geographiclib) over the 23 La Paz seed customers: 253 customer pairs plus 8 points on each geofence radius. Needs `pip install geographiclib==2.1`. `python3 scripts/validation/validacion_haversine_geodesica.py infrastructure/mysql/init/02-seed-customers-lapaz.sql` |
+
 ## `smoke/`
 
 | File | What it does |

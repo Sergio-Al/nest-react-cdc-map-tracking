@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-11-04T02:08:43.048Z",
+  "test": "gps-ingestion",
+  "metrics": {
+    "http_reqs": 76304,
+    "http_reqs_rate": 157.56874713382402,
+    "http_req_duration_p95": 8.657168699999998,
+    "http_req_duration_p99": 16.16897573,
+    "http_req_duration_avg": 3.6650559937486973,
+    "http_req_duration_max": 236.804501,
+    "http_req_failed_rate": 0,
+    "position_errors_rate": 0,
+    "vus_max": 1000
+  },
+  "thresholds": {
+    "http_req_failed": {
+      "rate<0.01": {
+        "ok": true
+      }
+    },
+    "position_errors": {
+      "rate<0.01": {
+        "ok": true
+      }
+    },
+    "http_req_duration": {
+      "p(95)<200": {
+        "ok": true
+      },
+      "p(99)<500": {
+        "ok": true
+      }
+    }
+  }
+}

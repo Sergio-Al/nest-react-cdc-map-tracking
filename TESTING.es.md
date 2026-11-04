@@ -4,12 +4,12 @@
 
 Documentación de las pruebas unitarias del proyecto. Cubren los servicios de negocio más críticos de `tracking-service` y los handlers de comandos de `integration-service-nest`.
 
-**Estado actual: 178 pruebas en 12 suites, todas en verde.**
+**Estado actual: 235 pruebas en 21 suites, todas en verde.**
 
 | Servicio | Suites | Pruebas | Tiempo aprox. |
 |---|---|---|---|
-| `tracking-service` | 10 | 154 | ~7 s |
-| `integration-service-nest` | 2 | 24 | ~2 s |
+| `tracking-service` | 19 | 205 | ~8 s |
+| `integration-service-nest` | 2 | 30 | ~2 s |
 
 ## Cómo ejecutarlas
 
@@ -64,7 +64,7 @@ El corazón del pipeline GPS, probado a través del handler real de `gps.positio
 - **Estado del conductor**: se marca `active` una sola vez por proceso, no en cada posición.
 - **Buffer de TimescaleDB**: las filas pendientes se escriben al apagar el servicio (`onModuleDestroy`).
 
-### `visits/visits.service.spec.ts` — 24 pruebas
+### `visits/visits.service.spec.ts` — 27 pruebas
 
 El ciclo de vida de visitas del que depende la app de conductores:
 
@@ -73,6 +73,8 @@ El ciclo de vida de visitas del que depende la app de conductores:
 - **Pedidos**: al completar una visita con `orderId` se delega a `OrdersService.setOrderStatus`; sin `orderId` no se toca nada. Fallos de pedidos, Kafka o TimescaleDB **no** impiden completar la visita (best-effort).
 - **Consultas del conductor**: `getNextVisitForDriver` solo considera visitas `pending`/`en_route` de hoy en adelante (el guard contra visitas viejas que secuestran el contexto de ETA/geocerca); `getCurrentVisitForDriver` busca la visita `in_progress`; `getOnSiteVisitForDriver` encuentra la última visita con llegada y sin salida (incluidas las completadas antes de irse).
 - **Salida**: `markDeparted` marca `departedAt` en visitas llegadas / en curso / completadas, nunca sobrescribe una salida existente e ignora visitas a las que el conductor nunca llegó.
+- **Salidas perdidas**: al registrar una nueva llegada, las visitas anteriores del conductor que quedaron sin salida se cierran con la hora de esa llegada, en un solo update.
+- **Día local, no UTC**: "hoy" se calcula en la zona horaria del despliegue (`America/La_Paz`); prueba de regresión para las 20:00–24:00 locales, cuando el día UTC ya cambió.
 - **CRUD**: creación con estado `pending` + incremento de paradas de la ruta; borrado solo permitido en `pending`; búsquedas con scope de tenant que devuelven 404 en vez de filtrar datos cruzados.
 
 ### `auth/auth.service.spec.ts` — 28 pruebas
@@ -131,18 +133,55 @@ El feed de actividad derivado detrás de `GET /drivers/:id/events` (funciones pu
 
 Ruteo a topics `*.dlq` (los topics `cdc.*` comparten `cdc.dlq`), headers de diagnóstico, contadores, truncado de stacks largos, y la política `withRetry` (backoff exponencial, errores permanentes sin reintento, no lanzar si el propio DLQ falla).
 
+### `kafka/kafka-consumer.service.spec.ts` — 1 prueba
+
+Un topic opcional ausente (el topic del pipeline) no impide que los handlers de los topics existentes sigan corriendo.
+
+### `dlq/dlq-admin.service.spec.ts` — 15 pruebas
+
+Administración de DLQ (`/api/dlq/*`): lista también las colas `commands.*.dlq`; cuenta como pendientes solo los registros posteriores al cursor de replay; el replay reenvía cada mensaje a su topic de origen (con ruteo por mensaje en la cola compartida `cdc.dlq`), avanza el cursor y se detiene en un envío fallido para reintentarlo después; rechaza colas desconocidas antes de consumir.
+
+### `customers/customers.controller.spec.ts` — 4 pruebas
+
+Escrituras de clientes según el modo del tenant: `201`/`200` síncrono (standalone) o `202 Accepted` asíncrono (integrado); siempre se usa el tenant del JWT, nunca el del body.
+
+### `customers/customer-writer.resolver.spec.ts` — 2 pruebas
+
+Sin fila de `tenant_settings` el tenant es standalone; el writer integrado se elige por la configuración del tenant, independiente del gate de creación de pedidos.
+
+### `customers/writers/customer-writers.spec.ts` — 7 pruebas
+
+- **Standalone (PG directo)**: devuelve la fila insertada, invalida la cache y notifica al tenant; updates parciales (incluidas coordenadas cero) con scope de tenant; 404 localizado para ids inexistentes o de otro tenant; un fallo de notificación no convierte en error una escritura ya aplicada.
+- **Integrado (Kafka)**: respeta el contrato exacto de los comandos create/update con el tenant autoritativo; los fallos de Kafka se propagan en vez de confirmar una escritura no encolada.
+
+### `sync/cdc-consumer.service.spec.ts` — 5 pruebas
+
+El consumidor CDC aplica upserts y deletes al cache de PostgreSQL, invalida la cache de clientes, enlaza el cambio con su traza del pipeline y emite `cdc:change` al tenant con la latencia medida; no emite en los snapshot reads (`op: 'r'`) del arranque, y un fallo de invalidación o broadcast nunca hace fallar un cambio ya aplicado.
+
+### `pipeline/pipeline-trace.service.spec.ts` — 9 pruebas
+
+Trazas del pipeline CDC en Redis: creación atómica con índice por tenant acotado y TTL de 24 h; agregado atómico de etapas con duración total; aislamiento entre tenants; lecturas acotadas a 100; reconciliación cuando el CDC llega antes que la confirmación del commit; nada de esto rompe escrituras ni lecturas si Redis no está disponible.
+
+### `pipeline/pipeline.types.spec.ts` — 3 pruebas
+
+Cálculo del estado de una traza: fallos a DLQ y reinicio al hacer replay, cronología de origen ante ACKs de Kafka tardíos, y tiempo total a través de un intento fallido más su replay.
+
+### `common/utils/local-date.spec.ts` — 2 pruebas
+
+`localDate(tz)` devuelve la fecha civil de La Paz tras el cambio de día UTC y coincide con la fecha UTC cuando ambas concuerdan.
+
 ## Suites de `integration-service-nest`
 
-Ambos handlers se prueban a través del handler real registrado en Kafka, con fake timers para que los backoffs de reintento sean instantáneos.
+Ambos handlers se prueban a través del handler real registrado en Kafka, con fake timers para que los backoffs de reintento sean instantáneos. Además, cada uno emite los eventos del pipeline CDC (consumido, confirmado con el id real del insert en MySQL, cada intento fallido y el motivo final del DLQ), y un fallo al producir esos eventos nunca hace fallar la escritura de negocio.
 
-### `integration/customers.handler.spec.ts` — 12 pruebas
+### `integration/customers.handler.spec.ts` — 14 pruebas
 
 - **Fallos permanentes → DLQ directo, un solo intento de BD**: JSON inválido, `op` desconocido, `tenantId`/`name`/`id` faltantes, cliente inexistente en un update.
 - **Escrituras exitosas**: insert con defaults (`geofenceRadiusMeters: 100`, `customerType: 'regular'`) y el `correlationId` persistido para idempotencia; updates parciales solo con los campos presentes en el comando.
 - **Semántica at-least-once**: un `correlation_id` duplicado (redelivery de Kafka de un comando ya aplicado) se trata como **éxito**, no como error — sin DLQ, sin reintento.
 - **Reintentos**: errores transitorios de BD reintentan con backoff y solo van al DLQ tras agotar los 4 intentos; una recuperación a mitad de camino evita el DLQ.
 
-### `integration/orders.handler.spec.ts` — 12 pruebas
+### `integration/orders.handler.spec.ts` — 16 pruebas
 
 Lo mismo que customers para las tres operaciones (`create`/`update`/`status`), más:
 
@@ -162,5 +201,5 @@ En orden de valor sugerido:
 
 1. `routes` — construcción de requests y mapeo de respuestas de OSRM / OR-Tools (mockeando el HTTP).
 2. `customers` — la cache de 3 niveles (Map en proceso → Redis → PG → fallback MySQL).
-3. `sync` — el consumidor CDC (`CdcConsumerService`) y el monitoreo de lag.
+3. `sync` — el monitoreo de lag del CDC (el consumidor `CdcConsumerService` ya está cubierto).
 4. Frontend (`fleetview-live-main`) — Vitest ya está configurado; priorizar hooks con lógica (ej. `hooks/api/useReports.ts`).
