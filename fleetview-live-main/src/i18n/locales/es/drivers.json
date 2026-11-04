@@ -7,7 +7,9 @@
   "status": {
     "online": "en línea",
     "break": "descanso",
-    "offline": "desconectado"
+    "offline": "desconectado",
+    "active": "activo",
+    "inactive": "inactivo"
   },
   "table": {
     "driver": "Conductor",

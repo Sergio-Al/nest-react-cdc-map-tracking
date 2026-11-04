@@ -1,4 +1,5 @@
 import type { EnrichedPosition } from "@/types/position.types";
+import i18n from "@/i18n";
 
 export type DriverStatus = "moving" | "idle" | "offline";
 
@@ -19,14 +20,14 @@ export function speedKmh(speed?: number): number {
   return Math.round(speed ?? 0);
 }
 
-/** Compact "45s ago" / "12m ago" / "2h ago" age label. */
+/** Compact, localized age label: "45s ago" / "hace 12 min" (common:age.*). */
 export function formatAge(time?: string): string {
   if (!time) return "—";
   const s = Math.floor((Date.now() - new Date(time).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60) return i18n.t("common:age.s", { n: s });
+  if (s < 3600) return i18n.t("common:age.m", { n: Math.floor(s / 60) });
+  if (s < 86400) return i18n.t("common:age.h", { n: Math.floor(s / 3600) });
+  return i18n.t("common:age.d", { n: Math.floor(s / 86400) });
 }
 
 /** CSS variable for a status hue (consumable in inline styles). */

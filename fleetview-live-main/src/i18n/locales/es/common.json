@@ -147,5 +147,11 @@
     "title": "Página no encontrada",
     "description": "La ruta solicitada no existe.",
     "back": "Volver al inicio"
+  },
+  "age": {
+    "s": "hace {{n}} s",
+    "m": "hace {{n}} min",
+    "h": "hace {{n}} h",
+    "d": "hace {{n}} d"
   }
 }

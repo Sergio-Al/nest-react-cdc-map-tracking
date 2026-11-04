@@ -191,7 +191,7 @@ export default function DriversPage() {
                   </span>
                 </Td>
                 <Td muted>
-                  <span className="capitalize">{d.vehicleType}</span>
+                  <span className="capitalize">{t(`dialog.types.${d.vehicleType}`, { defaultValue: d.vehicleType })}</span>
                   {d.vehiclePlate && (
                     <span className="ml-2 font-mono text-[10.5px] text-mc-text-dim">
                       {d.vehiclePlate}

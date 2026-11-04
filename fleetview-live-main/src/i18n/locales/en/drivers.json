@@ -7,7 +7,9 @@
   "status": {
     "online": "online",
     "break": "break",
-    "offline": "offline"
+    "offline": "offline",
+    "active": "active",
+    "inactive": "inactive"
   },
   "table": {
     "driver": "Driver",

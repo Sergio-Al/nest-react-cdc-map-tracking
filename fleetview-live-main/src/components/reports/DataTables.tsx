@@ -144,8 +144,8 @@ export function VisitsTab() {
             </span>
           </Td>
           <Td>{v.customerName}</Td>
-          <Td muted><span className="capitalize">{v.visitType}</span></Td>
-          <Td><Tag status={VISIT_STATUS[v.status] ?? 'planned'} label={v.status} /></Td>
+          <Td muted><span className="capitalize">{t(`filters.options.${v.visitType}`, { ns: 'common', defaultValue: v.visitType })}</span></Td>
+          <Td><Tag status={VISIT_STATUS[v.status] ?? 'planned'} label={t(`filters.options.${v.status}`, { ns: 'common', defaultValue: v.status })} /></Td>
           <Td num>
             {v.durationSec != null
               ? t('tables.visits.minutes', { minutes: Math.round(v.durationSec / 60) })
