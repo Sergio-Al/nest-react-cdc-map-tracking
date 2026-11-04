@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Plus, Wand2, Save, Loader2, Route as RouteIcon, ChevronLeft, ChevronDown, MapPin, Crosshair, RotateCcw, Play, CheckCircle2, XCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -288,7 +288,8 @@ export function RouteBuilderSidebar({ listRoutes }: RouteBuilderSidebarProps = {
 
   const fmtDate = (date: string): string => {
     try {
-      return format(new Date(date), 'd MMM', { locale: dateLocale });
+      // parseISO keeps a date-only scheduledDate on the local day (new Date() reads it as UTC midnight).
+      return format(parseISO(date), 'd MMM', { locale: dateLocale });
     } catch {
       return date;
     }

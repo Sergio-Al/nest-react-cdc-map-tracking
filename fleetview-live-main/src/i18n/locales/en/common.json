@@ -147,5 +147,11 @@
     "title": "Page not found",
     "description": "The requested route does not exist.",
     "back": "Back to home"
+  },
+  "age": {
+    "s": "{{n}}s ago",
+    "m": "{{n}}m ago",
+    "h": "{{n}}h ago",
+    "d": "{{n}}d ago"
   }
 }

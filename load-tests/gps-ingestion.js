@@ -40,6 +40,8 @@ const LA_PAZ_CENTER = { lat: -16.5000, lng: -68.1300 };
 const COORDINATE_SPREAD = 0.05; // ~5km radius
 
 export const options = {
+  // k6's default trend stats stop at p(95); p(99) is needed for the summary.
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     gps_ingestion: {
       executor: 'ramping-vus',
@@ -154,9 +156,11 @@ export function handleSummary(data) {
     test: 'gps-ingestion',
     metrics: {
       http_reqs: data.metrics.http_reqs?.values?.count || 0,
+      http_reqs_rate: data.metrics.http_reqs?.values?.rate || 0,
       http_req_duration_p95: data.metrics.http_req_duration?.values?.['p(95)'] || 0,
       http_req_duration_p99: data.metrics.http_req_duration?.values?.['p(99)'] || 0,
       http_req_duration_avg: data.metrics.http_req_duration?.values?.avg || 0,
+      http_req_duration_max: data.metrics.http_req_duration?.values?.max || 0,
       http_req_failed_rate: data.metrics.http_req_failed?.values?.rate || 0,
       position_errors_rate: data.metrics.position_errors?.values?.rate || 0,
       vus_max: data.metrics.vus_max?.values?.value || 0,

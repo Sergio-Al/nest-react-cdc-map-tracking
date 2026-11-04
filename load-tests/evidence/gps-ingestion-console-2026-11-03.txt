@@ -1,0 +1,20 @@
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+     execution: local
+        script: load-tests/gps-ingestion.js
+        output: -
+     scenarios: (100.00%) 1 scenario, 1000 max VUs, 8m10s max duration (incl. graceful stop):
+              * gps_ingestion: Up to 1000 looping VUs for 8m0s over 5 stages (gracefulRampDown: 10s, gracefulStop: 30s)
+╔═══════════════════════════════════════════════════╗
+║        GPS Ingestion Load Test Results            ║
+╠═══════════════════════════════════════════════════╣
+║  Total requests:    76304                         ║
+║  Max VUs:           1000                          ║
+║  Avg duration:      3.7ms                         ║
+║  p95 duration:      8.7ms                         ║
+║  p99 duration:      16.2ms                        ║
+║  Failure rate:      0.00%                         ║
+╚═══════════════════════════════════════════════════╝

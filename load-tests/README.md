@@ -100,6 +100,18 @@ Test results are saved to `load-tests/results/` as JSON summaries:
 - `ws-consumers-summary.json`
 - `full-scenario-summary.json`
 
+`results/` is gitignored. Runs kept as evidence are copied to `load-tests/evidence/`:
+
+| Run | Environment | Result |
+|---|---|---|
+| [`gps-ingestion-summary-2026-11-03.json`](evidence/gps-ingestion-summary-2026-11-03.json) ([console](evidence/gps-ingestion-console-2026-11-03.txt)) | Apple M1, 8 cores, 16 GB, macOS 26.5.2; Docker Desktop (8 CPU, 7.7 GB); tracking-service compiled build; k6 via `grafana/k6` | 76,304 requests, 157.6 req/s avg, p95 8.66 ms, p99 16.17 ms, max 236.8 ms, 0 % failed — all thresholds pass |
+
+No k6 install? Run it from Docker (on macOS the container reaches the host through `host.docker.internal`):
+
+```bash
+docker run --rm -v "$PWD":/w -w /w -e BASE_URL=http://host.docker.internal:3000 grafana/k6 run load-tests/gps-ingestion.js
+```
+
 ## Cleanup
 
 After testing, remove the load test drivers:
