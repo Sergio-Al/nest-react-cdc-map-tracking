@@ -1,0 +1,9 @@
+== Offline buffer check  2026-11-04T21:41:37-04:00  commit f6dbfbe
+device LOAD0050 (Traccar #53, Load Driver 50) → driver Load Driver 50 (6dd74681-cb64-474c-a235-ded894b4662e)
+window 2026-11-04 21:34:36-04 … 2026-11-04 21:42:16-04  (UTC 2026-11-05T01:34:36.000 … 2026-11-05T01:42:16.000)
+fixes in window: 13; in enriched_positions: 13
+late fixes (servertime − devicetime > 30 s): 10; persisted: 10
+offline: first buffered fix 2026-11-05T01:36:16.000Z, last 2026-11-05T01:38:04.000Z (108.0 s of buffered fixes)
+reconnected at 2026-11-05T01:41:16.669Z → disconnection ≈ 300.7 s; buffer uploaded in 0.2 s; max delay 300.7 s
+RESULT: PASS
+evidence: scripts/validation/evidence/offline-buffer-2026-11-04T2141-osmand-sim.json

@@ -60,6 +60,38 @@ ERP run manifests (what each run created/edited, so `--clear` can undo it) are w
 | File | What it does |
 |---|---|
 | `validacion_haversine_geodesica.py` | Measures the error of the system's Haversine (`geo-utils.ts`, R = 6,371,000 m) against the WGS84 geodesic distance (Karney, geographiclib) over the 23 La Paz seed customers: 253 customer pairs plus 8 points on each geofence radius. Needs `pip install geographiclib==2.1`. `python3 scripts/validation/validacion_haversine_geodesica.py infrastructure/mysql/init/02-seed-customers-lapaz.sql` |
+| `kafka-recovery-test.sh` | GPS event recovery under interruptions. **A**: stops tracking-service, publishes N positions straight to `gps.positions`, checks Kafka retains them (lag ≥ N) and that all N reach `enriched_positions` after the restart. **B**: publishes N while consuming, stops it mid-way (`--signal KILL`, default, or `TERM`), restarts, and checks exactly N rows (at-least-once + `ON CONFLICT`). Loads the LOAD seed if missing; detects Docker vs local tracking-service. Writes `evidence/kafka-recovery-<date>.{txt,json}`; `--cleanup` deletes the runs' rows. |
+| `offline-buffer-check.sh` | Read-only check for the manual phone-offline test: lists a device's Traccar fixes in a window, flags late ones (`servertime − devicetime > 30 s`) and verifies each is in `enriched_positions`. Writes `evidence/offline-buffer-<date>.{txt,json}`. |
+
+Results and findings of the committed runs: [`validation/evidence/README.md`](validation/evidence/README.md).
+
+```bash
+scripts/validation/kafka-recovery-test.sh                        # A + B (SIGKILL), N=1000 over LOAD0001–0050
+scripts/validation/kafka-recovery-test.sh --scenario B --signal TERM
+scripts/validation/kafka-recovery-test.sh -n 5000 -d 200 --kill-at 30
+scripts/validation/kafka-recovery-test.sh --cleanup              # every kafka-recovery-*.json run (or pass one file)
+
+scripts/validation/offline-buffer-check.sh DEV004 "2026-11-05 10:00-04" "2026-11-05 10:30-04"
+```
+
+`kafka-recovery-test.sh` stops and restarts tracking-service. In local mode it relaunches it
+with `TS_START_CMD` (default `node dist/main`, run from `tracking-service/`, log in
+`$TMPDIR/kafka-recovery-tracking-service.log`); run `npm run build` first. Under `--profile full`
+it uses `docker stop` / `docker kill` / `docker start tracking-service`.
+
+**Phone offline test** (`offline-buffer-check.sh`):
+
+1. In Traccar (http://localhost:8082) the phone's device must have the same identifier as a
+   driver's `device_id` (e.g. `DEV004`). In Traccar Client set that identifier, the server URL
+   `http://<this machine's LAN IP>:5055`, a frequency of 10–30 s, and turn **offline buffering** on.
+2. Start tracking (the driver shows up on the live map), note the time, then switch the phone to
+   airplane mode for a few minutes while moving if possible. Keep tracking-service running.
+3. Turn airplane mode off, wait until the buffered fixes are uploaded (the map catches up), note the time.
+4. `scripts/validation/offline-buffer-check.sh DEV004 "<start>-04" "<end>-04"` → `RESULT: PASS`
+   when every late fix was persisted. Add `TAG=phone` to label the evidence file.
+
+Traccar does not retry a failed forward (`forward.retry.enable` is off in `infrastructure/traccar/traccar.xml`),
+so tracking-service must be up while the phone uploads its buffer.
 
 ## `smoke/`
 
