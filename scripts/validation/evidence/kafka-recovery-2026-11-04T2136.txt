@@ -1,0 +1,78 @@
+21:36:11 == Kafka recovery test  run=krt-20261105T013610Z  N=1000  devices=50  scenario=all
+21:36:11    commit f6dbfbe | Apple M1, 8 cores | 16 GB | macOS 26.5.2 (arm64) | Docker 29.8.0, 8 CPU, 7.7 GB
+21:36:11 tracking-service mode: local
+21:36:11 LOAD drivers ready (50 used: LOAD0001–LOAD0050)
+21:36:11 
+21:36:11 ── Scenario A: consumer stopped ─────────────────────────────
+21:36:13 A1 consumer group 'tracking-service-group' before:  committed=154001 log-end=154001 lag=0
+    
+    GROUP                  TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+    tracking-service-group gps.positions          1          24139           24139           0               tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          3          26383           26383           0               tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          5          24952           24952           0               tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          0          24944           24944           0               tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          2          24987           24987           0               tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          4          28596           28596           0               tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+21:36:15 A2 stopping tracking-service (graceful)
+21:36:15 A3 publishing 1000 positions to gps.positions (deviceTime 2026-11-05T01:36:15.849Z … 2026-11-05T01:36:16.848Z, runId krt-20261105T013610Z-A)
+21:36:18 A4 with consumer down:  committed=154001 log-end=155001 lag=1000  (published in 1120 ms)
+    
+    GROUP                  TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+    tracking-service-group gps.positions          1          24139           24319           180             tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          3          26383           26563           180             tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          5          24952           25092           140             tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          0          24944           25204           260             tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          2          24987           25067           80              tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          4          28596           28756           160             tracking-service-cce43f8d-c640-4d6b-b3d4-bf892db6a441 /172.18.0.1     tracking-service
+21:36:19    rows in TimescaleDB while down: 0
+21:36:19 A5 starting tracking-service
+21:36:50    healthy after 24 s; lag 0 after 30 s from start (waited 5 s)
+21:36:50 A6 consumer group after:  committed=155001 log-end=155001 lag=0
+    
+    GROUP                  TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+    tracking-service-group gps.positions          1          24319           24319           0               tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          3          26563           26563           0               tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          5          25092           25092           0               tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          0          25204           25204           0               tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          2          25067           25067           0               tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          4          28756           28756           0               tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+21:37:06 A7 enriched_positions rows for the run: 1000 (distinct (time,driver_id): 1000) — expected 1000
+21:37:06    DLQ: 0 messages of this run; gps.positions.dlq end offset 0 → 0
+21:37:06 A  RESULT: PASS
+21:37:06 
+21:37:06 ── Scenario B: SIGKILL mid-consumption ──────────────────────
+21:37:07 B1 consumer group before:  committed=155001 log-end=155001 lag=0
+21:37:08 B2 publishing 1000 positions with tracking-service consuming (deviceTime 2026-11-05T01:37:08.864Z … 2026-11-05T01:37:09.863Z, runId krt-20261105T013610Z-B)
+21:37:10 B3 400 rows persisted (≥ 40 % of 1000) — SIGKILL tracking-service
+21:37:12 B4 after kill:  rows=421  committed=155518 (+517 of this run) log-end=156001 lag=483
+    
+    GROUP                  TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+    tracking-service-group gps.positions          1          24406           24499           93              tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          3          26650           26743           93              tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          5          25179           25232           53              tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          0          25293           25464           171             tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          2          25147           25147           0               tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          4          28843           28916           73              tracking-service-68e6111b-c0c1-45bc-88f2-76e4d93b0ba4 /172.18.0.1     tracking-service
+21:37:13    committed but not yet persisted at the stop: 96
+21:37:13 B5 restarting tracking-service
+21:37:44    healthy after 27 s; lag 0 after 29 s from restart (waited 1 s)
+21:37:44 B6 consumer group after:  committed=156001 log-end=156001 lag=0
+    
+    GROUP                  TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+    tracking-service-group gps.positions          1          24499           24499           0               tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          3          26743           26743           0               tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          5          25232           25232           0               tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          0          25464           25464           0               tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          2          25147           25147           0               tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          4          28916           28916           0               tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+21:38:00 B7 enriched_positions rows for the run: 900 (distinct: 900) — expected 1000
+21:38:00    redelivered after restart: 483; new rows after restart: 479; duplicates absorbed by ON CONFLICT: 4; lost: 100
+21:38:00    DLQ: 0 messages of this run; gps.positions.dlq end offset 0 → 0
+21:38:00    LOSS: 100 positions whose offsets were committed before their TimescaleDB write was flushed
+21:38:00 B  RESULT: FAIL
+21:38:00 
+21:38:00 == Summary  run=krt-20261105T013610Z
+21:38:00    A consumer stopped : PASS  published=1000 lag_while_down=1000 rows=1000 dlq=0 recovery=30s
+21:38:00    B SIGKILL mid-run   : FAIL  published=1000 rows_at_kill=421 rows=900 lost=100 absorbed=4 dlq=0 recovery=29s
+21:38:00    evidence: scripts/validation/evidence/kafka-recovery-2026-11-04T2136.txt , scripts/validation/evidence/kafka-recovery-2026-11-04T2136.json
+21:38:00    rows are kept as evidence; remove them with: scripts/validation/kafka-recovery-test.sh --cleanup scripts/validation/evidence/kafka-recovery-2026-11-04T2136.json

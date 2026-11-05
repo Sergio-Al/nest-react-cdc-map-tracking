@@ -1,0 +1,142 @@
+{
+  "test": "offline-buffer",
+  "result": "PASS",
+  "date": "2026-11-04T21:41:37-04:00",
+  "commit": "f6dbfbe",
+  "device": {
+    "unique_id": "LOAD0050",
+    "traccar_id": 53,
+    "name": "Load Driver 50"
+  },
+  "driver": {
+    "id": "6dd74681-cb64-474c-a235-ded894b4662e",
+    "name": "Load Driver 50"
+  },
+  "window": {
+    "from": "2026-11-04 21:34:36-04",
+    "to": "2026-11-04 21:42:16-04",
+    "from_utc": "2026-11-05T01:34:36.000Z",
+    "to_utc": "2026-11-05T01:42:16.000Z"
+  },
+  "late_threshold_s": 30.0,
+  "fixes_in_window": 13,
+  "fixes_persisted": 13,
+  "late_fixes": 10,
+  "late_fixes_persisted": 10,
+  "missing_late_fixes": [],
+  "offline": {
+    "first_buffered_fix": "2026-11-05T01:36:16.000Z",
+    "last_buffered_fix": "2026-11-05T01:38:04.000Z",
+    "buffered_span_s": 108.0,
+    "reconnected_at": "2026-11-05T01:41:16.669Z",
+    "disconnection_s": 300.7,
+    "upload_span_s": 0.2,
+    "max_delay_s": 300.7
+  },
+  "fixes": [
+    {
+      "traccar_id": 1318,
+      "devicetime": "2026-11-05T01:36:16.000Z",
+      "servertime": "2026-11-05T01:41:16.669Z",
+      "delay_s": 300.7,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1320,
+      "devicetime": "2026-11-05T01:36:28.000Z",
+      "servertime": "2026-11-05T01:41:16.698Z",
+      "delay_s": 288.7,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1319,
+      "devicetime": "2026-11-05T01:36:40.000Z",
+      "servertime": "2026-11-05T01:41:16.715Z",
+      "delay_s": 276.7,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1323,
+      "devicetime": "2026-11-05T01:36:52.000Z",
+      "servertime": "2026-11-05T01:41:16.729Z",
+      "delay_s": 264.7,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1317,
+      "devicetime": "2026-11-05T01:37:04.000Z",
+      "servertime": "2026-11-05T01:41:16.743Z",
+      "delay_s": 252.7,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1316,
+      "devicetime": "2026-11-05T01:37:16.000Z",
+      "servertime": "2026-11-05T01:41:16.757Z",
+      "delay_s": 240.8,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1322,
+      "devicetime": "2026-11-05T01:37:28.000Z",
+      "servertime": "2026-11-05T01:41:16.772Z",
+      "delay_s": 228.8,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1321,
+      "devicetime": "2026-11-05T01:37:40.000Z",
+      "servertime": "2026-11-05T01:41:16.789Z",
+      "delay_s": 216.8,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1324,
+      "devicetime": "2026-11-05T01:37:52.000Z",
+      "servertime": "2026-11-05T01:41:16.808Z",
+      "delay_s": 204.8,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1325,
+      "devicetime": "2026-11-05T01:38:04.000Z",
+      "servertime": "2026-11-05T01:41:16.824Z",
+      "delay_s": 192.8,
+      "late": true,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1326,
+      "devicetime": "2026-11-05T01:41:16.000Z",
+      "servertime": "2026-11-05T01:41:16.842Z",
+      "delay_s": 0.8,
+      "late": false,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1327,
+      "devicetime": "2026-11-05T01:41:17.000Z",
+      "servertime": "2026-11-05T01:41:17.897Z",
+      "delay_s": 0.9,
+      "late": false,
+      "persisted": true
+    },
+    {
+      "traccar_id": 1328,
+      "devicetime": "2026-11-05T01:41:18.000Z",
+      "servertime": "2026-11-05T01:41:18.939Z",
+      "delay_s": 0.9,
+      "late": false,
+      "persisted": true
+    }
+  ]
+}

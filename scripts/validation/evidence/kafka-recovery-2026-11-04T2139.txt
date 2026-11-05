@@ -1,0 +1,40 @@
+21:39:15 == Kafka recovery test  run=krt-20261105T013914Z  N=1000  devices=50  scenario=B
+21:39:15    commit f6dbfbe | Apple M1, 8 cores | 16 GB | macOS 26.5.2 (arm64) | Docker 29.8.0, 8 CPU, 7.7 GB
+21:39:15 tracking-service mode: local
+21:39:15 LOAD drivers ready (50 used: LOAD0001–LOAD0050)
+21:39:15 
+21:39:15 ── Scenario B: SIGTERM mid-consumption ──────────────────────
+21:39:17 B1 consumer group before:  committed=156001 log-end=156001 lag=0
+21:39:18 B2 publishing 1000 positions with tracking-service consuming (deviceTime 2026-11-05T01:39:18.189Z … 2026-11-05T01:39:19.188Z, runId krt-20261105T013914Z-B)
+21:39:20 B3 462 rows persisted (≥ 40 % of 1000) — SIGTERM tracking-service
+21:39:22 B4 after kill:  rows=462  committed=156504 (+503 of this run) log-end=157001 lag=497
+    
+    GROUP                  TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+    tracking-service-group gps.positions          1          24584           24679           95              tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          3          26828           26923           95              tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          5          25316           25372           56              tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          0          25549           25724           175             tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          2          25227           25227           0               tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          4          29000           29076           76              tracking-service-5ce5d11a-58d2-40fa-aeef-bb45038339eb /172.18.0.1     tracking-service
+21:39:23    committed but not yet persisted at the stop: 41
+21:39:23 B5 restarting tracking-service
+21:39:56    healthy after 26 s; lag 0 after 32 s from restart (waited 4 s)
+21:39:56 B6 consumer group after:  committed=157001 log-end=157001 lag=0
+    
+    GROUP                  TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+    tracking-service-group gps.positions          1          24679           24679           0               tracking-service-9dfaa336-b8d9-4731-88fe-3d6be4f6d231 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          3          26923           26923           0               tracking-service-9dfaa336-b8d9-4731-88fe-3d6be4f6d231 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          5          25372           25372           0               tracking-service-9dfaa336-b8d9-4731-88fe-3d6be4f6d231 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          0          25724           25724           0               tracking-service-9dfaa336-b8d9-4731-88fe-3d6be4f6d231 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          2          25227           25227           0               tracking-service-9dfaa336-b8d9-4731-88fe-3d6be4f6d231 /172.18.0.1     tracking-service
+    tracking-service-group gps.positions          4          29076           29076           0               tracking-service-9dfaa336-b8d9-4731-88fe-3d6be4f6d231 /172.18.0.1     tracking-service
+21:40:12 B7 enriched_positions rows for the run: 959 (distinct: 959) — expected 1000
+21:40:12    redelivered after restart: 497; new rows after restart: 497; duplicates absorbed by ON CONFLICT: 0; lost: 41
+21:40:12    DLQ: 0 messages of this run; gps.positions.dlq end offset 0 → 0
+21:40:12    LOSS: 41 positions whose offsets were committed before their TimescaleDB write was flushed
+21:40:12 B  RESULT: FAIL
+21:40:12 
+21:40:12 == Summary  run=krt-20261105T013914Z
+21:40:12    B SIGTERM mid-run   : FAIL  published=1000 rows_at_kill=462 rows=959 lost=41 absorbed=0 dlq=0 recovery=32s
+21:40:12    evidence: scripts/validation/evidence/kafka-recovery-2026-11-04T2139.txt , scripts/validation/evidence/kafka-recovery-2026-11-04T2139.json
+21:40:12    rows are kept as evidence; remove them with: scripts/validation/kafka-recovery-test.sh --cleanup scripts/validation/evidence/kafka-recovery-2026-11-04T2139.json
